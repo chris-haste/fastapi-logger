@@ -4,9 +4,20 @@ import time
 import uuid
 from typing import Any
 
-from fastapi import Request, Response, status
-from fastapi.responses import JSONResponse
-from fastapi.requests import Request as FastAPIRequest
+try:
+    from fastapi import Request, Response, status
+    from fastapi.responses import JSONResponse
+    from fastapi.requests import Request as FastAPIRequest
+
+    FASTAPI_AVAILABLE = True
+except ImportError:
+    FASTAPI_AVAILABLE = False
+    # Type stubs for when FastAPI is not available
+    Request = Any
+    Response = Any
+    FastAPIRequest = Any
+    status = type("status", (), {"HTTP_500_INTERNAL_SERVER_ERROR": 500})()
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
@@ -17,7 +28,10 @@ from ._internal.context import (
 
 
 def add_trace_exception_handler(app):
-    """Register a custom exception handler that adds trace/span/latency headers to 500 responses."""
+    """
+    Register a custom exception handler that adds trace/span/latency
+    headers to 500 responses.
+    """
 
     @app.exception_handler(Exception)
     async def trace_exception_handler(request: FastAPIRequest, exc: Exception):
@@ -135,7 +149,8 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
                 exc_info=True,
             )
 
-            # Re-raise the exception so FastAPI can handle it (our handler will add headers)
+            # Re-raise the exception so FastAPI can handle it
+            # (our handler will add headers)
             raise
 
         finally:
