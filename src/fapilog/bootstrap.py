@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional
 
 import structlog
 
+from .middleware import TraceIDMiddleware
 from .pipeline import build_processor_chain
 from .settings import LoggingSettings
 
@@ -19,6 +20,7 @@ def configure_logging(
     sinks: Optional[Dict[str, Any]] = None,
     json_console: Optional[str] = None,
     settings: Optional[LoggingSettings] = None,
+    app: Optional[Any] = None,
 ) -> structlog.BoundLogger:
     """Configure structured logging for the application.
 
@@ -30,6 +32,8 @@ def configure_logging(
         sinks: Dictionary of sink configurations (reserved for future use)
         json_console: Override for console output format ('json' or 'pretty')
         settings: Optional LoggingSettings instance. If None, created from env.
+        app: Optional FastAPI app instance. If provided, TraceIDMiddleware
+             will be registered once.
 
     Returns:
         A configured structlog.BoundLogger instance
@@ -41,6 +45,9 @@ def configure_logging(
 
     # Check if already configured
     if _configured:
+        # Still register middleware if app is provided
+        if app is not None:
+            app.add_middleware(TraceIDMiddleware)
         return structlog.get_logger()  # type: ignore[no-any-return]
 
     # Get settings from environment if not provided
@@ -91,6 +98,10 @@ def configure_logging(
 
     # Mark as configured
     _configured = True
+
+    # Register middleware if app is provided
+    if app is not None:
+        app.add_middleware(TraceIDMiddleware)
 
     return structlog.get_logger()  # type: ignore[no-any-return]
 
