@@ -49,7 +49,10 @@ class TestConfigureLogging:
 
     def test_json_event_fields(self, capsys: pytest.CaptureFixture) -> None:
         """Test that JSON logs contain expected fields."""
-        with patch.dict(os.environ, {"FAPILOG_JSON_CONSOLE": "json"}):
+        with patch.dict(
+            os.environ,
+            {"FAPILOG_JSON_CONSOLE": "json", "FAPILOG_QUEUE_ENABLED": "false"},
+        ):
             logger = configure_logging()
             logger.info("test_event")
 
@@ -75,7 +78,10 @@ class TestConfigureLogging:
 
     def test_pretty_toggle_json(self) -> None:
         """Test that JSON rendering is used when explicitly set."""
-        with patch.dict(os.environ, {"FAPILOG_JSON_CONSOLE": "json"}):
+        with patch.dict(
+            os.environ,
+            {"FAPILOG_JSON_CONSOLE": "json", "FAPILOG_QUEUE_ENABLED": "false"},
+        ):
             configure_logging()
 
             # Check that structlog is configured with JSONRenderer
@@ -89,7 +95,10 @@ class TestConfigureLogging:
 
     def test_pretty_toggle_pretty(self) -> None:
         """Test that pretty rendering is used when explicitly set."""
-        with patch.dict(os.environ, {"FAPILOG_JSON_CONSOLE": "pretty"}):
+        with patch.dict(
+            os.environ,
+            {"FAPILOG_JSON_CONSOLE": "pretty", "FAPILOG_QUEUE_ENABLED": "false"},
+        ):
             configure_logging()
 
             # Check that structlog is configured with ConsoleRenderer
@@ -104,7 +113,7 @@ class TestConfigureLogging:
     def test_tty_detection_pretty(self) -> None:
         """Test that TTY detection defaults to pretty output."""
         with patch.object(sys.stderr, "isatty", return_value=True):
-            with patch.dict(os.environ, {}, clear=True):
+            with patch.dict(os.environ, {"FAPILOG_QUEUE_ENABLED": "false"}, clear=True):
                 configure_logging()
 
                 # Check that structlog is configured with ConsoleRenderer
@@ -119,7 +128,7 @@ class TestConfigureLogging:
     def test_tty_detection_json(self) -> None:
         """Test that non-TTY defaults to JSON output."""
         with patch.object(sys.stderr, "isatty", return_value=False):
-            with patch.dict(os.environ, {}, clear=True):
+            with patch.dict(os.environ, {"FAPILOG_QUEUE_ENABLED": "false"}, clear=True):
                 configure_logging()
 
                 # Check that structlog is configured with JSONRenderer
@@ -160,8 +169,9 @@ class TestConfigureLogging:
 
         async def async_log_test() -> None:
             """Test logging in async context."""
-            logger = configure_logging()
-            logger.info("async_test_event")
+            with patch.dict(os.environ, {"FAPILOG_QUEUE_ENABLED": "false"}):
+                logger = configure_logging()
+                logger.info("async_test_event")
 
         # This should not raise RuntimeError
         asyncio.run(async_log_test())

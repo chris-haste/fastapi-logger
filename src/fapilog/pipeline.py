@@ -116,11 +116,18 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
     processors.append(sampling)
     processors.append(_filter_none_processor)
 
-    # 10. Renderer (JSON or Console) - always last
-    if pretty:
-        renderer = structlog.dev.ConsoleRenderer(colors=True)
+    # 10. Queue sink or renderer
+    if settings.queue_enabled:
+        # Import here to avoid circular imports
+        from ._internal.queue import queue_sink
+
+        processors.append(queue_sink)
     else:
-        renderer = structlog.processors.JSONRenderer()
-    processors.append(renderer)
+        # Renderer (JSON or Console) - always last
+        if pretty:
+            renderer = structlog.dev.ConsoleRenderer(colors=True)
+        else:
+            renderer = structlog.processors.JSONRenderer()
+        processors.append(renderer)
 
     return processors

@@ -87,6 +87,66 @@ Request ─► TraceIDMiddleware ─► structlog pipeline ─► Async Queue �
 - **`_internal/queue.py`** — decouples log generation from I/O
 - **`sinks/`** — pluggable writers (start with `stdout` and `loki`; add more)
 
+## 🔄 Async Logging Queue
+
+`fapilog` uses a non-blocking, in-process queue to ensure log calls never block the asyncio event loop, even under high concurrency. This is crucial for maintaining performance in production environments.
+
+### How It Works
+
+1. **Non-blocking enqueue**: Log events are immediately enqueued as structured dictionaries
+2. **Background processing**: A dedicated `QueueWorker` coroutine processes events in batches
+3. **Graceful degradation**: When the queue is full, events are dropped silently (configurable)
+4. **Retry logic**: Failed sink writes are retried with exponential backoff
+5. **Graceful shutdown**: The queue worker shuts down cleanly on application exit
+
+### Performance Benefits
+
+- **Zero blocking**: Log calls return immediately, never blocking your request handlers
+- **Batch processing**: Events are processed in configurable batches for efficiency
+- **Memory efficient**: Fixed-size queue prevents unbounded memory growth
+- **Fault tolerant**: Sink failures don't affect application performance
+
+### Configuration
+
+```python
+from fapilog import configure_logging
+from fapilog.settings import LoggingSettings
+
+settings = LoggingSettings(
+    queue_enabled=True,           # Enable async queue (default: True)
+    queue_size=1000,             # Maximum queue size (default: 1000)
+    queue_batch_size=10,         # Events per batch (default: 10)
+    queue_batch_timeout=1.0,     # Max wait for batch (default: 1.0s)
+    queue_retry_delay=1.0,       # Retry delay (default: 1.0s)
+    queue_max_retries=3,         # Max retries per event (default: 3)
+)
+
+logger = configure_logging(settings=settings)
+```
+
+### Environment Variables
+
+| Variable                      | Default | Description             |
+| ----------------------------- | ------- | ----------------------- |
+| `FAPILOG_QUEUE_ENABLED`       | `true`  | Enable async queue      |
+| `FAPILOG_QUEUE_SIZE`          | `1000`  | Maximum queue size      |
+| `FAPILOG_QUEUE_BATCH_SIZE`    | `10`    | Events per batch        |
+| `FAPILOG_QUEUE_BATCH_TIMEOUT` | `1.0`   | Batch timeout (seconds) |
+| `FAPILOG_QUEUE_RETRY_DELAY`   | `1.0`   | Retry delay (seconds)   |
+| `FAPILOG_QUEUE_MAX_RETRIES`   | `3`     | Maximum retries         |
+
+### Under High Load
+
+When the queue reaches capacity, new log events are dropped silently to prevent blocking. This ensures your application remains responsive even during logging bottlenecks:
+
+```python
+# These calls will never block, even if sinks are slow
+for i in range(10000):
+    logger.info(f"high_frequency_event_{i}")  # Non-blocking
+```
+
+The queue worker processes events in the background, so your application continues to handle requests at full speed.
+
 ---
 
 ## 🔧 Configuration

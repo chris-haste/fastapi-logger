@@ -1,5 +1,7 @@
 """Bootstrap configuration for fapilog structured logging."""
 
+import asyncio
+import atexit
 import logging
 import sys
 import warnings
@@ -7,12 +9,15 @@ from typing import Any, Dict, Optional
 
 import structlog
 
+from ._internal.queue import QueueWorker, set_queue_worker
 from .middleware import TraceIDMiddleware
 from .pipeline import build_processor_chain
 from .settings import LoggingSettings
+from .sinks.stdout import StdoutSink
 
 # Module-level flag to track if logging has been configured
 _configured = False
+_queue_worker: Optional[QueueWorker] = None
 
 
 def configure_logging(
@@ -41,7 +46,7 @@ def configure_logging(
     Raises:
         RuntimeError: If called from an async context without proper setup
     """
-    global _configured
+    global _configured, _queue_worker
 
     # Check if already configured
     if _configured:
@@ -83,6 +88,14 @@ def configure_logging(
         force=True,  # Force reconfiguration
     )
 
+    # Initialize queue worker if enabled
+    if settings.queue_enabled:
+        _queue_worker = _setup_queue_worker(settings, console_format)
+        set_queue_worker(_queue_worker)
+    else:
+        # Ensure no queue worker is set when queue is disabled
+        set_queue_worker(None)
+
     # Build structlog processor chain using the new pipeline
     processors = build_processor_chain(settings, pretty=(console_format == "pretty"))
 
@@ -106,10 +119,99 @@ def configure_logging(
     return structlog.get_logger()  # type: ignore[no-any-return]
 
 
+def _setup_queue_worker(settings: LoggingSettings, console_format: str) -> QueueWorker:
+    """Set up the queue worker with appropriate sinks.
+
+    Args:
+        settings: LoggingSettings instance
+        console_format: Console output format ('json' or 'pretty')
+
+    Returns:
+        Configured QueueWorker instance
+    """
+    # Create sinks based on settings
+    sinks = []
+
+    # Add stdout sink if configured
+    if "stdout" in settings.sinks:
+        pretty = console_format == "pretty"
+        sinks.append(StdoutSink(pretty=pretty))
+
+    # Create queue worker
+    worker = QueueWorker(
+        sinks=sinks,
+        queue_size=settings.queue_size,
+        batch_size=settings.queue_batch_size,
+        batch_timeout=settings.queue_batch_timeout,
+        retry_delay=settings.queue_retry_delay,
+        max_retries=settings.queue_max_retries,
+    )
+
+    # Start the worker
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # We're in an async context, create a task
+            loop.create_task(worker.start())
+        else:
+            # We're in a sync context, run the worker
+            loop.run_until_complete(worker.start())
+    except RuntimeError:
+        # No event loop, create a new one
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(worker.start())
+
+    # Register shutdown handler
+    atexit.register(_shutdown_queue_worker)
+
+    return worker
+
+
+def _shutdown_queue_worker() -> None:
+    """Shutdown the queue worker gracefully."""
+    global _queue_worker
+    if _queue_worker is not None:
+        try:
+            # Try to get the current event loop
+            try:
+                loop = asyncio.get_running_loop()
+                # We're in an async context, create a task
+                loop.create_task(_queue_worker.stop())
+            except RuntimeError:
+                # No running loop, try to get the current loop
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        # We're in an async context, create a task
+                        loop.create_task(_queue_worker.stop())
+                    else:
+                        # We're in a sync context, run the shutdown
+                        loop.run_until_complete(_queue_worker.stop())
+                except RuntimeError:
+                    # No event loop at all, create a new one
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        loop.run_until_complete(_queue_worker.stop())
+                    finally:
+                        loop.close()
+        except Exception as e:
+            # Log the error but don't raise
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Error shutting down queue worker: {e}")
+        finally:
+            _queue_worker = None
+
+
 def reset_logging() -> None:
     """Reset logging configuration for testing purposes."""
-    global _configured
+    global _configured, _queue_worker
     _configured = False
+
+    # Shutdown queue worker
+    if _queue_worker is not None:
+        _shutdown_queue_worker()
 
     # Reset structlog configuration
     structlog.reset_defaults()
