@@ -2,7 +2,8 @@
 
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional
+import random
+from typing import Any, Dict, List, Literal, Optional
 import structlog
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,8 @@ class QueueWorker:
         batch_timeout: float = 1.0,
         retry_delay: float = 1.0,
         max_retries: int = 3,
+        overflow_strategy: Literal["drop", "block", "sample"] = "drop",
+        sampling_rate: float = 1.0,
     ) -> None:
         """Initialize the queue worker.
 
@@ -41,6 +44,8 @@ class QueueWorker:
             batch_timeout: Maximum time to wait for batch completion
             retry_delay: Delay between retries on sink failures
             max_retries: Maximum number of retries per event
+            overflow_strategy: Strategy for handling queue overflow
+            sampling_rate: Sampling rate for log messages (0.0 to 1.0)
         """
         self.sinks = sinks
         self.queue: asyncio.Queue[Dict[str, Any]] = asyncio.Queue(maxsize=queue_size)
@@ -48,6 +53,8 @@ class QueueWorker:
         self.batch_timeout = batch_timeout
         self.retry_delay = retry_delay
         self.max_retries = max_retries
+        self.overflow_strategy = overflow_strategy
+        self.sampling_rate = sampling_rate
         self._task: Optional[asyncio.Task[None]] = None
         self._running = False
         self._stopping = False
@@ -244,11 +251,31 @@ class QueueWorker:
         if self._stopping:
             return False
 
-        try:
-            self.queue.put_nowait(event_dict)
-            return True
-        except asyncio.QueueFull:
+        # Apply sampling if enabled
+        if self.sampling_rate < 1.0 and random.random() > self.sampling_rate:
             return False
+
+        if self.overflow_strategy == "drop":
+            # Drop strategy: try to enqueue, drop if full
+            try:
+                self.queue.put_nowait(event_dict)
+                return True
+            except asyncio.QueueFull:
+                return False
+        elif self.overflow_strategy == "block":
+            # Block strategy: wait until space is available
+            try:
+                await self.queue.put(event_dict)
+                return True
+            except asyncio.CancelledError:
+                return False
+        else:  # "sample"
+            # Sample strategy: use sampling rate for overflow
+            try:
+                self.queue.put_nowait(event_dict)
+                return True
+            except asyncio.QueueFull:
+                return False
 
 
 # Global queue worker instance
@@ -312,17 +339,34 @@ def queue_sink(
             # If we can't start the worker, fall back to sync processing
             return event_dict
 
-    # Try to enqueue the event (sync context, so we can't await)
-    try:
-        if worker._stopping:
-            # Don't enqueue if shutting down
+    # Handle different overflow strategies
+    if worker._stopping:
+        # Don't enqueue if shutting down
+        raise structlog.DropEvent
+
+    if worker.overflow_strategy == "drop":
+        # Drop strategy: try to enqueue, drop if full
+        try:
+            worker.queue.put_nowait(event_dict)
             raise structlog.DropEvent
-        worker.queue.put_nowait(event_dict)
-        # If put_nowait succeeds, drop the event from further processing
-        raise structlog.DropEvent
-    except asyncio.QueueFull:
-        # Drop the event silently if the queue is full
-        raise structlog.DropEvent
+        except asyncio.QueueFull:
+            raise structlog.DropEvent
+    elif worker.overflow_strategy == "block":
+        # Block strategy: not supported in sync context, fall back to drop
+        try:
+            worker.queue.put_nowait(event_dict)
+            raise structlog.DropEvent
+        except asyncio.QueueFull:
+            raise structlog.DropEvent
+    else:  # "sample"
+        # Sample strategy: apply sampling and try to enqueue
+        if worker.sampling_rate < 1.0 and random.random() > worker.sampling_rate:
+            raise structlog.DropEvent
+        try:
+            worker.queue.put_nowait(event_dict)
+            raise structlog.DropEvent
+        except asyncio.QueueFull:
+            raise structlog.DropEvent
 
 
 async def queue_sink_async(

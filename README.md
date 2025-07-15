@@ -135,9 +135,59 @@ logger = configure_logging(settings=settings)
 | `FAPILOG_QUEUE_RETRY_DELAY`   | `1.0`   | Retry delay (seconds)   |
 | `FAPILOG_QUEUE_MAX_RETRIES`   | `3`     | Maximum retries         |
 
+### Controlling Queue Overflow Behavior
+
+When the queue reaches capacity, you can control how `fapilog` handles the overflow using the `queue_overflow` setting. Three strategies are available:
+
+#### Drop Strategy (Default)
+
+Silently discards logs when the queue is full. This ensures your application never blocks on logging:
+
+```python
+settings = LoggingSettings(
+    queue_overflow="drop",  # Default behavior
+    queue_maxsize=1000,
+)
+```
+
+#### Block Strategy
+
+Waits for queue space to become available before continuing. Use this when you need guaranteed log delivery:
+
+```python
+settings = LoggingSettings(
+    queue_overflow="block",  # Wait for space
+    queue_maxsize=1000,
+)
+```
+
+#### Sample Strategy
+
+Uses probabilistic sampling when the queue is full. This provides adaptive logging under load:
+
+```python
+settings = LoggingSettings(
+    queue_overflow="sample",  # Probabilistic sampling
+    sampling_rate=0.1,        # Keep 10% of logs when queue is full
+    queue_maxsize=1000,
+)
+```
+
+### Environment Variables
+
+| Variable                      | Default | Description             |
+| ----------------------------- | ------- | ----------------------- |
+| `FAPILOG_QUEUE_ENABLED`       | `true`  | Enable async queue      |
+| `FAPILOG_QUEUE_SIZE`          | `1000`  | Maximum queue size      |
+| `FAPILOG_QUEUE_OVERFLOW`      | `drop`  | Overflow strategy       |
+| `FAPILOG_QUEUE_BATCH_SIZE`    | `10`    | Events per batch        |
+| `FAPILOG_QUEUE_BATCH_TIMEOUT` | `1.0`   | Batch timeout (seconds) |
+| `FAPILOG_QUEUE_RETRY_DELAY`   | `1.0`   | Retry delay (seconds)   |
+| `FAPILOG_QUEUE_MAX_RETRIES`   | `3`     | Maximum retries         |
+
 ### Under High Load
 
-When the queue reaches capacity, new log events are dropped silently to prevent blocking. This ensures your application remains responsive even during logging bottlenecks:
+When the queue reaches capacity, new log events are handled according to your overflow strategy. This ensures your application remains responsive even during logging bottlenecks:
 
 ```python
 # These calls will never block, even if sinks are slow

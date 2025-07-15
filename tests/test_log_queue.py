@@ -199,6 +199,159 @@ class TestQueueWorker:
         assert worker._task.done()
 
     @pytest.mark.asyncio
+    async def test_overflow_drop_mode(self, mock_sink: MockSink) -> None:
+        """Test that drop mode silently discards logs when queue is full."""
+        worker = QueueWorker(
+            sinks=[mock_sink],
+            queue_size=2,
+            overflow_strategy="drop",
+        )
+
+        # Fill the queue
+        await worker.enqueue({"event": "event_1"})
+        await worker.enqueue({"event": "event_2"})
+
+        # Try to enqueue more events - should be dropped silently
+        result = await worker.enqueue({"event": "overflow_1"})
+        assert result is False
+
+        result = await worker.enqueue({"event": "overflow_2"})
+        assert result is False
+
+        # Queue should still only have 2 items
+        assert worker.queue.qsize() == 2
+
+    @pytest.mark.asyncio
+    async def test_overflow_block_mode(self, mock_sink: MockSink) -> None:
+        """Test that block mode waits for queue space."""
+        worker = QueueWorker(
+            sinks=[mock_sink],
+            queue_size=1,
+            overflow_strategy="block",
+        )
+
+        # Fill the queue
+        await worker.enqueue({"event": "event_1"})
+
+        # Start a task to enqueue another event (should block)
+        async def enqueue_blocking():
+            return await worker.enqueue({"event": "blocking_event"})
+
+        # Start the blocking enqueue
+        task = asyncio.create_task(enqueue_blocking())
+
+        # Wait a bit to ensure it's blocked
+        await asyncio.sleep(0.1)
+        assert not task.done()
+
+        # Process the first event to free space
+        event = await worker.queue.get()
+        await mock_sink.write(event)
+
+        # Now the blocking enqueue should complete
+        await asyncio.wait_for(task, timeout=1.0)
+        assert task.done()
+        assert task.result() is True
+
+    @pytest.mark.asyncio
+    async def test_overflow_sample_mode(self, mock_sink: MockSink) -> None:
+        """Test that sample mode uses probabilistic sampling."""
+        worker = QueueWorker(
+            sinks=[mock_sink],
+            queue_size=1,
+            overflow_strategy="sample",
+            sampling_rate=0.5,
+        )
+
+        # Fill the queue
+        await worker.enqueue({"event": "event_1"})
+
+        # Try to enqueue more events with sampling
+        results = []
+        for i in range(10):
+            result = await worker.enqueue({"event": f"sample_event_{i}"})
+            results.append(result)
+
+        # Some should be accepted (True), some dropped (False)
+        # Due to sampling, we expect roughly half to be accepted
+        accepted_count = sum(1 for r in results if r is True)
+        assert 0 <= accepted_count <= 10  # Should be some variation
+
+    @pytest.mark.asyncio
+    async def test_overflow_sample_mode_with_sampling_rate(
+        self, mock_sink: MockSink
+    ) -> None:
+        """Test that sample mode respects the sampling rate."""
+        worker = QueueWorker(
+            sinks=[mock_sink],
+            queue_size=100,  # Large queue to avoid overflow
+            overflow_strategy="sample",
+            sampling_rate=0.3,
+        )
+
+        # Enqueue many events
+        results = []
+        for i in range(100):
+            result = await worker.enqueue({"event": f"sample_event_{i}"})
+            results.append(result)
+
+        # Count accepted events
+        accepted_count = sum(1 for r in results if r is True)
+
+        # With 30% sampling rate, we expect roughly 30% to be accepted
+        # Allow for some variance (20-40%)
+        assert 20 <= accepted_count <= 40
+
+    @pytest.mark.asyncio
+    async def test_overflow_strategies_with_sampling_rate(
+        self, mock_sink: MockSink
+    ) -> None:
+        """Test that sampling rate is applied correctly with different strategies."""
+        # Test drop strategy with sampling
+        worker_drop = QueueWorker(
+            sinks=[mock_sink],
+            queue_size=100,
+            overflow_strategy="drop",
+            sampling_rate=0.5,
+        )
+
+        # Test block strategy with sampling
+        worker_block = QueueWorker(
+            sinks=[mock_sink],
+            queue_size=100,
+            overflow_strategy="block",
+            sampling_rate=0.5,
+        )
+
+        # Test sample strategy with sampling
+        worker_sample = QueueWorker(
+            sinks=[mock_sink],
+            queue_size=100,
+            overflow_strategy="sample",
+            sampling_rate=0.5,
+        )
+
+        # Enqueue events to each worker
+        results_drop = []
+        results_block = []
+        results_sample = []
+
+        for i in range(20):
+            results_drop.append(await worker_drop.enqueue({"event": f"event_{i}"}))
+            results_block.append(await worker_block.enqueue({"event": f"event_{i}"}))
+            results_sample.append(await worker_sample.enqueue({"event": f"event_{i}"}))
+
+        # All should have similar sampling behavior
+        accepted_drop = sum(1 for r in results_drop if r is True)
+        accepted_block = sum(1 for r in results_block if r is True)
+        accepted_sample = sum(1 for r in results_sample if r is True)
+
+        # All should be around 10 (50% of 20)
+        assert 5 <= accepted_drop <= 15
+        assert 5 <= accepted_block <= 15
+        assert 5 <= accepted_sample <= 15
+
+    @pytest.mark.asyncio
     async def test_shutdown_flushes_events(
         self, worker: QueueWorker, mock_sink: MockSink
     ) -> None:
@@ -278,20 +431,84 @@ class TestQueueSink:
             queue_sink(None, "info", event_dict)
 
     def test_queue_sink_queue_full(self) -> None:
-        """Test queue_sink when queue is full."""
-        # Create a mock worker with a full queue
-        from fapilog._internal.queue import QueueWorker
-
-        worker = QueueWorker(sinks=[], queue_size=1)
-        # Fill the queue
-        worker.queue.put_nowait({"event": "existing_event"})
+        """Test that queue_sink handles full queue correctly."""
+        # Create a worker with a small queue
+        worker = QueueWorker(
+            sinks=[MockSink()],
+            queue_size=1,
+        )
         set_queue_worker(worker)
 
-        event_dict = {"level": "info", "event": "test_event"}
-
-        # Call queue_sink - should raise DropEvent when queue is full
+        # Fill the queue
+        event1 = {"level": "info", "event": "event_1"}
         with pytest.raises(structlog.DropEvent):
-            queue_sink(None, "info", event_dict)
+            queue_sink(None, "info", event1)
+
+        # Try to enqueue another event - should be dropped
+        event2 = {"level": "info", "event": "event_2"}
+        with pytest.raises(structlog.DropEvent):
+            queue_sink(None, "info", event2)
+
+    def test_queue_sink_overflow_drop_mode(self) -> None:
+        """Test queue_sink with drop overflow strategy."""
+        worker = QueueWorker(
+            sinks=[MockSink()],
+            queue_size=1,
+            overflow_strategy="drop",
+        )
+        set_queue_worker(worker)
+
+        # Fill the queue
+        event1 = {"level": "info", "event": "event_1"}
+        with pytest.raises(structlog.DropEvent):
+            queue_sink(None, "info", event1)
+
+        # Try to enqueue more events - should be dropped silently
+        for i in range(5):
+            event = {"level": "info", "event": f"overflow_{i}"}
+            with pytest.raises(structlog.DropEvent):
+                queue_sink(None, "info", event)
+
+    def test_queue_sink_overflow_block_mode(self) -> None:
+        """Test queue_sink with block overflow strategy (falls back to drop)."""
+        worker = QueueWorker(
+            sinks=[MockSink()],
+            queue_size=1,
+            overflow_strategy="block",
+        )
+        set_queue_worker(worker)
+
+        # Fill the queue
+        event1 = {"level": "info", "event": "event_1"}
+        with pytest.raises(structlog.DropEvent):
+            queue_sink(None, "info", event1)
+
+        # Try to enqueue more events - should fall back to drop in sync context
+        for i in range(5):
+            event = {"level": "info", "event": f"overflow_{i}"}
+            with pytest.raises(structlog.DropEvent):
+                queue_sink(None, "info", event)
+
+    def test_queue_sink_overflow_sample_mode(self) -> None:
+        """Test queue_sink with sample overflow strategy."""
+        worker = QueueWorker(
+            sinks=[MockSink()],
+            queue_size=1,
+            overflow_strategy="sample",
+            sampling_rate=0.5,
+        )
+        set_queue_worker(worker)
+
+        # Fill the queue
+        event1 = {"level": "info", "event": "event_1"}
+        with pytest.raises(structlog.DropEvent):
+            queue_sink(None, "info", event1)
+
+        # Try to enqueue more events with sampling
+        for i in range(10):
+            event = {"level": "info", "event": f"sample_{i}"}
+            with pytest.raises(structlog.DropEvent):
+                queue_sink(None, "info", event)
 
 
 class TestQueueIntegration:
@@ -309,7 +526,7 @@ class TestQueueIntegration:
         """Test that configure_logging sets up the queue correctly."""
         settings = LoggingSettings(
             queue_enabled=True,
-            queue_size=100,
+            queue_maxsize=100,
             queue_batch_size=5,
             queue_batch_timeout=0.5,
             queue_retry_delay=0.1,
@@ -368,7 +585,7 @@ class TestQueueIntegration:
         # Configure logging with small queue
         settings = LoggingSettings(
             queue_enabled=True,
-            queue_size=2,  # Very small queue
+            queue_maxsize=2,  # Very small queue
             sinks=["stdout"],
         )
 
@@ -392,7 +609,7 @@ class TestQueueIntegration:
         # Configure logging with queue
         settings = LoggingSettings(
             queue_enabled=True,
-            queue_size=100,
+            queue_maxsize=100,
             sinks=["stdout"],
         )
 

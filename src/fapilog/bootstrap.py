@@ -142,11 +142,13 @@ def _setup_queue_worker(settings: LoggingSettings, console_format: str) -> Queue
     # Create queue worker
     worker = QueueWorker(
         sinks=sinks,
-        queue_size=settings.queue_size,
+        queue_size=settings.queue_maxsize,
         batch_size=settings.queue_batch_size,
         batch_timeout=settings.queue_batch_timeout,
         retry_delay=settings.queue_retry_delay,
         max_retries=settings.queue_max_retries,
+        overflow_strategy=settings.queue_overflow,
+        sampling_rate=settings.sampling_rate,
     )
 
     # Don't start the worker immediately - it will be started when needed
