@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 
 import structlog
 
+from .enrichers import request_response_enricher
 from .settings import LoggingSettings
 
 
@@ -105,14 +106,17 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
     # 6. Custom redaction processor
     processors.append(_redact_processor(settings.redact_patterns))
 
-    # 7. Sampling processor (must be just before renderer)
+    # 7. Request/Response metadata enricher
+    processors.append(request_response_enricher)
+
+    # 8. Sampling processor (must be just before renderer)
     sampling = _sampling_processor(settings.sampling_rate)
 
-    # 8. Filter None processor (skips rendering if None)
+    # 9. Filter None processor (skips rendering if None)
     processors.append(sampling)
     processors.append(_filter_none_processor)
 
-    # 9. Renderer (JSON or Console) - always last
+    # 10. Renderer (JSON or Console) - always last
     if pretty:
         renderer = structlog.dev.ConsoleRenderer(colors=True)
     else:

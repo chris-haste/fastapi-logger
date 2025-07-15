@@ -132,6 +132,23 @@ pyproject.toml
 
 ---
 
+## 📊 Log Fields
+
+The following fields are automatically added to all log events:
+
+| Field         | Type    | Description                 | Example                      |
+| ------------- | ------- | --------------------------- | ---------------------------- |
+| `timestamp`   | string  | ISO-8601 UTC timestamp      | `"2024-01-15T10:30:45.123Z"` |
+| `level`       | string  | Log level                   | `"info"`, `"error"`          |
+| `event`       | string  | Log message                 | `"Request processed"`        |
+| `trace_id`    | string  | Request correlation ID      | `"abc123def456"`             |
+| `span_id`     | string  | Request span ID             | `"xyz789uvw012"`             |
+| `status_code` | integer | HTTP response status        | `200`, `404`, `500`          |
+| `latency_ms`  | float   | Request duration in ms      | `45.2`                       |
+| `req_bytes`   | integer | Request body size in bytes  | `1024`                       |
+| `res_bytes`   | integer | Response body size in bytes | `512`                        |
+| `user_agent`  | string  | Client User-Agent header    | `"curl/7.68.0"`              |
+
 ## 🧪 Testing
 
 ```python
@@ -141,6 +158,36 @@ def test_trace_id(caplog_json):
     assert "trace_id" in record
     assert record["extra"] == "value"
 ```
+
+## 🔄 Using Context in Background Tasks
+
+The logging context (trace_id, span_id, etc.) automatically propagates to background tasks using `context_copy()`:
+
+```python
+import asyncio
+from fapilog._internal.context import context_copy, get_context
+
+async def background_task():
+    """Background task that inherits the request context."""
+    context = get_context()
+    log.info("Background task started",
+             trace_id=context["trace_id"],
+             span_id=context["span_id"])
+
+@app.post("/process")
+async def process_data():
+    # Launch background task with context propagation
+    task = asyncio.create_task(context_copy().run(background_task))
+
+    # Main request continues...
+    log.info("Processing started")
+
+    # Wait for background task
+    await task
+    return {"status": "completed"}
+```
+
+The background task will log with the same `trace_id` as the original request, enabling end-to-end tracing across async operations.
 
 ---
 
