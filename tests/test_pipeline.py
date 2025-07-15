@@ -85,17 +85,18 @@ def test_processor_order():
     processors = build_processor_chain(settings, pretty=False)
     print([type(p) for p in processors])  # Debug print
     # Order: add_log_level, TimeStamper, format_exc_info, StackInfoRenderer,
-    # EventRenamer, redact, sampling, filter_none, JSONRenderer
+    # EventRenamer, redact, request_response_enricher, sampling, filter_none, JSONRenderer
     assert callable(processors[0])
     assert isinstance(processors[1], structlog.processors.TimeStamper)
     assert processors[2] == structlog.processors.format_exc_info
     assert isinstance(processors[3], structlog.processors.StackInfoRenderer)
     assert isinstance(processors[4], structlog.processors.EventRenamer)
-    # Redact, sampling, filter_none are callables (functions)
+    # Redact, request_response_enricher, sampling, filter_none are callables (functions)
     assert callable(processors[5])
     assert callable(processors[6])
     assert callable(processors[7])
-    assert isinstance(processors[8], structlog.processors.JSONRenderer)
+    assert callable(processors[8])
+    assert isinstance(processors[9], structlog.processors.JSONRenderer)
 
 
 def test_redaction_processor_no_patterns():
