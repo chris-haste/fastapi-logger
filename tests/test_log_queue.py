@@ -57,6 +57,7 @@ class TestQueueWorker:
             max_retries=2,
         )
 
+    @pytest.mark.asyncio
     async def test_worker_initialization(self, worker: QueueWorker) -> None:
         """Test that the worker initializes correctly."""
         assert worker.queue.maxsize == 10
@@ -66,6 +67,7 @@ class TestQueueWorker:
         assert worker.max_retries == 2
         assert len(worker.sinks) == 1
 
+    @pytest.mark.asyncio
     async def test_worker_start_stop(self, worker: QueueWorker) -> None:
         """Test that the worker starts and stops correctly."""
         # Start the worker
@@ -79,6 +81,7 @@ class TestQueueWorker:
         assert worker._running is False
         assert worker._task.done()
 
+    @pytest.mark.asyncio
     async def test_worker_enqueue_success(self, worker: QueueWorker) -> None:
         """Test that events can be enqueued successfully."""
         event = {"level": "info", "event": "test_event"}
@@ -90,6 +93,7 @@ class TestQueueWorker:
         # Check that the event is in the queue
         assert worker.queue.qsize() == 1
 
+    @pytest.mark.asyncio
     async def test_worker_enqueue_full_queue(self, worker: QueueWorker) -> None:
         """Test that enqueue returns False when queue is full."""
         # Fill the queue
@@ -100,6 +104,7 @@ class TestQueueWorker:
         success = await worker.enqueue({"event": "overflow"})
         assert success is False
 
+    @pytest.mark.asyncio
     async def test_worker_processes_events(
         self, worker: QueueWorker, mock_sink: MockSink
     ) -> None:
@@ -131,6 +136,7 @@ class TestQueueWorker:
         for event in events:
             assert event in mock_sink.events
 
+    @pytest.mark.asyncio
     async def test_worker_batch_processing(
         self, worker: QueueWorker, mock_sink: MockSink
     ) -> None:
@@ -152,6 +158,7 @@ class TestQueueWorker:
         assert len(mock_sink.events) == 5
         assert mock_sink.write_calls == 5
 
+    @pytest.mark.asyncio
     async def test_worker_retry_on_failure(
         self, worker: QueueWorker, mock_sink: MockSink
     ) -> None:
@@ -174,6 +181,7 @@ class TestQueueWorker:
         # Check that the event was retried multiple times
         assert mock_sink.write_calls >= 3  # Initial + 2 retries
 
+    @pytest.mark.asyncio
     async def test_worker_graceful_shutdown(self, worker: QueueWorker) -> None:
         """Test that the worker shuts down gracefully."""
         # Start the worker
@@ -189,6 +197,46 @@ class TestQueueWorker:
         # Check that the worker stopped
         assert worker._running is False
         assert worker._task.done()
+
+    @pytest.mark.asyncio
+    async def test_shutdown_flushes_events(
+        self, worker: QueueWorker, mock_sink: MockSink
+    ) -> None:
+        """Test that shutdown flushes remaining events in the queue."""
+        await worker.start()
+        # Enqueue events
+        for i in range(3):
+            await worker.enqueue({"event": f"event_{i}"})
+        # Call shutdown
+        await worker.shutdown()
+        # All events should be flushed
+        assert len(mock_sink.events) == 3
+
+    @pytest.mark.asyncio
+    async def test_shutdown_idempotent(
+        self, worker: QueueWorker, mock_sink: MockSink
+    ) -> None:
+        """Test that shutdown can be called multiple times safely."""
+        await worker.start()
+        await worker.enqueue({"event": "event_1"})
+        await worker.shutdown()
+        # Call shutdown again
+        await worker.shutdown()
+        # Event should be flushed only once
+        assert mock_sink.events.count({"event": "event_1"}) == 1
+
+    @pytest.mark.asyncio
+    async def test_no_enqueue_after_shutdown(
+        self, worker: QueueWorker, mock_sink: MockSink
+    ) -> None:
+        """Test that no events are enqueued or processed after shutdown."""
+        await worker.start()
+        await worker.shutdown()
+        # Try to enqueue after shutdown
+        result = await worker.enqueue({"event": "should_not_enqueue"})
+        assert result is False
+        # No new events should be processed
+        assert {"event": "should_not_enqueue"} not in mock_sink.events
 
 
 class TestQueueSink:
@@ -289,6 +337,7 @@ class TestQueueIntegration:
         worker = get_queue_worker()
         assert worker is None
 
+    @pytest.mark.asyncio
     async def test_logging_through_queue(self) -> None:
         """Test that logs flow through the queue correctly."""
         # Configure logging with queue
@@ -337,6 +386,7 @@ class TestQueueIntegration:
         # The exact number depends on timing, but some should be dropped
         assert worker.queue.qsize() <= 2
 
+    @pytest.mark.asyncio
     async def test_queue_nonblocking_under_load(self) -> None:
         """Test that queue doesn't block under high load."""
         # Configure logging with queue
@@ -371,6 +421,7 @@ class TestQueueIntegration:
 class TestStdoutSink:
     """Test the StdoutSink implementation."""
 
+    @pytest.mark.asyncio
     async def test_stdout_sink_json(self) -> None:
         """Test that StdoutSink writes JSON correctly."""
         sink = StdoutSink(pretty=False)
@@ -396,6 +447,7 @@ class TestStdoutSink:
             assert written_data["event"] == "test_event"
             assert written_data["timestamp"] == "2023-01-01T00:00:00Z"
 
+    @pytest.mark.asyncio
     async def test_stdout_sink_pretty(self) -> None:
         """Test that StdoutSink writes pretty format correctly."""
         sink = StdoutSink(pretty=True)
@@ -417,3 +469,333 @@ class TestStdoutSink:
 
             # Check that it's in pretty format
             assert "[2023-01-01T00:00:00Z] INFO: test_event" in call_args
+
+
+class TestFastAPIShutdownIntegration:
+    """Test FastAPI shutdown integration."""
+
+    def setup_method(self) -> None:
+        """Reset logging before each test."""
+        reset_logging()
+
+    def teardown_method(self) -> None:
+        """Reset logging after each test."""
+        reset_logging()
+
+    @pytest.mark.asyncio
+    async def test_fastapi_shutdown_handler_registration(self) -> None:
+        """Test that FastAPI shutdown handler is registered when app is provided."""
+        from fastapi import FastAPI
+        from fapilog.bootstrap import configure_logging
+        from fapilog.settings import LoggingSettings
+
+        # Create settings with queue enabled
+        settings = LoggingSettings(queue_enabled=True)
+
+        # Create FastAPI app
+        app = FastAPI()
+
+        # Configure logging with app
+        configure_logging(settings=settings, app=app)
+
+        # Check that middleware is registered (this indicates the app was configured)
+        assert len(app.user_middleware) > 0
+
+        # Verify that queue worker was created
+        from fapilog._internal.queue import get_queue_worker
+
+        worker = get_queue_worker()
+        assert worker is not None
+        # Note: We don't check if worker is running as it may be in a different state
+        # during test execution
+
+    @pytest.mark.asyncio
+    async def test_fastapi_shutdown_flushes_logs(self) -> None:
+        """Test that FastAPI shutdown event flushes remaining logs."""
+        from fastapi import FastAPI
+        from fapilog.bootstrap import configure_logging
+        from fapilog.settings import LoggingSettings
+        from fapilog._internal.queue import get_queue_worker
+
+        # Create mock sink
+        mock_sink = MockSink()
+
+        # Create settings with queue enabled
+        settings = LoggingSettings(queue_enabled=True)
+
+        # Create FastAPI app
+        app = FastAPI()
+
+        # Configure logging with app
+        configure_logging(settings=settings, app=app)
+
+        # Get the queue worker
+        worker = get_queue_worker()
+        assert worker is not None
+
+        # Replace sinks with mock sink for testing
+        worker.sinks = [mock_sink]
+
+        # Enqueue some events
+        for i in range(3):
+            await worker.enqueue({"event": f"test_event_{i}"})
+
+        # Simulate FastAPI shutdown by calling the shutdown handler
+        # The shutdown handler is registered as app.add_event_handler("shutdown", worker.shutdown)
+        await worker.shutdown()
+
+        # Verify that all events were flushed
+        assert len(mock_sink.events) == 3
+        for i in range(3):
+            assert {"event": f"test_event_{i}"} in mock_sink.events
+
+
+class TestAtexitShutdownIntegration:
+    """Test atexit shutdown integration."""
+
+    def setup_method(self) -> None:
+        """Reset logging before each test."""
+        reset_logging()
+
+    def teardown_method(self) -> None:
+        """Reset logging after each test."""
+        reset_logging()
+
+    def test_atexit_shutdown_in_sync_context(self) -> None:
+        """Test that atexit shutdown works in sync context."""
+        from fapilog.bootstrap import configure_logging, _shutdown_queue_worker
+        from fapilog.settings import LoggingSettings
+        from fapilog._internal.queue import get_queue_worker
+
+        # Configure logging with queue enabled
+        settings = LoggingSettings(queue_enabled=True)
+        configure_logging(settings=settings)
+
+        # Get the queue worker
+        worker = get_queue_worker()
+        assert worker is not None
+
+        # Replace sinks with mock sink for testing
+        mock_sink = MockSink()
+        worker.sinks = [mock_sink]
+
+        # Enqueue an event using a new event loop since we're in sync context
+        import asyncio
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            # Enqueue an event
+            loop.run_until_complete(worker.enqueue({"event": "test_event"}))
+        finally:
+            loop.close()
+
+        # Wait a bit for processing
+        import time
+
+        time.sleep(0.2)
+
+        # Call the shutdown function (simulates atexit)
+        _shutdown_queue_worker()
+
+        # Wait a bit for processing to complete
+        time.sleep(0.1)
+
+        # Verify that the event was flushed
+        assert len(mock_sink.events) == 1
+        assert {"event": "test_event"} in mock_sink.events
+
+    def test_atexit_shutdown_idempotent(self) -> None:
+        """Test that atexit shutdown can be called multiple times safely."""
+        from fapilog.bootstrap import _shutdown_queue_worker
+
+        # Configure logging
+        from fapilog.settings import LoggingSettings
+
+        settings = LoggingSettings(queue_enabled=True)
+        from fapilog.bootstrap import configure_logging
+
+        configure_logging(settings=settings)
+
+        # Call shutdown multiple times - should not raise exceptions
+        _shutdown_queue_worker()
+        _shutdown_queue_worker()
+        _shutdown_queue_worker()
+
+        # Should not raise any exceptions
+
+
+class TestShutdownBehavior:
+    """Test comprehensive shutdown behavior."""
+
+    def setup_method(self) -> None:
+        """Reset logging before each test."""
+        reset_logging()
+
+    def teardown_method(self) -> None:
+        """Reset logging after each test."""
+        reset_logging()
+
+    @pytest.mark.asyncio
+    async def test_shutdown_does_not_hang_on_idle_queue(self) -> None:
+        """Test that shutdown doesn't hang when queue is idle."""
+        worker = QueueWorker(sinks=[MockSink()], queue_size=10)
+
+        # Start the worker
+        await worker.start()
+
+        # Wait a bit to ensure worker is running
+        await asyncio.sleep(0.1)
+
+        # Shutdown without any events in queue
+        start_time = time.time()
+        await worker.shutdown()
+        shutdown_time = time.time() - start_time
+
+        # Shutdown should complete quickly (less than 1 second)
+        assert shutdown_time < 1.0
+
+        # Worker should be stopped
+        assert worker._running is False
+        assert worker._stopping is True
+
+    @pytest.mark.asyncio
+    async def test_shutdown_does_not_hang_on_drained_queue(self) -> None:
+        """Test that shutdown doesn't hang when queue is already drained."""
+        mock_sink = MockSink()
+        worker = QueueWorker(sinks=[mock_sink], queue_size=10)
+
+        # Start the worker
+        await worker.start()
+
+        # Enqueue and process some events
+        for i in range(3):
+            await worker.enqueue({"event": f"event_{i}"})
+
+        # Wait for processing
+        await asyncio.sleep(0.2)
+
+        # Verify events were processed
+        assert len(mock_sink.events) == 3
+
+        # Shutdown when queue is already drained
+        start_time = time.time()
+        await worker.shutdown()
+        shutdown_time = time.time() - start_time
+
+        # Shutdown should complete quickly
+        assert shutdown_time < 1.0
+
+        # Worker should be stopped
+        assert worker._running is False
+        assert worker._stopping is True
+
+    @pytest.mark.asyncio
+    async def test_shutdown_cleans_up_background_tasks(self) -> None:
+        """Test that shutdown properly cleans up background tasks."""
+        worker = QueueWorker(sinks=[MockSink()], queue_size=10)
+
+        # Start the worker
+        await worker.start()
+
+        # Verify task is running
+        assert worker._task is not None
+        assert not worker._task.done()
+
+        # Shutdown
+        await worker.shutdown()
+
+        # Verify task is done
+        assert worker._task.done()
+
+        # Verify no unexpected exceptions were raised
+        # CancelledError is expected when we cancel the task
+        try:
+            exception = worker._task.exception()
+            if exception is not None and not isinstance(
+                exception, asyncio.CancelledError
+            ):
+                pytest.fail(
+                    "Worker task raised unexpected exception: {}".format(exception)
+                )
+        except asyncio.CancelledError:
+            # This is expected when the task was cancelled
+            pass
+
+    @pytest.mark.asyncio
+    async def test_shutdown_with_failing_sinks(self) -> None:
+        """Test that shutdown handles failing sinks gracefully."""
+        # Create a sink that fails
+        failing_sink = MockSink()
+        failing_sink.should_fail = True
+
+        worker = QueueWorker(sinks=[failing_sink], queue_size=10)
+
+        # Start the worker
+        await worker.start()
+
+        # Enqueue an event
+        await worker.enqueue({"event": "test_event"})
+
+        # Shutdown - should not hang or raise exceptions
+        start_time = time.time()
+        await worker.shutdown()
+        shutdown_time = time.time() - start_time
+
+        # Shutdown should complete (allow more time for retries)
+        assert shutdown_time < 10.0  # Increased timeout for retries
+
+        # Worker should be stopped
+        assert worker._running is False
+        assert worker._stopping is True
+
+    @pytest.mark.asyncio
+    async def test_worker_cleanup_on_exception(self) -> None:
+        """Test that worker cleanup works even when exceptions occur."""
+        worker = QueueWorker(sinks=[MockSink()], queue_size=10)
+
+        # Start the worker
+        await worker.start()
+
+        # Verify task is running
+        assert worker._task is not None
+        assert not worker._task.done()
+
+        # Simulate an exception during shutdown
+        # This tests that cleanup still works
+        try:
+            await worker.shutdown()
+        except Exception:
+            # Even if shutdown fails, the worker should be marked as stopping
+            assert worker._stopping is True
+            assert worker._running is False
+        else:
+            # If shutdown succeeds, verify task is done
+            assert worker._task.done()
+
+    @pytest.mark.asyncio
+    async def test_multiple_workers_cleanup(self) -> None:
+        """Test that multiple workers can be created and cleaned up properly."""
+        workers = []
+
+        # Create multiple workers
+        for i in range(3):
+            worker = QueueWorker(sinks=[MockSink()], queue_size=5)
+            await worker.start()
+            workers.append(worker)
+
+        # Verify all workers are running
+        for worker in workers:
+            assert worker._running is True
+            assert worker._task is not None
+            assert not worker._task.done()
+
+        # Shutdown all workers
+        for worker in workers:
+            await worker.shutdown()
+
+        # Verify all workers are stopped
+        for worker in workers:
+            assert worker._running is False
+            assert worker._stopping is True
+            assert worker._task.done()

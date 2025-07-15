@@ -9,7 +9,8 @@ from fapilog.bootstrap import configure_logging
 from fapilog.middleware import TraceIDMiddleware, add_trace_exception_handler
 
 
-def test_forward_trace_header():
+@pytest.mark.asyncio
+async def test_forward_trace_header():
     """Test that X-Trace-Id header is forwarded."""
     app = FastAPI()
 
@@ -27,7 +28,8 @@ def test_forward_trace_header():
     assert response.headers["X-Trace-Id"] == "custom-trace-123"
 
 
-def test_generate_trace_header():
+@pytest.mark.asyncio
+async def test_generate_trace_header():
     """Test that trace ID is generated when not provided."""
     app = FastAPI()
 
@@ -46,7 +48,8 @@ def test_generate_trace_header():
     assert len(response.headers["X-Trace-Id"]) == 32  # UUID hex length
 
 
-def test_latency_header_present():
+@pytest.mark.asyncio
+async def test_latency_header_present():
     """Test that X-Response-Time-ms header is present."""
     app = FastAPI()
 
@@ -64,7 +67,8 @@ def test_latency_header_present():
     assert float(response.headers["X-Response-Time-ms"]) >= 0
 
 
-def test_context_cleanup():
+@pytest.mark.asyncio
+async def test_context_cleanup():
     """Test that context is cleaned up after request."""
     from fapilog._internal.context import get_context
 
@@ -88,7 +92,8 @@ def test_context_cleanup():
         assert value is None
 
 
-def test_exception_handling():
+@pytest.mark.asyncio
+async def test_exception_handling():
     """Test that exceptions are handled correctly."""
     app = FastAPI()
 
@@ -107,7 +112,8 @@ def test_exception_handling():
     assert "X-Response-Time-ms" in response.headers
 
 
-def test_context_cleanup_after_exception():
+@pytest.mark.asyncio
+async def test_context_cleanup_after_exception():
     """Test that context is cleaned up even after exceptions."""
     from fapilog._internal.context import get_context
 
@@ -132,7 +138,8 @@ def test_context_cleanup_after_exception():
         assert value is None
 
 
-def test_middleware_idempotent_registration():
+@pytest.mark.asyncio
+async def test_middleware_idempotent_registration():
     """Test that middleware can be registered multiple times safely."""
     app = FastAPI()
 
@@ -151,7 +158,8 @@ def test_middleware_idempotent_registration():
     assert "X-Trace-Id" in response.headers
 
 
-def test_json_response_body_size_calculation():
+@pytest.mark.asyncio
+async def test_json_response_body_size_calculation():
     """Test JSON response body size calculation logic."""
     app = FastAPI()
 
@@ -178,7 +186,8 @@ def test_json_response_body_size_calculation():
     assert "X-Trace-Id" in response.headers
 
 
-def test_non_json_response_body_size():
+@pytest.mark.asyncio
+async def test_non_json_response_body_size():
     """Test response body size calculation for non-JSON responses."""
     app = FastAPI()
 
@@ -205,7 +214,8 @@ def test_non_json_response_body_size():
 # middleware's exception handling logic.
 
 
-def test_exception_handler_with_missing_state():
+@pytest.mark.asyncio
+async def test_exception_handler_with_missing_state():
     """Test exception handler when request.state attributes are missing."""
     app = FastAPI()
 
@@ -226,7 +236,8 @@ def test_exception_handler_with_missing_state():
     assert float(response.headers["X-Response-Time-ms"]) >= 0
 
 
-def test_exception_handler_with_partial_state():
+@pytest.mark.asyncio
+async def test_exception_handler_with_partial_state():
     """Test exception handler when only some request.state attributes are present."""
     app = FastAPI()
 
@@ -256,7 +267,8 @@ def test_exception_handler_with_partial_state():
     assert "X-Span-Id" in response.headers
 
 
-def test_middleware_with_content_length_header():
+@pytest.mark.asyncio
+async def test_middleware_with_content_length_header():
     """Test middleware with explicit content-length header."""
     app = FastAPI()
 
@@ -278,7 +290,8 @@ def test_middleware_with_content_length_header():
     assert response.headers["X-Trace-Id"] == "custom-trace-456"
 
 
-def test_middleware_with_empty_content_length():
+@pytest.mark.asyncio
+async def test_middleware_with_empty_content_length():
     """Test middleware with empty content-length header."""
     app = FastAPI()
 
@@ -300,7 +313,8 @@ def test_middleware_with_empty_content_length():
     assert response.headers["X-Trace-Id"] == "custom-trace-789"
 
 
-def test_middleware_with_invalid_content_length():
+@pytest.mark.asyncio
+async def test_middleware_with_invalid_content_length():
     """Test middleware with invalid content-length header."""
     app = FastAPI()
 
@@ -322,7 +336,8 @@ def test_middleware_with_invalid_content_length():
     assert response.headers["X-Trace-Id"] == "custom-trace-abc"
 
 
-def test_middleware_with_custom_user_agent():
+@pytest.mark.asyncio
+async def test_middleware_with_custom_user_agent():
     """Test middleware with custom user agent header."""
     app = FastAPI()
 
@@ -343,7 +358,8 @@ def test_middleware_with_custom_user_agent():
     assert response.headers["X-Trace-Id"] == "custom-trace-def"
 
 
-def test_middleware_without_user_agent():
+@pytest.mark.asyncio
+async def test_middleware_without_user_agent():
     """Test middleware without user agent header (should default to '-')."""
     app = FastAPI()
 
@@ -361,7 +377,8 @@ def test_middleware_without_user_agent():
     assert "X-Trace-Id" in response.headers
 
 
-def test_middleware_with_response_body():
+@pytest.mark.asyncio
+async def test_middleware_with_response_body():
     """Test middleware with response that has a body."""
     app = FastAPI()
 
@@ -380,7 +397,8 @@ def test_middleware_with_response_body():
     assert response.json()["message"] == "test"
 
 
-def test_middleware_with_empty_response_body():
+@pytest.mark.asyncio
+async def test_middleware_with_empty_response_body():
     """Test middleware with response that has an empty body."""
     app = FastAPI()
 
@@ -399,7 +417,8 @@ def test_middleware_with_empty_response_body():
     assert response.json() == {}
 
 
-def test_middleware_with_non_json_response():
+@pytest.mark.asyncio
+async def test_middleware_with_non_json_response():
     """Test middleware with non-JSON response."""
     app = FastAPI()
 
@@ -420,7 +439,8 @@ def test_middleware_with_non_json_response():
     assert response.text == "Hello, World!"
 
 
-def test_middleware_with_binary_response():
+@pytest.mark.asyncio
+async def test_middleware_with_binary_response():
     """Test middleware with binary response."""
     app = FastAPI()
 
@@ -441,7 +461,8 @@ def test_middleware_with_binary_response():
     assert response.content == b"binary data"
 
 
-def test_middleware_with_response_no_body_attribute():
+@pytest.mark.asyncio
+async def test_middleware_with_response_no_body_attribute():
     """Test middleware with response that doesn't have a body attribute."""
     app = FastAPI()
 
@@ -466,7 +487,8 @@ def test_middleware_with_response_no_body_attribute():
     assert response.text == "streaming data"
 
 
-def test_middleware_with_response_no_media_type():
+@pytest.mark.asyncio
+async def test_middleware_with_response_no_media_type():
     """Test middleware with response that doesn't have a media_type attribute."""
     app = FastAPI()
 

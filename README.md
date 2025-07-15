@@ -149,6 +149,63 @@ The queue worker processes events in the background, so your application continu
 
 ---
 
+## 🔄 Shutdown Behavior and Log Flushing
+
+`fapilog` ensures that all log events are flushed during application shutdown, preventing data loss when the service exits or is terminated cleanly.
+
+### How Shutdown Works
+
+1. **FastAPI Integration**: When used with FastAPI, the queue worker automatically registers a shutdown handler that flushes remaining logs
+2. **CLI/Script Mode**: For standalone applications, `atexit` handlers ensure logs are flushed on exit
+3. **Event Loop Safety**: The worker tracks its event loop and uses `run_coroutine_threadsafe` to safely shutdown from sync contexts
+4. **Timeout Protection**: Shutdown operations have a 5-second timeout to prevent hanging during cleanup
+
+### Shutdown Scenarios
+
+**FastAPI Application:**
+
+```python
+from fastapi import FastAPI
+from fapilog import configure_logging
+
+app = FastAPI()
+configure_logging(app=app)  # Automatically registers shutdown handler
+
+@app.get("/")
+async def root():
+    log.info("Request processed")
+    return {"message": "Hello World"}
+```
+
+**CLI/Script Application:**
+
+```python
+from fapilog import configure_logging
+
+configure_logging()  # Registers atexit handler automatically
+
+def main():
+    log.info("Application started")
+    # ... your application logic ...
+    log.info("Application completed")
+
+if __name__ == "__main__":
+    main()
+    # Logs are automatically flushed on exit
+```
+
+### Graceful Degradation
+
+- If the worker's event loop is unavailable during shutdown, the system falls back to `asyncio.run()`
+- Shutdown operations are wrapped in try/catch blocks to prevent exceptions from affecting application exit
+- The queue worker can be safely shut down multiple times (idempotent shutdown)
+
+### Configuration
+
+Shutdown behavior is automatically configured and doesn't require additional setup. The system handles both async and sync shutdown contexts transparently.
+
+---
+
 ## 🔧 Configuration
 
 All knobs are environment-driven (perfect for 12-factor apps):
