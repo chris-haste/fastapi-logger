@@ -1,6 +1,5 @@
 """Bootstrap configuration for fapilog structured logging."""
 
-import asyncio
 import atexit
 import logging
 import sys
@@ -115,6 +114,9 @@ def configure_logging(
     # Register middleware if app is provided
     if app is not None:
         app.add_middleware(TraceIDMiddleware)
+        # Register FastAPI shutdown event for graceful log flushing
+        if _queue_worker is not None:
+            app.add_event_handler("shutdown", _queue_worker.shutdown)
 
     return structlog.get_logger()  # type: ignore[no-any-return]
 
@@ -147,20 +149,8 @@ def _setup_queue_worker(settings: LoggingSettings, console_format: str) -> Queue
         max_retries=settings.queue_max_retries,
     )
 
-    # Start the worker
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # We're in an async context, create a task
-            loop.create_task(worker.start())
-        else:
-            # We're in a sync context, run the worker
-            loop.run_until_complete(worker.start())
-    except RuntimeError:
-        # No event loop, create a new one
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(worker.start())
+    # Don't start the worker immediately - it will be started when needed
+    # This avoids event loop conflicts during shutdown
 
     # Register shutdown handler
     atexit.register(_shutdown_queue_worker)
@@ -173,33 +163,10 @@ def _shutdown_queue_worker() -> None:
     global _queue_worker
     if _queue_worker is not None:
         try:
-            # Try to get the current event loop
-            try:
-                loop = asyncio.get_running_loop()
-                # We're in an async context, create a task
-                loop.create_task(_queue_worker.stop())
-            except RuntimeError:
-                # No running loop, try to get the current loop
-                try:
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        # We're in an async context, create a task
-                        loop.create_task(_queue_worker.stop())
-                    else:
-                        # We're in a sync context, run the shutdown
-                        loop.run_until_complete(_queue_worker.stop())
-                except RuntimeError:
-                    # No event loop at all, create a new one
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    try:
-                        loop.run_until_complete(_queue_worker.stop())
-                    finally:
-                        loop.close()
+            _queue_worker.shutdown_sync()
         except Exception as e:
-            # Log the error but don't raise
             logger = logging.getLogger(__name__)
-            logger.warning(f"Error shutting down queue worker: {e}")
+            logger.warning(f"Error stopping queue worker: {e}")
         finally:
             _queue_worker = None
 

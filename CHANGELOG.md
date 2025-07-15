@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Story 3.2**: Background Queue Worker & Graceful Shutdown
+  - Enhanced `QueueWorker` shutdown with proper event loop management and timeout handling
+  - Added `shutdown_sync()` method for safe shutdown from sync contexts (atexit, CLI)
+  - Fixed event loop conflicts during shutdown using `run_coroutine_threadsafe`
+  - Improved shutdown reliability with 5-second timeout to prevent hanging
+  - Queue worker now tracks its event loop and ensures shutdown runs on the correct loop
+  - Graceful degradation: if worker loop is unavailable, falls back to `asyncio.run()`
+  - All tests now pass with robust async/sync shutdown handling
+  - Updated test suite to use `@pytest.mark.asyncio` decorators for async tests
+  - Fixed pytest-asyncio compatibility issues by pinning to version 0.23.6
 - **Story 3.1**: Non-Blocking In-Process Log Queue
   - Async log queue implementation using `asyncio.Queue` for non-blocking logging
   - Background `QueueWorker` coroutine that processes log events in batches

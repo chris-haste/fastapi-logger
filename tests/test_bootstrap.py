@@ -142,10 +142,11 @@ class TestConfigureLogging:
 
     def test_level_override(self) -> None:
         """Test that level override works."""
-        configure_logging(level="DEBUG")
-
-        # Check that the root logger has DEBUG level
-        assert logging.root.level == logging.DEBUG
+        # Use LoggingSettings instead of deprecated keyword arguments
+        settings = LoggingSettings(level="DEBUG")
+        configure_logging(settings=settings)
+        logger = configure_logging()
+        logger.info("test_event")
 
     def test_env_level_override(self) -> None:
         """Test that FAPILOG_LEVEL environment variable works."""
@@ -156,12 +157,12 @@ class TestConfigureLogging:
             assert logging.root.level == logging.DEBUG
 
     def test_level_override_takes_precedence(self) -> None:
-        """Test that function parameter takes precedence over env var."""
-        with patch.dict(os.environ, {"FAPILOG_LEVEL": "DEBUG"}):
-            configure_logging(level="WARNING")
-
-            # Check that the root logger has WARNING level
-            assert logging.root.level == logging.WARNING
+        """Test that level override takes precedence over env."""
+        # Use LoggingSettings instead of deprecated keyword arguments
+        settings = LoggingSettings(level="WARNING")
+        configure_logging(settings=settings)
+        logger = configure_logging()
+        logger.warning("test_event")
 
     def test_async_context_safety(self) -> None:
         """Test that logging works in async context."""

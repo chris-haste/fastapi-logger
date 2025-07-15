@@ -50,6 +50,8 @@ class QueueWorker:
         self.max_retries = max_retries
         self._task: Optional[asyncio.Task[None]] = None
         self._running = False
+        self._stopping = False
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     async def start(self) -> None:
         """Start the queue worker."""
@@ -57,6 +59,8 @@ class QueueWorker:
             return  # Already running
 
         self._running = True
+        self._stopping = False
+        self._loop = asyncio.get_running_loop()
         self._task = asyncio.create_task(self._run())
         logger.debug("QueueWorker started")
 
@@ -77,9 +81,85 @@ class QueueWorker:
 
         logger.debug("QueueWorker stopped")
 
+    async def shutdown(self) -> None:
+        """Shutdown the queue worker gracefully, ensuring all logs are flushed.
+
+        This method:
+        1. Marks the queue as stopping to prevent new events from being
+           processed
+        2. Waits for the queue to drain
+        3. Ensures all log events are flushed to all registered sinks
+        4. Can be called safely more than once
+        """
+        if self._stopping:
+            # Already shutting down, just wait for completion
+            if self._task is not None and not self._task.done():
+                try:
+                    await self._task
+                except asyncio.CancelledError:
+                    pass
+            return
+
+        logger.debug("QueueWorker shutdown initiated")
+        self._stopping = True
+        self._running = False
+
+        # Wait for the worker task to complete
+        if self._task is not None and not self._task.done():
+            try:
+                # Cancel the task if it's still running
+                self._task.cancel()
+                # Use a timeout to avoid hanging and event loop issues
+                await asyncio.wait_for(self._task, timeout=5.0)
+            except asyncio.TimeoutError:
+                logger.warning("Worker task shutdown timed out")
+            except asyncio.CancelledError:
+                pass
+            except Exception as e:
+                logger.warning(f"Error during worker task shutdown: {e}")
+
+        # Drain any remaining events in the queue
+        await self._drain_queue()
+
+        logger.debug("QueueWorker shutdown completed")
+
+    def shutdown_sync(self, timeout: float = 5.0) -> None:
+        """Shutdown the worker from a sync context, using the correct event loop."""
+        if self._loop and self._loop.is_running():
+            # Schedule shutdown on the worker's loop
+            fut = asyncio.run_coroutine_threadsafe(self.shutdown(), self._loop)
+            try:
+                fut.result(timeout=timeout)
+            except Exception as e:
+                logger.warning(f"Error during sync shutdown: {e}")
+        else:
+            # Fallback: run in current thread/loop
+            try:
+                asyncio.run(self.shutdown())
+            except Exception as e:
+                logger.warning(f"Error during sync shutdown fallback: {e}")
+
+    async def _drain_queue(self) -> None:
+        """Drain all remaining events from the queue and process them."""
+        drained_events = []
+
+        # Collect all remaining events from the queue
+        while not self.queue.empty():
+            try:
+                event = self.queue.get_nowait()
+                drained_events.append(event)
+            except asyncio.QueueEmpty:
+                break
+
+        # Process all drained events
+        if drained_events:
+            logger.debug(f"Draining {len(drained_events)} remaining events")
+            for event in drained_events:
+                await self._process_event(event)
+
     async def _run(self) -> None:
         """Main worker loop."""
-        while self._running:
+        while self._running and not self._stopping:
             try:
                 # Process events in batches
                 batch = await self._collect_batch()
@@ -89,7 +169,12 @@ class QueueWorker:
                 break
             except Exception as e:
                 logger.error(f"Error in queue worker: {e}")
-                await asyncio.sleep(self.retry_delay)
+                if not self._stopping:
+                    await asyncio.sleep(self.retry_delay)
+
+        # Ensure we drain the queue on shutdown
+        if self._stopping:
+            await self._drain_queue()
 
     async def _collect_batch(self) -> List[Dict[str, Any]]:
         """Collect a batch of events from the queue."""
@@ -153,8 +238,12 @@ class QueueWorker:
             event_dict: The structured log event dictionary
 
         Returns:
-            True if the event was enqueued, False if the queue was full
+            True if the event was enqueued, False if the queue was full or
+            shutting down
         """
+        if self._stopping:
+            return False
+
         try:
             self.queue.put_nowait(event_dict)
             return True
@@ -198,8 +287,36 @@ def queue_sink(
         # Fall back to synchronous processing if no queue worker
         return event_dict
 
+    # Start the worker if it's not running
+    if not worker._running and not worker._stopping:
+        try:
+            # Try to start the worker in the current context
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(worker.start())
+            except RuntimeError:
+                # No running loop, start it in a new thread
+                import threading
+
+                def start_worker():
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        loop.run_until_complete(worker.start())
+                    finally:
+                        loop.close()
+
+                thread = threading.Thread(target=start_worker, daemon=True)
+                thread.start()
+        except Exception:
+            # If we can't start the worker, fall back to sync processing
+            return event_dict
+
     # Try to enqueue the event (sync context, so we can't await)
     try:
+        if worker._stopping:
+            # Don't enqueue if shutting down
+            raise structlog.DropEvent
         worker.queue.put_nowait(event_dict)
         # If put_nowait succeeds, drop the event from further processing
         raise structlog.DropEvent
@@ -219,7 +336,7 @@ async def queue_sink_async(
     # Try to enqueue the event
     enqueued = await worker.enqueue(event_dict)
     if not enqueued:
-        # Queue is full, drop the event silently
+        # Queue is full or shutting down, drop the event silently
         return None
 
     return None  # Prevent further processing
