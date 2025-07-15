@@ -33,6 +33,31 @@ class LoggingSettings(BaseSettings):
         default=1.0,
         description="Sampling rate for log messages (0.0 to 1.0)",
     )
+    # Queue settings
+    queue_enabled: bool = Field(
+        default=True,
+        description="Enable async queue for non-blocking logging",
+    )
+    queue_size: int = Field(
+        default=1000,
+        description="Maximum size of the async log queue",
+    )
+    queue_batch_size: int = Field(
+        default=10,
+        description="Number of events to process in a batch",
+    )
+    queue_batch_timeout: float = Field(
+        default=1.0,
+        description="Maximum time to wait for batch completion (seconds)",
+    )
+    queue_retry_delay: float = Field(
+        default=1.0,
+        description="Delay between retries on sink failures (seconds)",
+    )
+    queue_max_retries: int = Field(
+        default=3,
+        description="Maximum number of retries per event",
+    )
 
     model_config = SettingsConfigDict(
         env_prefix="FAPILOG_",
@@ -78,6 +103,41 @@ class LoggingSettings(BaseSettings):
     def validate_sampling_rate(cls, v: float) -> float:
         if not 0.0 <= v <= 1.0:
             raise ValueError(f"Sampling rate must be between 0.0 and 1.0, got {v}")
+        return v
+
+    @field_validator("queue_size")
+    @classmethod
+    def validate_queue_size(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("Queue size must be positive")
+        return v
+
+    @field_validator("queue_batch_size")
+    @classmethod
+    def validate_queue_batch_size(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("Queue batch size must be positive")
+        return v
+
+    @field_validator("queue_batch_timeout")
+    @classmethod
+    def validate_queue_batch_timeout(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("Queue batch timeout must be positive")
+        return v
+
+    @field_validator("queue_retry_delay")
+    @classmethod
+    def validate_queue_retry_delay(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("Queue retry delay must be positive")
+        return v
+
+    @field_validator("queue_max_retries")
+    @classmethod
+    def validate_queue_max_retries(cls, v: int) -> int:
+        if v < 0:
+            raise ValueError("Queue max retries must be non-negative")
         return v
 
 

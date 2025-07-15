@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Story 3.1**: Non-Blocking In-Process Log Queue
+  - Async log queue implementation using `asyncio.Queue` for non-blocking logging
+  - Background `QueueWorker` coroutine that processes log events in batches
+  - Graceful degradation: when queue is full, events are dropped silently to prevent blocking
+  - Retry logic with exponential backoff for failed sink writes
+  - Graceful shutdown via `atexit` or FastAPI `on_shutdown` handlers
+  - Comprehensive unit tests verifying queue behavior, capacity limits, and non-blocking performance
+  - Queue configuration via environment variables: `FAPILOG_QUEUE_ENABLED`, `FAPILOG_QUEUE_SIZE`, `FAPILOG_QUEUE_BATCH_SIZE`, etc.
+  - Updated README with "Async Logging Queue" section documenting performance benefits and configuration
 - **Story 2.3**: ContextVar Utilities & Leak Prevention
   - ContextVar utilities for safe context management with `get_context()`, `bind_context()`, `clear_context()`, and `context_copy()` functions
   - Automatic context propagation to background tasks using `asyncio.create_task(context_copy().run(func))`
