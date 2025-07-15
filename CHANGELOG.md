@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Story 3.3**: Queue Overflow Strategy: Drop, Block, or Sample
+  - Configurable queue overflow handling via `LoggingSettings.queue_overflow` with three strategies:
+    - `drop`: Silently discard logs when queue is full (default)
+    - `block`: Wait for queue space before continuing (guaranteed delivery)
+    - `sample`: Use probabilistic sampling when queue is full (adaptive logging)
+  - Enhanced `QueueWorker.enqueue()` method to respect overflow strategy settings
+  - Updated `queue_sink()` processor to handle different overflow strategies in sync contexts
+  - Comprehensive unit tests for all overflow strategies with proper async/sync behavior
+  - Updated README with "Controlling Queue Overflow Behavior" section and configuration examples
+  - Environment variable support: `FAPILOG_QUEUE_OVERFLOW` for strategy selection
+  - Integration with existing `sampling_rate` setting for sample strategy
 - **Story 3.2**: Background Queue Worker & Graceful Shutdown
   - Enhanced `QueueWorker` shutdown with proper event loop management and timeout handling
   - Added `shutdown_sync()` method for safe shutdown from sync contexts (atexit, CLI)

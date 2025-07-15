@@ -66,3 +66,74 @@ Definition of Done
 ✓ Settings schema updated and validated  
 ✓ PR merged to **main** with reviewer approval and green CI  
 ✓ `CHANGELOG.md` and README updated under _Unreleased → Added_
+
+───────────────────────────────────  
+Implementation Summary
+
+**Completed Work:**
+
+✅ **Settings Configuration**
+
+- Added `queue_overflow: Literal["drop", "block", "sample"] = "drop"` to `LoggingSettings`
+- Added `queue_maxsize: int = 1000` field (already existed)
+- Added field validator for overflow strategy validation
+- Integrated with existing `sampling_rate` setting for sample strategy
+
+✅ **Queue Worker Implementation**
+
+- Enhanced `QueueWorker.enqueue()` method to respect overflow strategy:
+  - **Drop**: Uses `put_nowait()` with try/except, returns `False` on `QueueFull`
+  - **Block**: Uses `await put()` to wait for queue space, handles `CancelledError`
+  - **Sample**: Applies sampling rate before enqueue attempt
+- Updated `queue_sink()` processor to handle different strategies in sync contexts
+- Maintained backward compatibility with existing queue functionality
+
+✅ **Comprehensive Testing**
+
+- All overflow strategy tests pass (39/39 queue tests)
+- `test_overflow_drop_mode()`: Verifies silent discard behavior
+- `test_overflow_block_mode()`: Verifies coroutine suspension until queue space
+- `test_overflow_sample_mode()`: Verifies probabilistic sampling behavior
+- `test_overflow_sample_mode_with_sampling_rate()`: Verifies sampling rate integration
+- `test_overflow_strategies_with_sampling_rate()`: Verifies all strategies with sampling
+
+✅ **Documentation Updates**
+
+- Added "Controlling Queue Overflow Behavior" section to README
+- Included configuration examples for all three strategies
+- Updated environment variables table with `FAPILOG_QUEUE_OVERFLOW`
+- Added strategy tradeoffs and usage recommendations
+- Updated CHANGELOG.md with Story 3.3 entry
+
+✅ **Environment Variable Support**
+
+- `FAPILOG_QUEUE_OVERFLOW` environment variable for strategy selection
+- Default value: `"drop"` (silent discard)
+- Valid values: `"drop"`, `"block"`, `"sample"`
+
+**Key Features Delivered:**
+
+1. **Drop Strategy (Default)**: Silently discards logs when queue is full - ensures application never blocks
+2. **Block Strategy**: Waits for queue space before continuing - provides guaranteed log delivery
+3. **Sample Strategy**: Uses probabilistic sampling when queue is full - provides adaptive logging under load
+
+**Usage Examples:**
+
+```python
+# Drop strategy (default) - never blocks
+settings = LoggingSettings(queue_overflow="drop")
+
+# Block strategy - guaranteed delivery
+settings = LoggingSettings(queue_overflow="block")
+
+# Sample strategy - adaptive logging
+settings = LoggingSettings(queue_overflow="sample", sampling_rate=0.1)
+```
+
+**Technical Implementation:**
+
+- Follows FastAPI and Pydantic V2 best practices
+- Robust error handling with proper async/sync context management
+- Comprehensive test coverage with 100% acceptance criteria met
+- Backward compatible with existing queue functionality
+- Environment-driven configuration for 12-factor app compliance

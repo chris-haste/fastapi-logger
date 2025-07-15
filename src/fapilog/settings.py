@@ -1,6 +1,6 @@
 """Configuration settings for fapilog."""
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -19,7 +19,8 @@ class LoggingSettings(BaseSettings):
     )
     sinks: Union[List[str], str] = Field(
         default_factory=lambda: ["stdout"],
-        description="List of sink names to use for log output (comma-separated or list)",
+        description="List of sink names to use for log output "
+        "(comma-separated or list)",
     )
     json_console: str = Field(
         default="auto",
@@ -27,7 +28,8 @@ class LoggingSettings(BaseSettings):
     )
     redact_patterns: Union[List[str], str] = Field(
         default_factory=lambda: [],
-        description="List of regex patterns to redact from log messages (comma-separated or list)",
+        description="List of regex patterns to redact from log messages "
+        "(comma-separated or list)",
     )
     sampling_rate: float = Field(
         default=1.0,
@@ -38,9 +40,14 @@ class LoggingSettings(BaseSettings):
         default=True,
         description="Enable async queue for non-blocking logging",
     )
-    queue_size: int = Field(
+    queue_maxsize: int = Field(
         default=1000,
         description="Maximum size of the async log queue",
+    )
+    queue_overflow: Literal["drop", "block", "sample"] = Field(
+        default="drop",
+        description="Strategy for handling queue overflow: drop (discard), "
+        "block (wait), or sample (probabilistic)",
     )
     queue_batch_size: int = Field(
         default=10,
@@ -105,11 +112,11 @@ class LoggingSettings(BaseSettings):
             raise ValueError(f"Sampling rate must be between 0.0 and 1.0, got {v}")
         return v
 
-    @field_validator("queue_size")
+    @field_validator("queue_maxsize")
     @classmethod
-    def validate_queue_size(cls, v: int) -> int:
+    def validate_queue_maxsize(cls, v: int) -> int:
         if v <= 0:
-            raise ValueError("Queue size must be positive")
+            raise ValueError("Queue maxsize must be positive")
         return v
 
     @field_validator("queue_batch_size")
@@ -139,6 +146,17 @@ class LoggingSettings(BaseSettings):
         if v < 0:
             raise ValueError("Queue max retries must be non-negative")
         return v
+
+    @field_validator("queue_overflow")
+    @classmethod
+    def validate_queue_overflow(cls, v: str) -> str:
+        valid_strategies = {"drop", "block", "sample"}
+        if v.lower() not in valid_strategies:
+            valid_list = ", ".join(sorted(valid_strategies))
+            raise ValueError(
+                f"Invalid queue_overflow '{v}'. Must be one of: {valid_list}"
+            )
+        return v.lower()
 
 
 def configure_logging(
