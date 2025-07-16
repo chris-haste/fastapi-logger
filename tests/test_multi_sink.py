@@ -113,7 +113,7 @@ class TestMultiSinkFunctionality:
         # Create queue worker with multiple sinks
         worker = QueueWorker(
             sinks=[sink1, sink2],
-            queue_size=10,
+            queue_max_size=10,
             batch_size=1,
             batch_timeout=0.1,
             retry_delay=0.01,
@@ -151,7 +151,7 @@ class TestMultiSinkFunctionality:
         # Create queue worker with multiple sinks
         worker = QueueWorker(
             sinks=[failing_sink, working_sink],
-            queue_size=10,
+            queue_max_size=10,
             batch_size=1,
             batch_timeout=0.1,
             retry_delay=0.01,
@@ -197,7 +197,7 @@ class TestMultiSinkFunctionality:
         # Create queue worker with retries
         worker = QueueWorker(
             sinks=[intermittent_sink, working_sink],
-            queue_size=10,
+            queue_max_size=10,
             batch_size=1,
             batch_timeout=0.1,
             retry_delay=0.01,
@@ -266,7 +266,7 @@ class TestMultiSinkFunctionality:
         # Create queue worker with multiple sink types
         worker = QueueWorker(
             sinks=[stdout_sink, file_sink, loki_sink],
-            queue_size=10,
+            queue_max_size=10,
             batch_size=1,
             batch_timeout=0.1,
             retry_delay=0.01,
@@ -312,7 +312,7 @@ class TestMultiSinkFunctionality:
         # Create queue worker with multiple sinks
         worker = QueueWorker(
             sinks=[failing_sink1, working_sink, failing_sink2],
-            queue_size=10,
+            queue_max_size=10,
             batch_size=1,
             batch_timeout=0.1,
             retry_delay=0.01,

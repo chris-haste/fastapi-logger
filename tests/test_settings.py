@@ -6,7 +6,8 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from fapilog.settings import LoggingSettings, configure_logging
+from fapilog.settings import LoggingSettings
+from fapilog.bootstrap import configure_logging
 
 
 class TestLoggingSettings:
@@ -157,9 +158,9 @@ class TestLoggingSettings:
 
 
 def test_configure_logging_function():
-    """Test the configure_logging function in settings module."""
-    # This function is a placeholder that should not raise an error
+    """Test the configure_logging function from bootstrap module."""
+    # Test the actual configure_logging function
     configure_logging()
-    configure_logging(level="INFO", format="json")
+    configure_logging(level="INFO", json_console="json")
     sinks_config = {"stdout": {}}
-    configure_logging(level="DEBUG", format="text", sinks=sinks_config)
+    configure_logging(level="DEBUG", json_console="pretty", sinks=sinks_config)

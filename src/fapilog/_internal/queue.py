@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-import random
+import random as rnd
 from typing import Any, Dict, List, Literal, Optional
 
 import structlog
@@ -28,7 +28,7 @@ class QueueWorker:
     def __init__(
         self,
         sinks: List[Sink],
-        queue_size: int = 1000,
+        queue_max_size: int = 1000,
         batch_size: int = 10,
         batch_timeout: float = 1.0,
         retry_delay: float = 1.0,
@@ -40,7 +40,7 @@ class QueueWorker:
 
         Args:
             sinks: List of sink instances to write to
-            queue_size: Maximum size of the internal queue
+            queue_max_size: Maximum size of the internal queue
             batch_size: Number of events to process in a batch
             batch_timeout: Maximum time to wait for batch completion
             retry_delay: Delay between retries on sink failures
@@ -49,7 +49,9 @@ class QueueWorker:
             sampling_rate: Sampling rate for log messages (0.0 to 1.0)
         """
         self.sinks = sinks
-        self.queue: asyncio.Queue[Dict[str, Any]] = asyncio.Queue(maxsize=queue_size)
+        self.queue: asyncio.Queue[Dict[str, Any]] = asyncio.Queue(
+            maxsize=queue_max_size
+        )
         self.batch_size = batch_size
         self.batch_timeout = batch_timeout
         self.retry_delay = retry_delay
@@ -106,9 +108,7 @@ class QueueWorker:
                     await asyncio.wait_for(self._task, timeout=5.0)
                 else:
                     # Different loop, just let it cancel naturally
-                    logger.debug(
-                        "Worker task on different loop, letting it cancel naturally"
-                    )
+                    logger.debug("Different loop, allowing natural cancellation")
             except asyncio.TimeoutError:
                 logger.warning("Worker task shutdown timed out")
             except asyncio.CancelledError:
@@ -125,7 +125,8 @@ class QueueWorker:
         """Shutdown the worker from a sync context.
 
         This method marks the worker as stopping and returns immediately.
-        The worker will shut down naturally when it next checks the stopping flag.
+        The worker will shut down naturally when it next checks the stopping
+        flag.
         """
         if self._stopping:
             return  # Already shutting down
@@ -244,7 +245,7 @@ class QueueWorker:
             return False
 
         # Apply sampling if enabled
-        if self.sampling_rate < 1.0 and random.random() > self.sampling_rate:
+        if self.sampling_rate < 1.0 and rnd.random() > self.sampling_rate:
             return False
 
         if self.overflow_strategy == "drop":
@@ -352,7 +353,8 @@ def queue_sink(
             raise structlog.DropEvent from None
     else:  # "sample"
         # Sample strategy: apply sampling and try to enqueue
-        if worker.sampling_rate < 1.0 and random.random() > worker.sampling_rate:
+        rate = worker.sampling_rate
+        if rate < 1.0 and rnd.random() > rate:
             raise structlog.DropEvent
         try:
             worker.queue.put_nowait(event_dict)

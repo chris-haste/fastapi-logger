@@ -161,19 +161,3 @@ class LoggingSettings(BaseSettings):
                 f"Invalid queue_overflow '{v}'. Must be one of: {valid_list}"
             )
         return v.lower()
-
-
-def configure_logging(
-    level: str = "INFO",
-    format: str = "json",
-    sinks: Optional[Dict[str, Any]] = None,
-) -> None:
-    """Configure logging for the application.
-
-    Args:
-        level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-        format: Output format (json, text)
-        sinks: Dictionary of sink configurations
-    """
-    # TODO: Implement full logging configuration
-    pass

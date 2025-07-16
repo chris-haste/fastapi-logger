@@ -207,8 +207,8 @@ def register_enricher(fn: Callable) -> None:
 
     if len(params) != 3 or params != ["logger", "method_name", "event_dict"]:
         raise ValueError(
-            f"Enricher function must have signature (logger, method_name, event_dict), "
-            f"got {params}"
+            f"Enricher function must have signature "
+            f"(logger, method_name, event_dict), got {params}"
         )
 
     # Check if function is already registered (by reference)
@@ -241,7 +241,14 @@ def run_registered_enrichers(
     for enricher in _registered_enrichers:
         try:
             result = enricher(logger, method_name, result)
-        except Exception:
-            # Silently skip enrichers that fail to avoid breaking the logging chain
-            pass
+        except Exception as e:
+            # Log enricher failures for debugging but don't break the logging
+            # chain
+            import logging
+
+            enricher_logger = logging.getLogger(__name__)
+            enricher_logger.debug(
+                f"Enricher {enricher.__name__} failed: {e}",
+                exc_info=True,
+            )
     return result
