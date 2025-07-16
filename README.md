@@ -484,6 +484,113 @@ settings = LoggingSettings(
 )
 ```
 
+#### File Sink
+
+The `file` sink writes logs to a file with automatic rotation support. It's perfect for production environments where you need persistent logs with size management.
+
+##### Configuration
+
+**Environment variables:**
+
+```bash
+# Basic file logging
+export FAPILOG_SINKS="file:///var/log/myapp.log"
+
+# With custom rotation settings
+export FAPILOG_SINKS="file:///var/log/myapp.log?maxBytes=10485760&backupCount=3"
+
+# Multiple sinks (stdout + file)
+export FAPILOG_SINKS="stdout,file:///var/log/myapp.log"
+```
+
+**Programmatic configuration:**
+
+```python
+from fapilog.settings import LoggingSettings
+
+# Basic file logging
+settings = LoggingSettings(sinks=["file:///var/log/myapp.log"])
+configure_logging(settings=settings)
+
+# With custom rotation settings
+settings = LoggingSettings(
+    sinks=["file:///var/log/myapp.log?maxBytes=10485760&backupCount=3"]
+)
+configure_logging(settings=settings)
+```
+
+##### URI Format
+
+File sinks use a URI-style configuration format:
+
+```
+file:///path/to/logfile.log?maxBytes=10485760&backupCount=5
+```
+
+**Parameters:**
+
+- **`maxBytes`** (optional): Maximum file size before rotation (default: 10 MB)
+- **`backupCount`** (optional): Number of backup files to keep (default: 5)
+
+**Examples:**
+
+```bash
+# Default settings (10MB, 5 backups)
+export FAPILOG_SINKS="file:///var/log/myapp.log"
+
+# Custom size (5MB, 3 backups)
+export FAPILOG_SINKS="file:///var/log/myapp.log?maxBytes=5242880&backupCount=3"
+
+# Large files (100MB, 10 backups)
+export FAPILOG_SINKS="file:///var/log/myapp.log?maxBytes=104857600&backupCount=10"
+```
+
+##### Features
+
+- **Automatic rotation**: Files are rotated when they exceed the `maxBytes` limit
+- **Backup management**: Old log files are automatically cleaned up
+- **Thread-safe**: Safe for concurrent logging from multiple threads
+- **Immediate flush**: Logs are flushed immediately to prevent data loss
+- **Directory creation**: Parent directories are created automatically if they don't exist
+
+##### Output Format
+
+File sinks always write logs in JSON format, one event per line:
+
+```json
+{"timestamp": "2024-01-15T10:30:45.123Z", "level": "info", "event": "Request processed", "trace_id": "abc123def456", "status_code": 200, "latency_ms": 45.2}
+{"timestamp": "2024-01-15T10:30:46.456Z", "level": "error", "event": "Database connection failed", "trace_id": "def789ghi012", "error": "Connection timeout"}
+```
+
+##### File Rotation
+
+When a log file reaches the `maxBytes` limit, it's automatically rotated:
+
+```
+/var/log/myapp.log          # Current log file
+/var/log/myapp.log.1        # First backup
+/var/log/myapp.log.2        # Second backup
+/var/log/myapp.log.3        # Third backup
+...
+```
+
+Old backup files beyond `backupCount` are automatically deleted.
+
+##### Production Usage
+
+For production environments, consider these best practices:
+
+```bash
+# Separate logs by environment
+export FAPILOG_SINKS="file:///var/log/myapp/production.log?maxBytes=104857600&backupCount=10"
+
+# Multiple sinks for redundancy
+export FAPILOG_SINKS="stdout,file:///var/log/myapp/app.log"
+
+# Application-specific paths
+export FAPILOG_SINKS="file:///var/log/myapp/api.log?maxBytes=52428800&backupCount=5"
+```
+
 ### Resource Metrics
 
 `fapilog` can optionally include memory and CPU usage metrics in log entries to help monitor system health and correlate log spikes with resource load.
