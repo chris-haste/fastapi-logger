@@ -65,6 +65,10 @@ class LoggingSettings(BaseSettings):
         default=3,
         description="Maximum number of retries per event",
     )
+    enable_resource_metrics: bool = Field(
+        default=False,
+        description="Enable memory and CPU usage metrics in log entries",
+    )
 
     model_config = SettingsConfigDict(
         env_prefix="FAPILOG_",

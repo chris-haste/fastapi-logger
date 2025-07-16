@@ -9,6 +9,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Story 4.4**: Custom Enricher Registry and Hook Support
+  - Global registry for custom enrichers in `fapilog/enrichers.py` with `register_enricher(fn)` and `clear_enrichers()` functions
+  - Custom enrichers are automatically included at the end of the processor chain in registration order
+  - Enricher functions follow structlog processor signature: `(logger, method_name, event_dict) → event_dict`
+  - Duplicate registration prevention (same function reference or name)
+  - Exception handling ensures enricher failures don't break the logging pipeline
+  - Comprehensive unit tests (13 tests) covering registration, execution order, duplicate handling, and error scenarios
+  - Integration tests (5 tests) verifying custom enrichers work correctly in the full pipeline
+  - Updated README with "Custom Enrichers" section including usage examples and best practices
+  - Enables application-specific metadata injection without modifying core library
+  - Test isolation support via `clear_enrichers()` for clean test state
+- **Story 4.3**: Request Size & Response Size Enricher
+  - New `body_size_enricher` processor that specifically adds `req_bytes` and `res_bytes` fields to log events
+  - Request body size capture via `Content-Length` header or body size calculation
+  - Response body size capture via `len(response.body)` when available
+  - Works for standard JSON, form, and plain requests with graceful fallback to `Content-Length` header
+  - Enricher positioned after context and before final rendering in processor chain
+  - Logs emitted outside HTTP context do not raise errors—fields are omitted gracefully
+  - Comprehensive unit tests verifying accurate request/response size measurement for various methods
+  - Tests verify enricher skips gracefully when context is missing and field values are numeric
+  - Integration with existing `TraceIDMiddleware` infrastructure for context variable management
+  - Fields are only added if not already present, allowing manual override of values
+  - Updated README "Log Fields" section already documents `req_bytes` and `res_bytes` fields
+- **Story 4.2**: Memory & CPU Snapshot Enricher
+  - New `resource_snapshot_enricher` processor that adds `memory_mb` and `cpu_percent` fields to all log events
+  - Memory usage capture via `psutil.Process().memory_info().rss` converted to megabytes (rounded float)
+  - CPU usage capture via `psutil.Process().cpu_percent(interval=None)` as percentage (0.0-100.0)
+  - Cached `psutil.Process()` object for performance optimization using `@lru_cache`
+  - Optional dependency on `psutil>=5.9` via `fapilog[metrics]` package
+  - Conditional inclusion based on `LoggingSettings.enable_resource_metrics` (default: False)
+  - Environment variable support: `FAPILOG_ENABLE_RESOURCE_METRICS` for easy configuration
+  - Graceful error handling for cases where process info cannot be retrieved (OSError, AttributeError)
+  - Fields are only added if not already present, allowing manual override of values
+  - Enricher positioned after request/response enricher, before sampling processor
+  - Comprehensive unit tests covering field presence, value validation, opt-out logic, and error handling
+  - Integration tests verifying pipeline inclusion/exclusion based on settings
+  - Updated README with "Resource Metrics" section including configuration, dependencies, and performance considerations
+  - Updated "Log Fields" documentation to include `memory_mb` and `cpu_percent` fields
+- **Story 4.1**: Hostname & Process Info Enricher
+  - New `host_process_enricher` processor that adds `hostname` and `pid` fields to all log events
+  - Automatic hostname detection via `socket.gethostname()` with performance caching using `@lru_cache`
+  - Process ID capture via `os.getpid()` with caching for optimal performance
+  - Fields are only added if not already present, allowing manual override of values
+  - Enricher positioned early in processor chain (before redaction and rendering)
+  - Zero external dependencies beyond standard library (`socket`, `os`)
+  - Comprehensive unit tests covering field presence, manual override, caching, and edge cases
+  - Updated README "Log Fields" section to document `hostname` and `pid` fields
+  - Integration with existing processor pipeline ensuring consistent log format
+- **Story 3.4**: Load Testing the Logging Queue
+  - Comprehensive load testing script (`scripts/load_test_log_queue.py`) for simulating high-throughput logging scenarios
+  - Configurable test parameters via CLI arguments or environment variables: concurrency, rate, duration, queue settings
+  - Performance metrics tracking: total logs attempted, successfully enqueued, dropped logs, average enqueue latency
+  - Support for all overflow strategies (drop, block, sample) with detailed performance reporting
+  - Integration with hatch scripts: `hatch run test-queue-load` for easy execution
+  - Updated README with "Benchmarking Logging Queue" section including usage examples and performance targets
+  - Performance assessment with latency thresholds: <100 µs (excellent), <500 µs (good), >500 µs (poor)
+  - Environment variable support for all test parameters: `LOAD_TEST_CONCURRENCY`, `LOAD_TEST_RATE`, `LOAD_TEST_DURATION`, etc.
+  - Detailed test output with min/max latency, throughput analysis, and queue configuration summary
+  - No external dependencies beyond `fapilog` and standard library modules
 - **Story 3.3**: Queue Overflow Strategy: Drop, Block, or Sample
   - Configurable queue overflow handling via `LoggingSettings.queue_overflow` with three strategies:
     - `drop`: Silently discard logs when queue is full (default)
