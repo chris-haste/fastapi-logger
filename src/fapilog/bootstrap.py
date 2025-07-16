@@ -13,6 +13,7 @@ from .middleware import TraceIDMiddleware
 from .pipeline import build_processor_chain
 from .settings import LoggingSettings
 from .sinks.stdout import StdoutSink
+from .sinks.file import create_file_sink_from_uri  # <-- add this import
 
 # Module-level flag to track if logging has been configured
 _configured = False
@@ -134,16 +135,22 @@ def _setup_queue_worker(settings: LoggingSettings, console_format: str) -> Queue
     # Create sinks based on settings
     sinks = []
 
-    # Add stdout sink if configured
-    if "stdout" in settings.sinks:
-        # Map console_format to StdoutSink mode
-        if console_format == "pretty":
-            mode = "pretty"
-        elif console_format == "json":
-            mode = "json"
-        else:
-            mode = "auto"
-        sinks.append(StdoutSink(mode=mode))
+    for sink_uri in settings.sinks:
+        if sink_uri == "stdout":
+            # Map console_format to StdoutSink mode
+            if console_format == "pretty":
+                mode = "pretty"
+            elif console_format == "json":
+                mode = "json"
+            else:
+                mode = "auto"
+            sinks.append(StdoutSink(mode=mode))
+        elif sink_uri.startswith("file://"):
+            try:
+                sinks.append(create_file_sink_from_uri(sink_uri))
+            except Exception as e:
+                raise RuntimeError(f"Failed to initialize file sink: {e}")
+        # Future: elif sink_uri.startswith("loki://"): ...
 
     # Create queue worker
     worker = QueueWorker(

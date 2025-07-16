@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Story 5.2**: File Sink with Rotation Support
+  - New `FileSink` class in `fapilog/sinks/file.py` with automatic log rotation using `logging.handlers.RotatingFileHandler`
+  - URI-based configuration format: `file:///path/to/log.log?maxBytes=10485760&backupCount=5`
+  - Configurable rotation parameters: `maxBytes` (default: 10 MB) and `backupCount` (default: 5)
+  - Thread-safe async writing with immediate flush to prevent data loss in crash scenarios
+  - Automatic directory creation for log file paths
+  - Integration with sink loader in `configure_logging()` for environment-based configuration
+  - Comprehensive unit tests (5 tests) covering file creation, rotation behavior, URI parsing, and error handling
+  - Tests verify log file creation and writing, rotation occurs when file exceeds threshold, parsed query parameters override defaults, and invalid URIs raise helpful errors
+  - Updated README with "File Sink" section documenting configuration, URI format, features, and production usage examples
+  - Perfect for production environments requiring persistent logs with automatic size management
+  - Support for multiple sinks simultaneously (e.g., `stdout,file:///var/log/app.log`)
 - **Story 5.1**: Stdout Sink Implementation
   - Enhanced `StdoutSink` class with new mode parameter supporting `"json"`, `"pretty"`, and `"auto"` options
   - Integration with `structlog.dev.ConsoleRenderer` for proper pretty console output with ANSI color codes
