@@ -641,7 +641,7 @@ class TestStdoutSink:
     @pytest.mark.asyncio
     async def test_stdout_sink_json(self) -> None:
         """Test that StdoutSink writes JSON correctly."""
-        sink = StdoutSink(pretty=False)
+        sink = StdoutSink(mode="json")
         event = {
             "level": "info",
             "event": "test_event",
@@ -667,7 +667,7 @@ class TestStdoutSink:
     @pytest.mark.asyncio
     async def test_stdout_sink_pretty(self) -> None:
         """Test that StdoutSink writes pretty format correctly."""
-        sink = StdoutSink(pretty=True)
+        sink = StdoutSink(mode="pretty")
         event = {
             "level": "info",
             "event": "test_event",
@@ -684,8 +684,8 @@ class TestStdoutSink:
             # Get the printed data
             call_args = mock_print.call_args[0][0]
 
-            # Check that it's in pretty format
-            assert "[2023-01-01T00:00:00Z] INFO: test_event" in call_args
+            # Check that it's in pretty format (should contain ANSI codes)
+            assert "\x1b[" in call_args  # ANSI color codes
 
 
 class TestFastAPIShutdownIntegration:

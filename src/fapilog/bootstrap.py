@@ -136,8 +136,14 @@ def _setup_queue_worker(settings: LoggingSettings, console_format: str) -> Queue
 
     # Add stdout sink if configured
     if "stdout" in settings.sinks:
-        pretty = console_format == "pretty"
-        sinks.append(StdoutSink(pretty=pretty))
+        # Map console_format to StdoutSink mode
+        if console_format == "pretty":
+            mode = "pretty"
+        elif console_format == "json":
+            mode = "json"
+        else:
+            mode = "auto"
+        sinks.append(StdoutSink(mode=mode))
 
     # Create queue worker
     worker = QueueWorker(
