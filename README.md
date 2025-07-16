@@ -591,6 +591,97 @@ export FAPILOG_SINKS="stdout,file:///var/log/myapp/app.log"
 export FAPILOG_SINKS="file:///var/log/myapp/api.log?maxBytes=52428800&backupCount=5"
 ```
 
+### Loki Sink
+
+The Loki sink allows you to push logs directly to a [Grafana Loki](https://grafana.com/oss/loki/) endpoint over HTTP, enabling centralized log aggregation for distributed services.
+
+### Installation
+
+To use the Loki sink, install the optional dependency:
+
+```bash
+pip install fapilog[loki]
+```
+
+### Configuration
+
+You can configure the Loki sink using a URI in the `FAPILOG_SINKS` environment variable or programmatically via `LoggingSettings`:
+
+```env
+FAPILOG_SINKS=loki://loki:3100?labels=app=myapi,env=dev
+```
+
+Or in Python:
+
+```python
+from fapilog.settings import LoggingSettings
+settings = LoggingSettings(sinks=[
+    "loki://loki:3100?labels=app=myapi,env=prod&batch_size=50&batch_interval=1.5"
+])
+```
+
+#### URI Format
+
+```
+loki://host:port?labels=key1=val1,key2=val2&batch_size=100&batch_interval=2.0
+https://host:port?labels=key1=val1
+```
+
+- **labels**: Static labels for all log streams (e.g., `labels=app=myapi,env=prod`)
+- **batch_size**: Number of logs to buffer before pushing (default: 100)
+- **batch_interval**: Max seconds to wait before pushing a batch (default: 2.0)
+
+#### Features
+
+- **Batching**: Logs are buffered and sent in batches to `/loki/api/v1/push`.
+- **Async HTTP**: Uses `httpx.AsyncClient` for non-blocking HTTP push.
+- **Retry Logic**: Failures are logged and retried with exponential backoff.
+- **Optional Dependency**: Raises `ImportError` with guidance if `httpx` is not installed.
+- **Graceful Degradation**: If Loki is unavailable, logs are retried up to the configured limit.
+
+#### Example
+
+```python
+from fapilog.settings import LoggingSettings
+settings = LoggingSettings(
+    sinks=["loki://loki:3100?labels=app=myapi,env=prod&batch_size=50"]
+)
+logger = configure_logging(settings=settings)
+logger.info("user_login", user_id="123", status="success")
+```
+
+#### Output Format
+
+Each batch is sent as:
+
+```json
+{
+  "streams": [
+    {
+      "stream": {"app": "myapi", "env": "prod"},
+      "values": [["<timestamp_ns>", "<logline_json>"], ...]
+    }
+  ]
+}
+```
+
+- **Timestamps** are in nanoseconds since epoch (RFC3339 or Unix time supported).
+- **Log lines** are JSON-serialized event dicts.
+
+#### Notes
+
+- If you use the Loki sink, ensure your Loki endpoint is reachable from your app.
+- Batching reduces HTTP load and aligns with Loki best practices.
+- If `httpx` is not installed, you’ll get a clear ImportError with install instructions.
+
+#### Installation Recap
+
+```bash
+pip install fapilog[loki]
+```
+
+See the [docs/stories/story-5.3.md](docs/stories/story-5.3.md) for full requirements and technical details.
+
 ### Resource Metrics
 
 `fapilog` can optionally include memory and CPU usage metrics in log entries to help monitor system health and correlate log spikes with resource load.
