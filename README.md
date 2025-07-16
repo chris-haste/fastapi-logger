@@ -368,12 +368,6 @@ if __name__ == "__main__":
 
 ### Configuration
 
-Shutdown behavior is automatically configured and doesn't require additional setup. The system handles both async and sync shutdown contexts transparently.
-
----
-
-## 🔧 Configuration
-
 All knobs are environment-driven (perfect for 12-factor apps):
 
 | Env var                   | Default   | Description                                                                 |
@@ -390,6 +384,103 @@ configure_logging(
     level="DEBUG",
     sinks=["stdout", "loki://loki:3100"],
     redact_patterns=[r"(?i)password"],
+)
+```
+
+### Sink Configuration
+
+`fapilog` supports multiple output destinations (sinks) for log events. The default sink is `stdout`, which writes logs to standard output in either JSON or pretty format.
+
+#### Stdout Sink
+
+The `stdout` sink is the default sink and supports three output modes:
+
+- **`json`**: Force JSON output (compact, one-line-per-event)
+- **`pretty`**: Force pretty console output (colorized, multiline)
+- **`auto`**: Automatically choose based on TTY detection (default)
+
+##### Configuration
+
+**Environment variables:**
+
+```bash
+# Force JSON output
+export FAPILOG_JSON_CONSOLE=json
+
+# Force pretty output
+export FAPILOG_JSON_CONSOLE=pretty
+
+# Auto-detect (pretty in TTY, JSON otherwise)
+export FAPILOG_JSON_CONSOLE=auto
+```
+
+**Programmatic configuration:**
+
+```python
+from fapilog.settings import LoggingSettings
+
+# Force JSON output
+settings = LoggingSettings(json_console="json")
+configure_logging(settings=settings)
+
+# Force pretty output
+settings = LoggingSettings(json_console="pretty")
+configure_logging(settings=settings)
+
+# Auto-detect (default)
+settings = LoggingSettings(json_console="auto")
+configure_logging(settings=settings)
+```
+
+##### Output Formats
+
+**JSON Mode:**
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:45.123Z",
+  "level": "info",
+  "event": "Request processed",
+  "trace_id": "abc123def456",
+  "status_code": 200,
+  "latency_ms": 45.2
+}
+```
+
+**Pretty Mode:**
+
+```
+2024-01-15 10:30:45.123 | INFO     | Request processed
+                          trace_id=abc123def456 status_code=200 latency_ms=45.2
+```
+
+##### TTY Detection
+
+When using `auto` mode (the default), the sink automatically detects whether it's running in an interactive terminal:
+
+- **Interactive terminal**: Uses pretty output with ANSI color codes
+- **Non-interactive (pipes, files, containers)**: Uses JSON output
+
+This makes it perfect for development (pretty logs in your terminal) and production (JSON logs in Docker/Kubernetes).
+
+##### Development Tips
+
+For consistent pretty output during development, you can force pretty mode:
+
+```bash
+# In your development environment
+export FAPILOG_JSON_CONSOLE=pretty
+```
+
+Or in your development configuration:
+
+```python
+# development.py
+from fapilog.settings import LoggingSettings
+
+settings = LoggingSettings(
+    level="DEBUG",
+    json_console="pretty",  # Force pretty output in development
 )
 ```
 

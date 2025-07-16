@@ -134,17 +134,28 @@ class QueueWorker:
         """Shutdown the worker from a sync context, using the correct event loop."""
         if self._loop and self._loop.is_running():
             # Schedule shutdown on the worker's loop
-            fut = asyncio.run_coroutine_threadsafe(self.shutdown(), self._loop)
             try:
+                # Create the coroutine and schedule it
+                shutdown_coro = self.shutdown()
+                fut = asyncio.run_coroutine_threadsafe(shutdown_coro, self._loop)
                 fut.result(timeout=timeout)
             except Exception as e:
                 logger.warning(f"Error during sync shutdown: {e}")
         else:
-            # Fallback: run in current thread/loop
+            # Fallback: check if we're in an event loop context
             try:
-                asyncio.run(self.shutdown())
-            except Exception as e:
-                logger.warning(f"Error during sync shutdown fallback: {e}")
+                asyncio.get_running_loop()
+                # We're in an async context, but the worker's loop is different
+                # Just mark as stopping and let the async shutdown handle it
+                self._stopping = True
+                self._running = False
+                logger.debug("Marked queue worker for shutdown (async context)")
+            except RuntimeError:
+                # No event loop running, safe to use asyncio.run
+                try:
+                    asyncio.run(self.shutdown())
+                except Exception as e:
+                    logger.warning(f"Error during sync shutdown fallback: {e}")
 
     async def _drain_queue(self) -> None:
         """Drain all remaining events from the queue and process them."""

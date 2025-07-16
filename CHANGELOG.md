@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Story 5.1**: Stdout Sink Implementation
+  - Enhanced `StdoutSink` class with new mode parameter supporting `"json"`, `"pretty"`, and `"auto"` options
+  - Integration with `structlog.dev.ConsoleRenderer` for proper pretty console output with ANSI color codes
+  - Automatic TTY detection in `auto` mode: pretty output in interactive terminals, JSON in non-interactive environments
+  - Updated sink integration in `bootstrap.py` to use new mode parameter instead of deprecated `pretty` boolean
+  - Comprehensive unit tests (12 tests) covering all output formats, TTY detection, mode selection, and edge cases
+  - Tests verify JSON output is compact and valid, pretty output contains ANSI codes, and auto mode correctly detects TTY
+  - Updated existing tests in `test_log_queue.py` to use new interface
+  - Updated README with "Sink Configuration" section documenting stdout sink usage and mode selection behavior
+  - Perfect for development (pretty logs in terminal) and production (JSON logs in Docker/Kubernetes)
+  - Default sink behavior with proper integration into async queue system
 - **Story 4.4**: Custom Enricher Registry and Hook Support
   - Global registry for custom enrichers in `fapilog/enrichers.py` with `register_enricher(fn)` and `clear_enrichers()` functions
   - Custom enrichers are automatically included at the end of the processor chain in registration order
