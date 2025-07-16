@@ -635,6 +635,12 @@ class TestQueueIntegration:
         # Queue should be empty after processing
         assert worker.queue.qsize() == 0
 
+        # Properly shut down the worker to avoid warnings
+        await worker.shutdown()
+
+        # Reset logging to fully clean up
+        reset_logging()
+
 
 class TestStdoutSink:
     """Test the StdoutSink implementation."""

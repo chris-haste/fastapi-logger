@@ -32,6 +32,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated README with "Sink Configuration" section documenting stdout sink usage and mode selection behavior
   - Perfect for development (pretty logs in terminal) and production (JSON logs in Docker/Kubernetes)
   - Default sink behavior with proper integration into async queue system
+- **Story 5.3**: Loki Sink via HTTP Push
+  - New `LokiSink` class in `fapilog/sinks/loki.py` for pushing logs to Grafana Loki over HTTP
+  - Supports `loki://` and `https://` URI-style config with `labels`, `batch_size`, and `batch_interval` parameters
+  - Buffers logs and pushes them in batches to `/loki/api/v1/push` using `httpx.AsyncClient`
+  - Each log is formatted as a Loki-compatible line: nanosecond timestamp and JSON-serialized event
+  - Failures are logged and retried with exponential backoff; clear ImportError if `httpx` is missing
+  - Unit tests verify batch formatting, buffering, label parsing, and retry logic
+  - README documents Loki support, configuration, and install instructions
 - **Story 4.4**: Custom Enricher Registry and Hook Support
   - Global registry for custom enrichers in `fapilog/enrichers.py` with `register_enricher(fn)` and `clear_enrichers()` functions
   - Custom enrichers are automatically included at the end of the processor chain in registration order
