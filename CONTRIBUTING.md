@@ -212,7 +212,7 @@ When contributing to fapilog, consider the performance impact:
 
 ## 📝 License
 
-By contributing, you agree that your contributions will be licensed under the MIT License, the same as the rest of the project.
+By contributing, you agree that your contributions will be licensed under the Apache License, the same as the rest of the project.
 
 ---
 
