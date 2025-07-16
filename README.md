@@ -937,3 +937,64 @@ Contributions welcome—see **`CONTRIBUTING.md`** for guidelines.
 Apache 2.0 — free for commercial and open-source use.
 
 > _FastAPI-Logger is built for high-throughput async APIs, but the core modules are framework-agnostic—use them in Celery workers, scripts, or any structlog pipeline with minimal tweaks._
+
+## Multiple Sink Support
+
+`fapilog` supports writing log events to multiple destinations (sinks) in parallel. This is useful for redundancy, local debugging, and sending logs to multiple backends (e.g., stdout, file, and Loki) at the same time.
+
+### How It Works
+
+- **Fan-out:** Every log event is sent to all configured sinks.
+- **Failure Isolation:** If one sink fails (e.g., network error to Loki), the others continue to receive logs. Failures are logged as warnings, and do not block the rest.
+- **Concurrency:** All sinks are written to concurrently using `asyncio.gather(..., return_exceptions=True)` for maximum performance and isolation.
+
+### Configuration
+
+#### Environment Variable
+
+Set the `FAPILOG_SINKS` environment variable to a comma-separated list of sink URIs:
+
+```bash
+# Example: stdout and Loki
+export FAPILOG_SINKS="stdout,loki://loki:3100"
+
+# Example: stdout and file
+export FAPILOG_SINKS="stdout,file:///var/log/myapp.log"
+
+# Example: all three
+export FAPILOG_SINKS="stdout,file:///var/log/myapp.log,loki://loki:3100"
+```
+
+#### Programmatic Configuration
+
+```python
+from fapilog.settings import LoggingSettings
+
+settings = LoggingSettings(
+    sinks=[
+        "stdout",
+        "file:///var/log/myapp.log",
+        "loki://loki:3100?labels=app=myapi,env=prod"
+    ]
+)
+logger = configure_logging(settings=settings)
+```
+
+### Best Practices
+
+- **Order:** Put `stdout` first for local development and debugging, so you always see logs in your terminal.
+- **Redundancy:** Use both file and remote sinks (like Loki) for production reliability.
+- **Startup Validation:** Misconfigured sinks (bad URI, missing dependencies) will raise errors at startup, not at runtime.
+
+### Example
+
+```bash
+export FAPILOG_SINKS="stdout,file:///tmp/app.log,loki://localhost:3100"
+```
+
+Every log event will be written to your terminal, to `/tmp/app.log`, and to your Loki instance.
+
+### Robustness
+
+- All sinks are tested for fan-out and error isolation.
+- See `tests/test_multi_sink.py` for comprehensive test coverage.

@@ -1,11 +1,13 @@
+import json
 import os
 import tempfile
-import json
+
 import pytest
+
 from fapilog.sinks.file import (
     FileSink,
-    parse_file_uri,
     create_file_sink_from_uri,
+    parse_file_uri,
 )
 
 
@@ -17,7 +19,7 @@ async def test_file_sink_writes_log():
         event = {"msg": "hello", "level": "info"}
         await sink.write(event)
         sink.close()
-        with open(log_path, "r", encoding="utf-8") as f:
+        with open(log_path, encoding="utf-8") as f:
             lines = [line.strip() for line in f.readlines() if line.strip()]
         assert len(lines) == 1
         data = json.loads(lines[0])

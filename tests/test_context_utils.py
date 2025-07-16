@@ -1,18 +1,18 @@
 """Tests for context utilities."""
 
 import asyncio
-import uuid
+
 import pytest
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
 from fapilog._internal.context import (
-    get_context,
     bind_context,
     clear_context,
     context_copy,
-    get_trace_id,
+    get_context,
     get_span_id,
+    get_trace_id,
 )
 from fapilog.bootstrap import configure_logging
 
@@ -321,12 +321,12 @@ def cleanup_context():
 def test_legacy_functions_for_coverage():
     """Test legacy functions to improve coverage."""
     from fapilog._internal.context import (
-        set_trace_context,
+        reset_request_metadata,
+        reset_response_metadata,
         reset_trace_context,
         set_request_metadata,
-        reset_request_metadata,
         set_response_metadata,
-        reset_response_metadata,
+        set_trace_context,
     )
 
     # Test set_trace_context and reset_trace_context

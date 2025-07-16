@@ -122,8 +122,8 @@ def parse_file_uri(uri: str) -> tuple[str, int, int]:
                 max_bytes = int(value)
                 if max_bytes <= 0:
                     raise ValueError("maxBytes must be positive")
-            except (ValueError, IndexError):
-                raise ValueError("Invalid maxBytes parameter")
+            except (ValueError, IndexError) as e:
+                raise ValueError("Invalid maxBytes parameter") from e
 
         # Extract backupCount parameter
         backup_count = 5  # Default
@@ -135,13 +135,13 @@ def parse_file_uri(uri: str) -> tuple[str, int, int]:
                 backup_count = int(value)
                 if backup_count < 0:
                     raise ValueError("backupCount must be non-negative")
-            except (ValueError, IndexError):
-                raise ValueError("Invalid backupCount parameter")
+            except (ValueError, IndexError) as e:
+                raise ValueError("Invalid backupCount parameter") from e
 
         return file_path, max_bytes, backup_count
 
     except Exception as e:
-        raise ValueError(f"Invalid file URI '{uri}': {e}")
+        raise ValueError(f"Invalid file URI '{uri}': {e}") from e
 
 
 def create_file_sink_from_uri(uri: str) -> FileSink:

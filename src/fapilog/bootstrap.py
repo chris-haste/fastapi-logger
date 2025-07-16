@@ -12,9 +12,9 @@ from ._internal.queue import QueueWorker, set_queue_worker
 from .middleware import TraceIDMiddleware
 from .pipeline import build_processor_chain
 from .settings import LoggingSettings
-from .sinks.stdout import StdoutSink
 from .sinks.file import create_file_sink_from_uri
 from .sinks.loki import create_loki_sink_from_uri
+from .sinks.stdout import StdoutSink
 
 # Module-level flag to track if logging has been configured
 _configured = False
@@ -150,7 +150,7 @@ def _setup_queue_worker(settings: LoggingSettings, console_format: str) -> Queue
             try:
                 sinks.append(create_file_sink_from_uri(sink_uri))
             except Exception as e:
-                raise RuntimeError(f"Failed to initialize file sink: {e}")
+                raise RuntimeError(f"Failed to initialize file sink: {e}") from e
         elif sink_uri.startswith(("loki://", "https://")) and "loki" in sink_uri:
             try:
                 sinks.append(create_loki_sink_from_uri(sink_uri))
@@ -158,9 +158,9 @@ def _setup_queue_worker(settings: LoggingSettings, console_format: str) -> Queue
                 raise RuntimeError(
                     f"Loki sink requires httpx. "
                     f"Install with: pip install fapilog[loki]. Error: {e}"
-                )
+                ) from e
             except Exception as e:
-                raise RuntimeError(f"Failed to initialize Loki sink: {e}")
+                raise RuntimeError(f"Failed to initialize Loki sink: {e}") from e
 
     # Create queue worker
     worker = QueueWorker(

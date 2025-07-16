@@ -1,17 +1,16 @@
 """Tests for body size enricher."""
 
-import json
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
-from fapilog.bootstrap import configure_logging
-from fapilog.enrichers import body_size_enricher
 from fapilog._internal.context import (
-    req_bytes_ctx,
-    res_bytes_ctx,
     bind_context,
     clear_context,
+    req_bytes_ctx,
+    res_bytes_ctx,
 )
+from fapilog.bootstrap import configure_logging
+from fapilog.enrichers import body_size_enricher
 
 
 def make_app():
@@ -87,10 +86,6 @@ def test_res_bytes_matches_output():
     assert response.status_code == 200
 
     # Get the response data and calculate its size
-    response_data = response.json()
-    response_json = json.dumps(response_data)
-    expected_size = len(response_json.encode("utf-8"))
-
     # In a real test, we'd capture the log output and verify res_bytes matches expected_size
     # This is a simplified test - in practice you'd want to capture log output
 

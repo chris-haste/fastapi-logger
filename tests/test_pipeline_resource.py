@@ -1,6 +1,5 @@
 """Tests for resource snapshot enricher integration in pipeline."""
 
-import pytest
 from unittest.mock import Mock, patch
 
 from fapilog.pipeline import build_processor_chain
@@ -51,8 +50,8 @@ def test_resource_enricher_position_in_chain():
 
         # Find the resource snapshot enricher in the chain
         from fapilog.enrichers import (
-            resource_snapshot_enricher,
             request_response_enricher,
+            resource_snapshot_enricher,
         )
 
         # Resource enricher should come after request_response_enricher

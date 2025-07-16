@@ -151,6 +151,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added tests for context propagation in background tasks and isolation between concurrent requests (no context leakage)
   - CI and local coverage gate now enforce 90%+ threshold; PRs below threshold will fail
   - Updated README with contributor instructions for running middleware/context tests and viewing coverage delta
+- **Story 5.4**: Multi-Sink Fan-out Support
+  - Logging now supports multiple sinks in parallel (fan-out) via the `FAPILOG_SINKS` environment variable or programmatic configuration.
+  - All sinks receive the same log event; failures in one sink do not block others (full error isolation).
+  - Internal runner uses `asyncio.gather(..., return_exceptions=True)` for concurrent, robust delivery.
+  - Misconfigured sinks raise errors at startup, not at runtime.
+  - Comprehensive unit tests in `tests/test_multi_sink.py` verify fan-out, error isolation, and startup validation.
+  - README updated with a dedicated "Multiple Sink Support" section and usage examples.
 
 ### Changed
 

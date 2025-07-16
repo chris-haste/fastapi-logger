@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Example demonstrating resource metrics in fapilog."""
 
-import os
 import time
+
 from fapilog import configure_logging, log
 from fapilog.settings import LoggingSettings
 

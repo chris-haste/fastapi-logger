@@ -7,8 +7,8 @@ application-specific metadata into log events.
 """
 
 from fapilog import configure_logging, log
-from fapilog.enrichers import register_enricher, clear_enrichers
 from fapilog._internal.context import get_context
+from fapilog.enrichers import clear_enrichers, register_enricher
 
 
 def tenant_enricher(logger, method_name, event_dict):

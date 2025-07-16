@@ -2,6 +2,7 @@
 """Example demonstrating the StdoutSink functionality with different modes."""
 
 import os
+
 from fapilog import configure_logging, log
 from fapilog.settings import LoggingSettings
 

@@ -1,7 +1,7 @@
 """Context variables for request correlation and tracing."""
 
 import contextvars
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 # Context variables for request correlation
 trace_ctx = contextvars.ContextVar("trace_id", default=None)

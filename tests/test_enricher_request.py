@@ -1,17 +1,16 @@
 """Tests for request/response metadata enricher."""
 
-import json
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
-from fapilog.bootstrap import configure_logging
 from fapilog._internal.context import (
+    latency_ctx,
     req_bytes_ctx,
     res_bytes_ctx,
     status_code_ctx,
-    latency_ctx,
     user_agent_ctx,
 )
+from fapilog.bootstrap import configure_logging
 
 
 def make_app():

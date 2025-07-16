@@ -1,8 +1,9 @@
 import json
-import pytest
-import structlog
 import logging
 from io import StringIO
+
+import pytest
+import structlog
 
 from fapilog.pipeline import build_processor_chain
 from fapilog.settings import LoggingSettings
