@@ -179,150 +179,91 @@ settings = LoggingSettings(
 
 ## FastAPI Integration
 
-Integrate `fapilog` with FastAPI applications for automatic request correlation and structured logging.
+`fapilog` provides seamless integration with FastAPI through automatic middleware registration and request context enrichment.
 
-### Basic FastAPI Setup
+### Automatic Setup
+
+The simplest way to add structured logging to FastAPI:
 
 ```python
 from fastapi import FastAPI
 from fapilog import configure_logging, log
 
-# Configure logging with FastAPI integration
-configure_logging()
+app = FastAPI()
 
-# Create FastAPI app
-app = FastAPI(title="My API")
-
-# Log application startup
-log.info("FastAPI application starting", app_name="my-api", version="1.0.0")
-
-@app.get("/")
-async def root():
-    log.info("Root endpoint accessed")
-    return {"message": "Hello World"}
+# This automatically registers TraceIDMiddleware and enables request context enrichment
+configure_logging(app=app)
 
 @app.get("/users/{user_id}")
 async def get_user(user_id: int):
-    log.info("User requested", user_id=user_id, endpoint="/users/{user_id}")
+    # All logs automatically include request context: trace_id, method, path, client_ip, etc.
+    log.info("Fetching user", user_id=user_id)
 
-    # Your business logic here
-    user = {"id": user_id, "name": "John Doe"}
-
-    log.info("User found", user_id=user_id, user_name=user["name"])
-    return user
+    try:
+        user = await get_user_from_db(user_id)
+        log.info("User found", user_id=user_id, user_name=user.name)
+        return user
+    except UserNotFound:
+        log.warning("User not found", user_id=user_id)
+        raise HTTPException(status_code=404, detail="User not found")
 ```
 
-**What you get automatically:**
+### Request Context Enrichment
 
-- ✅ Trace ID generation and correlation
-- ✅ Request timing and latency
-- ✅ HTTP status codes and response sizes
-- ✅ Request path and method logging
-- ✅ Error handling with structured logs
+Every log event during a request automatically includes:
 
-### Advanced FastAPI Patterns
+| Field         | Type    | Description                 | Example            |
+| ------------- | ------- | --------------------------- | ------------------ |
+| `trace_id`    | string  | Request correlation ID      | `"abc123def456"`   |
+| `span_id`     | string  | Request span ID             | `"xyz789uvw012"`   |
+| `method`      | string  | HTTP method                 | `"POST"`           |
+| `path`        | string  | Request path                | `"/api/users/123"` |
+| `client_ip`   | string  | Client IP address           | `"192.168.1.100"`  |
+| `status_code` | integer | HTTP response status        | `200`              |
+| `latency_ms`  | float   | Request duration in ms      | `45.2`             |
+| `user_agent`  | string  | User-Agent header           | `"curl/7.68.0"`    |
+| `req_bytes`   | integer | Request body size in bytes  | `1024`             |
+| `res_bytes`   | integer | Response body size in bytes | `2048`             |
 
-**Request/Response Logging:**
+### Trace ID Configuration
+
+Configure the trace ID header name:
 
 ```python
-from fastapi import Request, Response
-from fapilog import log
+from fapilog.settings import LoggingSettings
 
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    # Log request start
-    log.info(
-        "Request started",
-        path=request.url.path,
-        method=request.method,
-        client_ip=request.client.host
-    )
-
-    # Process request
-    response = await call_next(request)
-
-    # Log response
-    log.info(
-        "Request completed",
-        path=request.url.path,
-        method=request.method,
-        status_code=response.status_code,
-        duration_ms=calculate_duration()
-    )
-
-    return response
+# Use custom header name
+settings = LoggingSettings(trace_id_header="X-Custom-Trace-ID")
+configure_logging(settings=settings, app=app)
 ```
 
-**Error Handling:**
-
-```python
-from fastapi import HTTPException
-from fapilog import log
-
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
-    log.error(
-        "HTTP exception occurred",
-        path=request.url.path,
-        method=request.method,
-        status_code=exc.status_code,
-        detail=exc.detail
-    )
-    return {"error": exc.detail}
-
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    log.error(
-        "Unhandled exception",
-        path=request.url.path,
-        method=request.method,
-        error=str(exc),
-        error_type=type(exc).__name__
-    )
-    return {"error": "Internal server error"}
+```bash
+# Via environment variable
+export FAPILOG_TRACE_ID_HEADER=X-Custom-Trace-ID
 ```
 
-**Business Metrics:**
+### Response Headers
 
-```python
-@app.post("/orders")
-async def create_order(order: Order):
-    log.info(
-        "Order creation started",
-        customer_id=order.customer_id,
-        item_count=len(order.items),
-        total_amount=calculate_total(order.items)
-    )
+The middleware automatically adds correlation headers to responses:
 
-    # Process order...
-
-    log.info(
-        "Order created successfully",
-        order_id=order_id,
-        customer_id=order.customer_id,
-        total_amount=total_amount
-    )
-
-    return {"order_id": order_id}
-```
-
-### Trace Correlation
-
-`fapilog` automatically handles trace correlation:
-
-**Request Headers:**
-
-- `X-Trace-Id`: Request trace identifier
+- `X-Trace-Id`: Request trace identifier (for client correlation)
 - `X-Span-Id`: Request span identifier
-- `X-Response-Time-ms`: Request latency
+- `X-Response-Time-ms`: Request latency in milliseconds
 
-**Response Headers:**
+### Manual Middleware Registration
+
+If you prefer manual setup:
 
 ```python
-# Automatically added to responses
-response.headers["X-Trace-Id"] = trace_id
-response.headers["X-Span-Id"] = span_id
-response.headers["X-Response-Time-ms"] = "45.2"
+from fapilog.middleware import TraceIDMiddleware
+from fapilog.settings import LoggingSettings
+
+app = FastAPI()
+settings = LoggingSettings(trace_id_header="X-Request-ID")
+
+# Register middleware manually
+app.add_middleware(TraceIDMiddleware, trace_id_header=settings.trace_id_header)
+configure_logging(settings=settings)
 ```
 
 ---

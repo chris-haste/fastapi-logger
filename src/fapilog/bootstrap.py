@@ -53,7 +53,12 @@ def configure_logging(
     if _configured:
         # Still register middleware if app is provided
         if app is not None:
-            app.add_middleware(TraceIDMiddleware)
+            # Get settings if not provided for middleware registration
+            if settings is None:
+                settings = LoggingSettings()
+            app.add_middleware(
+                TraceIDMiddleware, trace_id_header=settings.trace_id_header
+            )
         return structlog.get_logger()  # type: ignore[no-any-return]
 
     # Get settings from environment if not provided
@@ -115,7 +120,7 @@ def configure_logging(
 
     # Register middleware if app is provided
     if app is not None:
-        app.add_middleware(TraceIDMiddleware)
+        app.add_middleware(TraceIDMiddleware, trace_id_header=settings.trace_id_header)
         # Register FastAPI shutdown event for graceful log flushing
         if _queue_worker is not None:
             app.add_event_handler("shutdown", _queue_worker.shutdown)

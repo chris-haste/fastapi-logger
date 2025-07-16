@@ -57,21 +57,26 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
     """Middleware that injects trace_id and span_id into request context.
 
     This middleware:
-    - Generates or forwards trace_id from X-Trace-Id header
+    - Generates or forwards trace_id from configurable header
+      (default: X-Request-ID)
     - Generates a fresh span_id for each request
     - Measures request latency and adds X-Response-Time-ms header
     - Captures request/response metadata (body sizes, status code, user-agent)
+    - Captures request details (method, path, client_ip) for context
+      enrichment
     - Echoes trace_id in X-Trace-Id response header
     - Cleans up context variables after request completion
     """
 
-    def __init__(self, app: ASGIApp) -> None:
+    def __init__(self, app: ASGIApp, trace_id_header: str = "X-Request-ID") -> None:
         """Initialize the middleware.
 
         Args:
             app: The ASGI application to wrap
+            trace_id_header: HTTP header name for incoming trace ID
         """
         super().__init__(app)
+        self.trace_id_header = trace_id_header
 
     async def dispatch(self, request: Request, call_next: Any) -> Response:
         """Process the request and add correlation IDs and timing.
@@ -86,13 +91,18 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
         # Import log here to avoid circular import
         from . import log
 
-        # Generate or forward trace_id
-        trace_id = request.headers.get("X-Trace-Id")
+        # Generate or forward trace_id using configurable header
+        trace_id = request.headers.get(self.trace_id_header)
         if not trace_id:
             trace_id = uuid.uuid4().hex
 
         # Generate fresh span_id
         span_id = uuid.uuid4().hex
+
+        # Extract request details for context enrichment (Story 6.1)
+        client_ip = request.client.host if request.client else "unknown"
+        method = request.method
+        path = request.url.path
 
         # Capture request metadata
         req_size = 0
@@ -103,12 +113,15 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
             req_size = 0
         user_agent = request.headers.get("user-agent", "-")
 
-        # Set context variables
+        # Set context variables with all request metadata
         bind_context(
             trace_id=trace_id,
             span_id=span_id,
             req_bytes=req_size,
             user_agent=user_agent,
+            client_ip=client_ip,
+            method=method,
+            path=path,
         )
 
         # Also store on request.state for exception handler
@@ -141,9 +154,10 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
                         body_str = json.dumps(response.body) if response.body else ""
                         res_size = len(body_str.encode("utf-8"))
                     except (TypeError, ValueError):  # pragma: no cover
-                        # This branch is not testable via FastAPI/Starlette's public API
-                        # because setting response.body to non-serializable types causes
-                        # framework-level errors before reaching this middleware logic
+                        # This branch is not testable via FastAPI/Starlette's
+                        # public API because setting response.body to
+                        # non-serializable types causes framework-level errors
+                        # before reaching this middleware logic
                         res_size = 0
 
             # Set response metadata context variables

@@ -11,6 +11,11 @@ Key features:
 - Compliance logging (GDPR, SOX, etc.)
 - Security event correlation
 - Access control logging
+
+Note: As of fapilog Story 6.1, basic request metadata (method, path,
+status_code, client_ip, duration_ms, trace_id) is automatically captured
+by TraceIDMiddleware. This example shows additional custom security middleware
+for enhanced audit logging beyond the automatic features.
 """
 
 import asyncio
@@ -40,14 +45,8 @@ class User(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-
-class SensitiveData(BaseModel):
-    credit_card: str = Field(..., description="Credit card number")
-    ssn: str = Field(..., description="Social Security Number")
-    address: str = Field(..., description="Home address")
+    username: str
+    password: str = Field(..., min_length=8)
 
 
 class SecurityEvent(BaseModel):
@@ -55,86 +54,52 @@ class SecurityEvent(BaseModel):
     user_id: Optional[str] = None
     ip_address: str
     user_agent: str
-    details: Dict[str, Any]
+    details: Dict[str, Any] = {}
 
 
-# Security utilities
-def mask_sensitive_data(data: str, mask_char: str = "*") -> str:
-    """Mask sensitive data for logging."""
-    if len(data) <= 4:
-        return mask_char * len(data)
-    return data[:2] + mask_char * (len(data) - 4) + data[-2:]
-
-
-def hash_sensitive_data(data: str) -> str:
-    """Hash sensitive data for secure logging."""
-    return hashlib.sha256(data.encode()).hexdigest()[:16]
-
-
-def sanitize_log_data(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Sanitize log data by masking sensitive fields."""
-    sensitive_fields = {
-        "password",
-        "credit_card",
-        "ssn",
-        "token",
-        "secret",
-        "api_key",
-        "private_key",
-        "session_id",
-    }
-
-    sanitized = data.copy()
-    for key, value in sanitized.items():
-        if key.lower() in sensitive_fields and isinstance(value, str):
-            sanitized[key] = mask_sensitive_data(value)
-        elif isinstance(value, dict):
-            sanitized[key] = sanitize_log_data(value)
-        elif isinstance(value, list):
-            sanitized[key] = [
-                sanitize_log_data(item) if isinstance(item, dict) else item
-                for item in value
-            ]
-
-    return sanitized
-
-
-# Configure security-focused logging
-security_settings = LogSettings(
-    level="INFO",
-    format="json",
-    sinks=[
-        StdoutSink(
-            level="INFO",
-            format="json",
-        )
-    ],
+# Configure security-focused logger
+sink = StdoutSink(format="json")
+logger = bootstrap_logger(
+    settings=LogSettings(level="INFO", enable_resource_metrics=True), sinks=[sink]
 )
 
-# Initialize logger
-logger = bootstrap_logger(security_settings)
-
-# Security dependencies
 security = HTTPBearer()
 
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-) -> User:
-    """Get current user from token (simplified for demo)."""
-    # In real app, validate JWT token
-    token = credentials.credentials
+def hash_sensitive_data(data: str) -> str:
+    """Hash sensitive data for logging."""
+    return hashlib.sha256(data.encode()).hexdigest()[:16]
 
-    # Simulate token validation
-    if token == "valid-token":
-        return User(
-            user_id="user-123",
-            email="user@example.com",
-            role="admin",
-            permissions=["read", "write", "delete"],
-        )
-    else:
-        raise HTTPException(status_code=401, detail="Invalid token")
+
+def mask_email(email: str) -> str:
+    """Mask email for compliance logging."""
+    if "@" in email:
+        local, domain = email.split("@", 1)
+        masked_local = local[:2] + "*" * (len(local) - 2)
+        return f"{masked_local}@{domain}"
+    return email
+
+
+def log_security_event(event: SecurityEvent, request_id: str):
+    """Log security events with proper audit formatting."""
+    logger.info(
+        f"Security event: {event.event_type}",
+        extra={
+            "log_type": "security_audit",
+            "event_type": event.event_type,
+            "request_id": request_id,
+            "user_id": event.user_id,
+            "client_ip": event.ip_address,
+            "user_agent": event.user_agent,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "details": event.details,
+            "compliance": {
+                "retention_period": "7_years",
+                "classification": "security_audit",
+                "regulations": ["SOX", "GDPR", "PCI_DSS"],
+            },
+        },
+    )
 
 
 @asynccontextmanager
@@ -143,9 +108,13 @@ async def lifespan(app: FastAPI):
     logger.info(
         "Starting secure application",
         extra={
-            "security_level": "high",
-            "compliance": ["GDPR", "SOX", "PCI-DSS"],
-            "audit_enabled": True,
+            "app_name": "security-logging-example",
+            "security_features": [
+                "audit_logging",
+                "data_masking",
+                "compliance_logging",
+                "automatic_request_context",  # Added in Story 6.1
+            ],
         },
     )
     yield
@@ -157,7 +126,11 @@ app = FastAPI(lifespan=lifespan)
 
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
-    """Security middleware for logging all requests."""
+    """Custom security middleware for enhanced audit logging.
+
+    Note: This provides additional security-specific logging beyond the
+    automatic request context enrichment provided by fapilog's TraceIDMiddleware.
+    """
     start_time = time.time()
     request_id = str(uuid.uuid4())
 
@@ -165,7 +138,7 @@ async def security_middleware(request: Request, call_next):
     client_ip = request.client.host if request.client else "unknown"
     user_agent = request.headers.get("user-agent", "unknown")
 
-    # Log incoming request
+    # Log incoming request (additional to automatic logging)
     logger.info(
         "Incoming request",
         extra={
@@ -226,7 +199,7 @@ async def login(request: LoginRequest):
         extra={
             "log_type": "security",
             "event_type": "login_attempt",
-            "email": mask_sensitive_data(request.email),
+            "email": mask_email(request.username),
             "ip_address": "192.168.1.100",  # Mock IP
             "user_agent": "Mozilla/5.0...",
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -236,7 +209,7 @@ async def login(request: LoginRequest):
     # Simulate authentication
     await asyncio.sleep(0.1)
 
-    if request.email == "user@example.com" and request.password == "password123":
+    if request.username == "user@example.com" and request.password == "password123":
         # Log successful login
         session_id = str(uuid.uuid4())
         logger.info(
@@ -245,7 +218,7 @@ async def login(request: LoginRequest):
                 "log_type": "security",
                 "event_type": "login_success",
                 "user_id": "user-123",
-                "email": mask_sensitive_data(request.email),
+                "email": mask_email(request.username),
                 "session_id": session_id,
                 "ip_address": "192.168.1.100",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -264,7 +237,7 @@ async def login(request: LoginRequest):
             extra={
                 "log_type": "security",
                 "event_type": "login_failed",
-                "email": mask_sensitive_data(request.email),
+                "email": mask_email(request.username),
                 "ip_address": "192.168.1.100",
                 "reason": "invalid_credentials",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -283,7 +256,7 @@ async def logout(current_user: User = Depends(get_current_user)):
             "log_type": "security",
             "event_type": "logout",
             "user_id": current_user.user_id,
-            "email": mask_sensitive_data(current_user.email),
+            "email": mask_email(current_user.email),
             "ip_address": "192.168.1.100",
             "timestamp": datetime.now(timezone.utc).isoformat(),
         },
@@ -393,7 +366,7 @@ async def get_user_profile(
     # Return profile data
     return {
         "user_id": user_id,
-        "email": mask_sensitive_data("user@example.com"),
+        "email": mask_email("user@example.com"),
         "role": "user",
         "created_at": "2024-01-01T00:00:00Z",
     }

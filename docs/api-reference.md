@@ -213,26 +213,51 @@ configure_logging(app=app)
 
 **Features:**
 
-- **Trace Correlation**: Generates or forwards trace_id from `X-Trace-Id` header
+- **Trace Correlation**: Generates or forwards trace_id from configurable header (default: `X-Request-ID`)
 - **Span Generation**: Creates unique span_id for each request
 - **Request Timing**: Measures and logs request latency
+- **Request Context Enrichment**: Captures comprehensive request metadata (method, path, client_ip, status_code, etc.)
 - **Response Headers**: Adds correlation headers to responses
 - **Context Isolation**: Ensures clean context between requests
 
+**Constructor Parameters:**
+
+- `trace_id_header` (str, optional): HTTP header name for incoming trace ID. Defaults to `"X-Request-ID"`.
+
 **Response Headers:**
 
-- `X-Trace-Id`: Request trace identifier
+- `X-Trace-Id`: Request trace identifier (echoed back)
 - `X-Span-Id`: Request span identifier
 - `X-Response-Time-ms`: Request latency in milliseconds
 
-**Captured Metadata:**
+**Captured Metadata (automatically added to log context):**
 
-- Request path and method
-- HTTP status code
-- Request/response body sizes
-- User-Agent header
-- Request latency
-- Error details (if applicable)
+- `trace_id`: Request correlation identifier
+- `span_id`: Request span identifier
+- `method`: HTTP method (GET, POST, etc.)
+- `path`: Request path
+- `client_ip`: Client IP address
+- `status_code`: HTTP response status code
+- `latency_ms`: Request duration in milliseconds
+- `req_bytes`: Request body size in bytes
+- `res_bytes`: Response body size in bytes
+- `user_agent`: User-Agent header value
+
+**Configuration via Settings:**
+
+```python
+from fapilog.settings import LoggingSettings
+
+# Configure custom trace header
+settings = LoggingSettings(trace_id_header="X-Custom-Trace-ID")
+configure_logging(settings=settings, app=app)
+```
+
+**Environment Variable:**
+
+```bash
+export FAPILOG_TRACE_ID_HEADER=X-Custom-Trace-ID
+```
 
 ### `add_trace_exception_handler()`
 

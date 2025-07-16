@@ -29,7 +29,7 @@ Tasks / Technical Checklist
    • `tests/test_trace_middleware.py`  
    • `tests/test_context_utils.py`  
    • `tests/test_enricher_request.py`
-2. Use `TestClient` (Starlette or FastAPI) to simulate HTTP requests with and without `X-Trace-Id`
+2. Use `TestClient` (Starlette or FastAPI) to simulate HTTP requests with and without `X-Request-ID` (configurable header name, was `X-Trace-Id` in original design)
 3. Use `asyncio.create_task()` + `context_copy()` to verify context propagation in background jobs
 4. Patch or monkeypatch `contextvars` to simulate context leakage attempts, confirm isolation
 5. Generate coverage report locally with:  

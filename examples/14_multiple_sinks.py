@@ -10,17 +10,21 @@ Key features:
 - Different sink combinations for different environments
 - Structured logging across all sinks
 - Error handling and sink-specific configurations
+- Automatic request context enrichment (method, path, status_code, client_ip,
+  duration_ms, trace_id) via TraceIDMiddleware
+
+Note: As of fapilog Story 6.1, request metadata is automatically captured.
+This example focuses on business logging across multiple sink destinations.
 """
 
 import asyncio
-import logging
 import time
 import tempfile
 import os
 from typing import Dict, Any, List
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from fapilog import configure_logging, log
@@ -31,365 +35,311 @@ class OrderRequest(BaseModel):
     customer_id: str
     items: List[Dict[str, Any]]
     total_amount: float
-
-
-class OrderResponse(BaseModel):
-    order_id: str
-    customer_id: str
-    status: str
-    total_amount: float
-    created_at: str
-
-
-# Create temporary log file for demonstration
-log_file = tempfile.NamedTemporaryFile(delete=False, suffix=".log")
-log_file_path = log_file.name
-log_file.close()
-
-
-def demonstrate_development_config():
-    """Demonstrate multiple sinks for development environment."""
-    print("=== Development Configuration ===")
-    print("Environment variables for development:")
-    print("  export FAPILOG_SINKS=stdout,file")
-    print("  export FAPILOG_LEVEL=DEBUG")
-    print("  export FAPILOG_JSON_CONSOLE=pretty")
-    print("  export FAPILOG_FILE_PATH=/tmp/app.log")
-    print()
-
-    # Configure for development (stdout + file)
-    settings = LoggingSettings(
-        level="DEBUG",
-        sinks=["stdout", "file"],
-        json_console="pretty",  # Pretty output for development
-        queue_enabled=True,
-        queue_maxsize=100,  # Smaller queue for development
-        queue_batch_size=5,
-    )
-
-    logger = configure_logging(settings=settings)
-
-    logger.info(
-        "Development environment configured",
-        extra={
-            "environment": "development",
-            "sinks": ["stdout", "file"],
-            "console_format": "pretty",
-        },
-    )
-
-
-def demonstrate_production_config():
-    """Demonstrate multiple sinks for production environment."""
-    print("\n=== Production Configuration ===")
-    print("Environment variables for production:")
-    print("  export FAPILOG_SINKS=stdout,loki")
-    print("  export FAPILOG_LEVEL=INFO")
-    print("  export FAPILOG_JSON_CONSOLE=json")
-    print("  export LOKI_URL=http://loki:3100")
-    print("  export LOKI_LABELS=app=ecommerce,env=prod")
-    print()
-
-    # Configure for production (stdout + loki)
-    settings = LoggingSettings(
-        level="INFO",
-        sinks=["stdout", "loki"],
-        json_console="json",  # JSON output for production
-        queue_enabled=True,
-        queue_maxsize=1000,  # Larger queue for production
-        queue_batch_size=20,
-        queue_overflow="drop",  # Drop logs if overwhelmed
-    )
-
-    logger = configure_logging(settings=settings)
-
-    logger.info(
-        "Production environment configured",
-        extra={
-            "environment": "production",
-            "sinks": ["stdout", "loki"],
-            "console_format": "json",
-        },
-    )
-
-
-def demonstrate_monitoring_config():
-    """Demonstrate multiple sinks for monitoring/observability."""
-    print("\n=== Monitoring Configuration ===")
-    print("Environment variables for monitoring:")
-    print("  export FAPILOG_SINKS=stdout,loki,file")
-    print("  export FAPILOG_LEVEL=WARNING")
-    print("  export FAPILOG_ENABLE_RESOURCE_METRICS=true")
-    print("  export FAPILOG_FILE_PATH=/var/log/app/errors.log")
-    print()
-
-    # Configure for monitoring (stdout + loki + file for errors)
-    settings = LoggingSettings(
-        level="WARNING",  # Only warnings and errors
-        sinks=["stdout", "loki", "file"],
-        enable_resource_metrics=True,  # Enable memory/CPU metrics
-        queue_enabled=True,
-        queue_maxsize=500,
-        queue_batch_size=10,
-        queue_overflow="sample",  # Sample when overwhelmed
-        sampling_rate=0.8,  # Keep 80% of logs
-    )
-
-    logger = configure_logging(settings=settings)
-
-    logger.warning(
-        "Monitoring environment configured",
-        extra={
-            "environment": "monitoring",
-            "sinks": ["stdout", "loki", "file"],
-            "resource_metrics": True,
-        },
-    )
-
-
-def demonstrate_environment_variables():
-    """Demonstrate configuration via environment variables only."""
-    print("\n=== Environment Variables Only ===")
-    print("Set these environment variables:")
-    print("  export FAPILOG_SINKS=stdout,file,loki")
-    print("  export FAPILOG_LEVEL=INFO")
-    print("  export FAPILOG_QUEUE_ENABLED=true")
-    print("  export FAPILOG_QUEUE_MAXSIZE=1000")
-    print("  export FAPILOG_QUEUE_BATCH_SIZE=10")
-    print("  export FAPILOG_QUEUE_OVERFLOW=drop")
-    print("  export FAPILOG_ENABLE_RESOURCE_METRICS=true")
-    print("  export LOKI_URL=http://localhost:3100")
-    print("  export FAPILOG_FILE_PATH=/tmp/app.log")
-    print()
-
-    # Configure using environment variables only
-    logger = configure_logging()
-
-    logger.info(
-        "Environment-based configuration active",
-        extra={"config_method": "environment_variables", "sinks": "stdout,file,loki"},
-    )
+    priority: str = "normal"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
-    log.info(
-        "Starting e-commerce API with multiple logging sinks",
-        extra={"log_file": log_file_path, "sinks": ["stdout", "file", "loki"]},
+    # Create temporary log file for this example
+    log_file_path = tempfile.mktemp(suffix=".log", prefix="fapilog_multi_sink_")
+
+    # Configure multiple sinks via settings
+    settings = LoggingSettings(
+        level="INFO",
+        json_console="pretty",  # Console sink with pretty formatting
+        queue_enabled=True,  # Enable queue for better performance
+        # File sink configuration
+        sinks=[
+            f"file:{log_file_path}",  # File sink
+            "stdout:pretty",  # Stdout sink with pretty formatting
+        ],
     )
-    yield
-    log.info("Shutting down e-commerce API")
-    # Clean up log file
+
+    # Configure logging - automatically registers TraceIDMiddleware
+    configure_logging(app=app, settings=settings)
+
+    # Log startup across all sinks
+    log.info(
+        "Multi-sink application starting",
+        app_name="fapilog-multi-sink-example",
+        version="1.0.0",
+        sinks_configured=["file", "stdout"],
+        log_file=log_file_path,
+        features=["multiple_sinks", "automatic_request_context", "queue_enabled"],
+    )
+
+    print("=== Multi-Sink Logging Example ===")
+    print(f"📄 File sink: {log_file_path}")
+    print("🖥️  Console sink: stdout (pretty format)")
+    print("🔄 Queue enabled for performance")
+    print("✅ Automatic request context enrichment enabled")
+    print()
+
     try:
-        os.unlink(log_file_path)
-    except OSError:
-        pass
+        yield
+    finally:
+        # Log shutdown
+        log.info("Multi-sink application shutting down")
+
+        # Clean up temporary log file
+        try:
+            if os.path.exists(log_file_path):
+                os.unlink(log_file_path)
+        except OSError:
+            pass
 
 
 app = FastAPI(lifespan=lifespan)
 
 
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    """Middleware to log all requests."""
-    start_time = time.time()
-
-    # Log request details
-    log.debug(
-        "Incoming request",
-        extra={
-            "method": request.method,
-            "url": str(request.url),
-            "client_ip": request.client.host if request.client else "unknown",
-            "user_agent": request.headers.get("user-agent", "unknown"),
-        },
-    )
-
-    try:
-        response = await call_next(request)
-
-        # Log response details
-        processing_time = time.time() - start_time
-        log.info(
-            "Request processed",
-            extra={
-                "method": request.method,
-                "url": str(request.url),
-                "status_code": response.status_code,
-                "processing_time_ms": round(processing_time * 1000, 2),
-            },
-        )
-
-        return response
-
-    except Exception as e:
-        # Log errors
-        processing_time = time.time() - start_time
-        log.error(
-            "Request failed",
-            extra={
-                "method": request.method,
-                "url": str(request.url),
-                "error": str(e),
-                "processing_time_ms": round(processing_time * 1000, 2),
-            },
-        )
-        raise
+# Note: Custom request middleware is no longer needed as TraceIDMiddleware
+# automatically captures all request metadata. This example focuses on
+# demonstrating multi-sink logging with business-specific log events.
 
 
 @app.get("/")
 async def root():
-    """Root endpoint."""
-    log.info("Root endpoint accessed")
-    return {"message": "E-commerce API", "version": "1.0.0"}
-
-
-@app.post("/orders", response_model=OrderResponse)
-async def create_order(request: OrderRequest):
-    """Create a new order with comprehensive logging."""
-    order_id = f"ORD-{int(time.time())}"
-
-    # Log order creation start
-    log.info(
-        "Order creation started",
-        extra={
-            "order_id": order_id,
-            "customer_id": request.customer_id,
-            "item_count": len(request.items),
-            "total_amount": request.total_amount,
-        },
-    )
-
-    try:
-        # Simulate order processing
-        await asyncio.sleep(0.2)
-
-        # Validate order
-        if request.total_amount <= 0:
-            log.warning(
-                "Invalid order amount",
-                extra={
-                    "order_id": order_id,
-                    "customer_id": request.customer_id,
-                    "total_amount": request.total_amount,
-                },
-            )
-            raise HTTPException(status_code=400, detail="Invalid order amount")
-
-        if len(request.items) == 0:
-            log.warning(
-                "Empty order",
-                extra={"order_id": order_id, "customer_id": request.customer_id},
-            )
-            raise HTTPException(status_code=400, detail="Order cannot be empty")
-
-        # Log successful order creation
-        log.info(
-            "Order created successfully",
-            extra={
-                "order_id": order_id,
-                "customer_id": request.customer_id,
-                "status": "created",
-                "total_amount": request.total_amount,
-            },
-        )
-
-        return OrderResponse(
-            order_id=order_id,
-            customer_id=request.customer_id,
-            status="created",
-            total_amount=request.total_amount,
-            created_at=time.strftime("%Y-%m-%d %H:%M:%S"),
-        )
-
-    except HTTPException:
-        # Re-raise HTTP exceptions
-        raise
-    except Exception as e:
-        # Log unexpected errors
-        log.error(
-            "Order creation failed",
-            extra={
-                "order_id": order_id,
-                "customer_id": request.customer_id,
-                "error": str(e),
-                "error_type": type(e).__name__,
-            },
-        )
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@app.get("/orders/{order_id}")
-async def get_order(order_id: str):
-    """Get order details."""
-    log.debug("Order lookup requested", extra={"order_id": order_id})
-
-    # Simulate order lookup
-    await asyncio.sleep(0.1)
-
-    # Simulate order not found
-    if not order_id.startswith("ORD-"):
-        log.warning("Invalid order ID format", extra={"order_id": order_id})
-        raise HTTPException(status_code=400, detail="Invalid order ID format")
-
-    # Simulate order not found
-    if int(order_id.split("-")[1]) < time.time() - 3600:  # Order older than 1 hour
-        log.warning("Order not found", extra={"order_id": order_id})
-        raise HTTPException(status_code=404, detail="Order not found")
-
-    log.info("Order retrieved successfully", extra={"order_id": order_id})
-
+    """Root endpoint - automatically logged to all sinks."""
+    # Request metadata automatically captured and sent to all sinks
+    log.info("Root endpoint accessed", service="multi-sink-example")
     return {
-        "order_id": order_id,
-        "customer_id": "CUST-123",
-        "status": "completed",
-        "total_amount": 99.99,
-        "created_at": "2024-01-15 10:30:00",
+        "message": "Multi-sink logging example",
+        "note": "Request metadata automatically logged to all configured sinks",
     }
 
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
-    log.debug("Health check requested")
-    return {"status": "healthy", "timestamp": time.time()}
+    """Health check endpoint with structured logging."""
+    log.info(
+        "Health check requested",
+        operation="health_check",
+        status="healthy",
+        checks=["database", "cache", "external_api"],
+    )
+
+    return {
+        "status": "healthy",
+        "timestamp": time.time(),
+        "checks": {"database": "ok", "cache": "ok", "external_api": "ok"},
+    }
 
 
-@app.get("/logs/file")
-async def get_log_file():
-    """Get the contents of the log file (for demonstration)."""
-    try:
-        with open(log_file_path, "r") as f:
-            logs = f.read()
-        return {"log_file": log_file_path, "contents": logs}
-    except FileNotFoundError:
-        return {"error": "Log file not found"}
+@app.post("/orders")
+async def create_order(order: OrderRequest):
+    """Create order with multi-sink business logging."""
+    order_id = f"ord_{int(time.time())}_{hash(order.customer_id) % 1000:03d}"
+
+    # Business logic logging (sent to all sinks)
+    log.info(
+        "Order processing started",
+        operation="order_create",
+        order_id=order_id,
+        customer_id=order.customer_id,
+        item_count=len(order.items),
+        total_amount=order.total_amount,
+        priority=order.priority,
+    )
+
+    # Simulate order validation
+    await asyncio.sleep(0.1)
+
+    # Validate total amount
+    calculated_total = sum(
+        item.get("price", 0) * item.get("quantity", 1) for item in order.items
+    )
+
+    if abs(calculated_total - order.total_amount) > 0.01:
+        log.error(
+            "Order total mismatch",
+            operation="order_create",
+            order_id=order_id,
+            customer_id=order.customer_id,
+            provided_total=order.total_amount,
+            calculated_total=calculated_total,
+            error_type="validation_error",
+        )
+        raise HTTPException(
+            status_code=400, detail="Order total does not match item prices"
+        )
+
+    # Simulate order processing
+    await asyncio.sleep(0.2)
+
+    # Log successful order creation
+    log.info(
+        "Order created successfully",
+        operation="order_create",
+        order_id=order_id,
+        customer_id=order.customer_id,
+        total_amount=order.total_amount,
+        priority=order.priority,
+        business_metrics={
+            "order_value": order.total_amount,
+            "item_count": len(order.items),
+            "processing_priority": order.priority,
+        },
+    )
+
+    return {
+        "order_id": order_id,
+        "status": "created",
+        "customer_id": order.customer_id,
+        "total_amount": order.total_amount,
+        "items": order.items,
+        "created_at": time.time(),
+    }
+
+
+@app.get("/orders/{order_id}")
+async def get_order(order_id: str):
+    """Get order details with audit logging."""
+    log.info(
+        "Order lookup requested",
+        operation="order_lookup",
+        order_id=order_id,
+        audit_category="data_access",
+    )
+
+    # Simulate database lookup
+    await asyncio.sleep(0.05)
+
+    # Mock order not found for demonstration
+    if "invalid" in order_id.lower():
+        log.warning(
+            "Order not found",
+            operation="order_lookup",
+            order_id=order_id,
+            reason="invalid_order_id",
+        )
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Mock order response
+    mock_order = {
+        "order_id": order_id,
+        "customer_id": "customer_123",
+        "status": "processing",
+        "total_amount": 99.99,
+        "created_at": time.time() - 3600,  # 1 hour ago
+    }
+
+    log.info(
+        "Order retrieved successfully",
+        operation="order_lookup",
+        order_id=order_id,
+        customer_id=mock_order["customer_id"],
+        order_status=mock_order["status"],
+        audit_category="data_access",
+    )
+
+    return mock_order
+
+
+@app.get("/analytics/summary")
+async def get_analytics():
+    """Get analytics with business intelligence logging."""
+    log.info(
+        "Analytics summary requested",
+        operation="analytics",
+        report_type="business_summary",
+    )
+
+    # Simulate analytics calculation
+    await asyncio.sleep(0.15)
+
+    # Mock analytics data
+    analytics = {
+        "total_orders": 1250,
+        "total_revenue": 125000.50,
+        "avg_order_value": 100.00,
+        "top_customer_segments": ["premium", "enterprise"],
+        "generated_at": time.time(),
+    }
+
+    # Business intelligence logging
+    log.info(
+        "Analytics summary generated",
+        operation="analytics",
+        report_type="business_summary",
+        metrics=analytics,
+        business_category="business_intelligence",
+    )
+
+    return analytics
+
+
+@app.get("/performance/load-test")
+async def load_test():
+    """Load testing endpoint for multi-sink performance evaluation."""
+    log.info(
+        "Load test started",
+        operation="load_test",
+        test_type="multi_sink_performance",
+    )
+
+    # Generate multiple log events quickly to test sink performance
+    for i in range(10):
+        log.info(
+            f"Load test event {i + 1}",
+            operation="load_test",
+            event_number=i + 1,
+            batch_size=10,
+            test_data={"value": i * 10, "category": f"test_{i % 3}"},
+        )
+        # Small delay to avoid overwhelming
+        await asyncio.sleep(0.01)
+
+    log.info(
+        "Load test completed",
+        operation="load_test",
+        test_type="multi_sink_performance",
+        events_generated=10,
+    )
+
+    return {
+        "message": "Load test completed",
+        "events_generated": 10,
+        "note": "Check both console and file sinks for all events",
+    }
+
+
+def main():
+    """Run the FastAPI application."""
+    import uvicorn
+
+    print("=== FastAPI Multiple Sinks Example (Updated for Story 6.1) ===")
+    print("This example demonstrates:")
+    print("✅ Multiple sink configuration (file + console)")
+    print("✅ Automatic request context enrichment")
+    print("✅ Business logging across all sinks")
+    print("✅ Queue-based logging for performance")
+    print("✅ Structured logging with sink-specific formatting")
+    print()
+    print("Available endpoints:")
+    print("  GET  /                    - Root endpoint")
+    print("  GET  /health              - Health check with structured logging")
+    print("  POST /orders              - Create order with validation")
+    print("  GET  /orders/{id}         - Get order details")
+    print("  GET  /analytics/summary   - Business analytics")
+    print("  GET  /performance/load-test - Multi-sink performance test")
+    print()
+    print("Key features:")
+    print("✅ Automatic request metadata capture (via TraceIDMiddleware)")
+    print("✅ Multiple output destinations")
+    print("✅ Queue-based processing")
+    print("✅ Business-specific structured logging")
+    print("✅ Performance testing capabilities")
+    print()
+    print(
+        "Note: Request metadata (method, path, status_code, client_ip, "
+        "duration_ms, trace_id)"
+    )
+    print("      is automatically logged to ALL configured sinks!")
+    print()
+    print("Start the server with: uvicorn examples.14_multiple_sinks:app --reload")
+    print("Then visit: http://localhost:8000/docs")
 
 
 if __name__ == "__main__":
-    import uvicorn
-
-    print("=== Multiple Sinks Configuration Examples ===\n")
-
-    # Demonstrate different sink configurations
-    demonstrate_development_config()
-    demonstrate_production_config()
-    demonstrate_monitoring_config()
-    demonstrate_environment_variables()
-
-    print("\n=== Starting E-commerce API Server ===")
-    print("Configure multiple sinks via environment variables:")
-    print("  FAPILOG_SINKS=stdout,file,loki")
-    print("  FAPILOG_LEVEL=INFO")
-    print("  FAPILOG_QUEUE_ENABLED=true")
-    print("  LOKI_URL=http://localhost:3100")
-    print("  FAPILOG_FILE_PATH=/tmp/app.log")
-    print()
-
-    log.info(
-        "Starting e-commerce API server",
-        extra={"host": "0.0.0.0", "port": 8000, "log_file": log_file_path},
-    )
-
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_config=None)
+    main()
