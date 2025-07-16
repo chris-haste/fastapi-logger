@@ -13,11 +13,12 @@ Acceptance Criteria
 
 - Middleware implemented in **fapilog/middleware.py** as `TraceIDMiddleware(BaseHTTPMiddleware)`.
 - Behaviour per HTTP request:  
-  • Generate a UUID-v4 `trace_id` when header `X-Trace-Id` is absent; otherwise forward the incoming value.  
+  • Generate a UUID-v4 `trace_id` when header `X-Request-ID` is absent; otherwise forward the incoming value.  
   • Generate a fresh UUID-v4 `span_id` on every request.  
   • Store both IDs in contextvars (`trace_ctx`, `span_ctx`) for log enrichment.  
   • Record start time; after response, compute latency in ms and add header `X-Response-Time-ms`.  
-  • Echo `trace_id` in response header `X-Trace-Id`.
+  • Echo `trace_id` in response header `X-Trace-Id` (for backward compatibility).  
+  • **Enhanced in Story 6.1**: Capture comprehensive request metadata (method, path, client_ip, status_code, etc.)
 - Logs written during the request contain `trace_id`, `span_id`, `path`, `method`, `status_code`, and `latency_ms`.
 - `configure_logging(app=fastapi_app)` registers the middleware once; repeated calls do not duplicate it.
 - Works for both sync and async route handlers.
@@ -96,11 +97,12 @@ Implementation Summary
 
 **Request Processing Behavior:**
 
-- ✅ **Trace ID Handling**: Generates UUID-v4 when `X-Trace-Id` header absent, forwards existing value otherwise
+- ✅ **Trace ID Handling**: Generates UUID-v4 when `X-Request-ID` header absent, forwards existing value otherwise (configurable header name)
 - ✅ **Span ID Generation**: Fresh UUID-v4 `span_id` generated on every request
 - ✅ **Context Storage**: Both IDs stored in contextvars (`trace_ctx`, `span_ctx`) for log enrichment
 - ✅ **Latency Measurement**: Records start time using `time.perf_counter()`, computes latency in ms
 - ✅ **Response Headers**: Adds `X-Response-Time-ms` header and echoes `trace_id` in `X-Trace-Id`
+- ✅ **Enhanced Context**: Captures comprehensive request metadata (method, path, client*ip, status_code, req_bytes, res_bytes, user_agent) - \_added in Story 6.1*
 
 **Logging Integration:**
 
@@ -115,14 +117,18 @@ Implementation Summary
 
 **Comprehensive Testing:**
 
-- ✅ **7 Unit Tests** in `tests/test_trace_middleware.py`:
-  - `test_forward_trace_header`: Verifies forwarding of existing `X-Trace-Id`
-  - `test_generate_trace_header`: Verifies generation of new IDs when header missing
-  - `test_latency_header_present`: Verifies presence and numeric nature of `X-Response-Time-ms`
-  - `test_context_cleanup`: Verifies no context leakage after request completion
-  - `test_exception_handling`: Verifies proper handling of exceptions with correlation headers
-  - `test_context_cleanup_after_exception`: Verifies cleanup even after exceptions
-  - `test_middleware_idempotent_registration`: Verifies middleware is only registered once
+**Testing:**
+
+- ✅ **13 comprehensive unit tests** in `tests/test_trace_middleware.py` covering:
+  - `test_forward_trace_header`: Verifies forwarding of existing `X-Request-ID` (configurable)
+  - `test_generate_trace_header`: Confirms UUID generation when header missing
+  - `test_latency_header_present`: Validates `X-Response-Time-ms` header inclusion
+  - `test_context_cleanup`: Ensures proper cleanup of contextvars after request
+  - Exception handling, content-length processing, response body calculation
+  - User-agent capture, binary responses, streaming responses
+- ✅ **11 additional tests** in `tests/test_request_enricher.py` for Story 6.1 enhancements:
+  - Context injection and field validation for enhanced request metadata
+  - Custom trace header configuration and settings integration
 
 **Test Results:**
 
@@ -151,3 +157,5 @@ Implementation Summary
 - ✅ **UUID Generation**: Efficient UUID-v4 generation for correlation IDs
 
 The implementation fully satisfies all acceptance criteria and is production-ready with comprehensive test coverage.
+
+**Note:** This story was enhanced in Story 6.1 to use configurable trace headers. The default header is now `X-Request-ID` instead of `X-Trace-Id` for better industry standards alignment, and comprehensive request metadata capture was added.

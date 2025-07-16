@@ -869,6 +869,9 @@ The following fields are automatically added to all log events:
 | `pid`         | integer | Process ID                  | `12345`                      |
 | `trace_id`    | string  | Request correlation ID      | `"abc123def456"`             |
 | `span_id`     | string  | Request span ID             | `"xyz789uvw012"`             |
+| `method`      | string  | HTTP request method         | `"GET"`, `"POST"`            |
+| `path`        | string  | HTTP request path           | `"/api/users/123"`           |
+| `client_ip`   | string  | Client IP address           | `"192.168.1.100"`            |
 | `status_code` | integer | HTTP response status        | `200`, `404`, `500`          |
 | `latency_ms`  | float   | Request duration in ms      | `45.2`                       |
 | `req_bytes`   | integer | Request body size in bytes  | `1024`                       |
@@ -885,6 +888,110 @@ def test_trace_id(caplog_json):
     record = caplog_json.find(event="test_event")
     assert "trace_id" in record
     assert record["extra"] == "value"
+```
+
+## 🏷️ Request Context Enrichment
+
+`fapilog` automatically enriches all logs with HTTP request metadata through the `TraceIDMiddleware`. This provides complete request traceability without manual log field management.
+
+### Automatic Fields
+
+Every log event during a request automatically includes:
+
+| Field         | Type    | Description            | Example            |
+| ------------- | ------- | ---------------------- | ------------------ |
+| `trace_id`    | string  | Request correlation ID | `"abc123def456"`   |
+| `span_id`     | string  | Request span ID        | `"xyz789uvw012"`   |
+| `method`      | string  | HTTP method            | `"POST"`           |
+| `path`        | string  | Request path           | `"/api/users/123"` |
+| `client_ip`   | string  | Client IP address      | `"192.168.1.100"`  |
+| `status_code` | integer | HTTP response status   | `200`              |
+| `latency_ms`  | float   | Request duration in ms | `45.2`             |
+| `user_agent`  | string  | User-Agent header      | `"curl/7.68.0"`    |
+
+### Configuration
+
+Configure the trace ID header name using environment variables or settings:
+
+```bash
+# Environment variable (default: X-Request-ID)
+export FAPILOG_TRACE_ID_HEADER=X-Custom-Trace-ID
+```
+
+```python
+from fapilog.settings import LoggingSettings
+
+settings = LoggingSettings(
+    trace_id_header="X-Custom-Trace-ID"  # Default: "X-Request-ID"
+)
+configure_logging(settings=settings, app=app)
+```
+
+### Example Usage
+
+```python
+from fastapi import FastAPI
+from fapilog import configure_logging, log
+
+app = FastAPI()
+configure_logging(app=app)  # Automatically registers TraceIDMiddleware
+
+@app.post("/api/orders")
+async def create_order(order_data: dict):
+    # All these logs automatically include request context
+    log.info("Order creation started", order_value=order_data.get("total"))
+
+    try:
+        order_id = await process_order(order_data)
+        log.info("Order created successfully", order_id=order_id)
+        return {"order_id": order_id, "status": "created"}
+    except Exception as e:
+        log.error("Order creation failed", error=str(e))
+        raise
+```
+
+**Generated logs automatically include request context:**
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:45.123Z",
+  "level": "info",
+  "event": "Order creation started",
+  "trace_id": "abc123def456",
+  "span_id": "xyz789uvw012",
+  "method": "POST",
+  "path": "/api/orders",
+  "client_ip": "192.168.1.100",
+  "order_value": 299.99
+}
+```
+
+### Trace ID Propagation
+
+The middleware respects incoming trace IDs from headers and generates new ones when missing:
+
+```bash
+# Request with existing trace ID
+curl -H "X-Request-ID: external-trace-123" http://localhost:8000/api/users
+
+# Request without trace ID (auto-generated)
+curl http://localhost:8000/api/users
+```
+
+### Manual Middleware Registration
+
+If you prefer manual setup instead of using `configure_logging(app=app)`:
+
+```python
+from fapilog.middleware import TraceIDMiddleware
+from fapilog.settings import LoggingSettings
+
+app = FastAPI()
+settings = LoggingSettings(trace_id_header="X-Custom-Trace")
+
+# Register middleware manually
+app.add_middleware(TraceIDMiddleware, trace_id_header=settings.trace_id_header)
+configure_logging(settings=settings)
 ```
 
 ## 🔄 Using Context in Background Tasks

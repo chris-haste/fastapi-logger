@@ -1,7 +1,7 @@
 """Context variables for request correlation and tracing."""
 
 import contextvars
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 # Context variables for request correlation
 trace_ctx = contextvars.ContextVar("trace_id", default=None)
@@ -14,13 +14,19 @@ status_code_ctx = contextvars.ContextVar("status_code", default=None)
 latency_ctx = contextvars.ContextVar("latency_ms", default=None)
 user_agent_ctx = contextvars.ContextVar("user_agent", default=None)
 
+# Context variables for request details (Story 6.1)
+client_ip_ctx = contextvars.ContextVar("client_ip", default=None)
+method_ctx = contextvars.ContextVar("method", default=None)
+path_ctx = contextvars.ContextVar("path", default=None)
+
 
 def get_context() -> Dict[str, Any]:
     """Get the current context as a dictionary.
 
     Returns:
         Dictionary containing current trace_id, span_id, latency_ms,
-        status_code, req_bytes, res_bytes, and user_agent values.
+        status_code, req_bytes, res_bytes, user_agent, client_ip, method,
+        and path values.
     """
     return {
         "trace_id": trace_ctx.get(),
@@ -30,15 +36,19 @@ def get_context() -> Dict[str, Any]:
         "req_bytes": req_bytes_ctx.get(),
         "res_bytes": res_bytes_ctx.get(),
         "user_agent": user_agent_ctx.get(),
+        "client_ip": client_ip_ctx.get(),
+        "method": method_ctx.get(),
+        "path": path_ctx.get(),
     }
 
 
-def bind_context(**kwargs) -> None:
+def bind_context(**kwargs: Any) -> None:
     """Set or overwrite context variables for the current task.
 
     Args:
         **kwargs: Context variables to set. Valid keys are:
-            trace_id, span_id, latency_ms, status_code, req_bytes, res_bytes, user_agent
+            trace_id, span_id, latency_ms, status_code, req_bytes, res_bytes,
+            user_agent, client_ip, method, path
     """
     valid_keys = {
         "trace_id",
@@ -48,6 +58,9 @@ def bind_context(**kwargs) -> None:
         "req_bytes",
         "res_bytes",
         "user_agent",
+        "client_ip",
+        "method",
+        "path",
     }
 
     for key, value in kwargs.items():
@@ -68,6 +81,12 @@ def bind_context(**kwargs) -> None:
             res_bytes_ctx.set(value)
         elif key == "user_agent":
             user_agent_ctx.set(value)
+        elif key == "client_ip":
+            client_ip_ctx.set(value)
+        elif key == "method":
+            method_ctx.set(value)
+        elif key == "path":
+            path_ctx.set(value)
 
 
 def clear_context() -> None:
@@ -79,6 +98,9 @@ def clear_context() -> None:
     req_bytes_ctx.set(None)
     res_bytes_ctx.set(None)
     user_agent_ctx.set(None)
+    client_ip_ctx.set(None)
+    method_ctx.set(None)
+    path_ctx.set(None)
 
 
 def context_copy() -> contextvars.Context:
@@ -103,7 +125,7 @@ def get_span_id() -> Optional[str]:
 
 def set_trace_context(
     trace_id: str, span_id: str
-) -> tuple[contextvars.Token, contextvars.Token]:
+) -> Tuple[contextvars.Token, contextvars.Token]:
     """Set trace and span context variables.
 
     Args:
@@ -134,7 +156,7 @@ def reset_trace_context(
 def set_request_metadata(
     req_bytes: int,
     user_agent: str,
-) -> tuple[contextvars.Token, contextvars.Token]:
+) -> Tuple[contextvars.Token, contextvars.Token]:
     """Set request metadata context variables.
 
     Args:

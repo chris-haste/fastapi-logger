@@ -10,7 +10,7 @@ from fapilog.middleware import TraceIDMiddleware, add_trace_exception_handler
 
 @pytest.mark.asyncio
 async def test_forward_trace_header():
-    """Test that X-Trace-Id header is forwarded."""
+    """Test that X-Request-ID header is forwarded."""
     app = FastAPI()
 
     @app.get("/test")
@@ -22,7 +22,7 @@ async def test_forward_trace_header():
     client = TestClient(app)
 
     # Test with custom trace ID
-    response = client.get("/test", headers={"X-Trace-Id": "custom-trace-123"})
+    response = client.get("/test", headers={"X-Request-ID": "custom-trace-123"})
     assert response.status_code == 200
     assert response.headers["X-Trace-Id"] == "custom-trace-123"
 
@@ -283,7 +283,7 @@ async def test_middleware_with_content_length_header():
     response = client.post(
         "/test-content-length",
         json={"test": "data"},
-        headers={"Content-Length": "25", "X-Trace-Id": "custom-trace-456"},
+        headers={"Content-Length": "25", "X-Request-ID": "custom-trace-456"},
     )
     assert response.status_code == 200
     assert response.headers["X-Trace-Id"] == "custom-trace-456"
@@ -306,7 +306,7 @@ async def test_middleware_with_empty_content_length():
     response = client.post(
         "/test-empty-content-length",
         json={"test": "data"},
-        headers={"Content-Length": "", "X-Trace-Id": "custom-trace-789"},
+        headers={"Content-Length": "", "X-Request-ID": "custom-trace-789"},
     )
     assert response.status_code == 200
     assert response.headers["X-Trace-Id"] == "custom-trace-789"
@@ -329,7 +329,7 @@ async def test_middleware_with_invalid_content_length():
     response = client.post(
         "/test-invalid-content-length",
         json={"test": "data"},
-        headers={"Content-Length": "invalid", "X-Trace-Id": "custom-trace-abc"},
+        headers={"Content-Length": "invalid", "X-Request-ID": "custom-trace-abc"},
     )
     assert response.status_code == 200
     assert response.headers["X-Trace-Id"] == "custom-trace-abc"
@@ -351,7 +351,7 @@ async def test_middleware_with_custom_user_agent():
     # Test with custom user agent
     response = client.get(
         "/test-user-agent",
-        headers={"User-Agent": "CustomAgent/1.0", "X-Trace-Id": "custom-trace-def"},
+        headers={"User-Agent": "CustomAgent/1.0", "X-Request-ID": "custom-trace-def"},
     )
     assert response.status_code == 200
     assert response.headers["X-Trace-Id"] == "custom-trace-def"
@@ -467,7 +467,6 @@ async def test_middleware_with_response_no_body_attribute():
 
     @app.get("/test-no-body-attr")
     async def test_endpoint():
-
         from fastapi.responses import StreamingResponse
 
         def generate():

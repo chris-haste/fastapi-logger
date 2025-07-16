@@ -4,7 +4,13 @@ Example 8: FastAPI Structured Logging Patterns
 
 This example demonstrates advanced structured logging patterns in FastAPI
 applications, including performance monitoring, business metrics, and
-comprehensive request/response logging.
+comprehensive request/response logging with automatic request context
+enrichment.
+
+Note: As of fapilog with Story 6.1, request metadata (method, path,
+status_code, client_ip, duration_ms, trace_id, etc.) is automatically
+captured by TraceIDMiddleware. This example focuses on business-specific
+structured logging.
 """
 
 import asyncio
@@ -13,8 +19,7 @@ import uuid
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
-from fastapi import FastAPI, HTTPException, Request, Response, Depends
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, Request, Depends
 from pydantic import BaseModel
 
 from fapilog import configure_logging, log
@@ -33,46 +38,50 @@ class Product(BaseModel):
 class OrderItem(BaseModel):
     product_id: int
     quantity: int
+    unit_price: float
 
 
 class Order(BaseModel):
-    customer_id: int
+    id: str
+    customer_id: str
     items: List[OrderItem]
-    shipping_address: str
-
-
-class OrderResponse(BaseModel):
-    order_id: str
-    customer_id: int
     total_amount: float
-    status: str
-    created_at: datetime
+    status: str = "pending"
 
 
 def create_app() -> FastAPI:
-    """Create a FastAPI application with structured logging patterns."""
+    """Create a FastAPI application with structured logging."""
 
-    # Configure logging
+    # Configure logging with automatic request context enrichment
     settings = LoggingSettings(
         level="INFO",
-        json_console="pretty",
-        queue_enabled=False,
+        json_console="pretty",  # Pretty output for development
+        queue_enabled=False,  # Disable queue for simpler example
     )
 
+    # Configure logging - this automatically registers TraceIDMiddleware
+    # which captures: method, path, status_code, client_ip, duration_ms,
+    # trace_id, etc.
     configure_logging(settings=settings)
 
     # Create FastAPI app
     app = FastAPI(
         title="fapilog Structured Logging Example",
-        description="Example showing advanced structured logging patterns",
+        description="Example showing advanced structured logging patterns "
+        "with automatic request context",
         version="1.0.0",
     )
 
+    # Log application startup
     log.info(
         "FastAPI application with structured logging starting",
-        app_name="fapilog-structured-logging-example",
+        app_name="fapilog-structured-example",
         version="1.0.0",
-        features=["performance_monitoring", "business_metrics", "request_tracking"],
+        features=[
+            "automatic_request_context",
+            "business_metrics",
+            "performance_monitoring",
+        ],
     )
 
     return app
@@ -82,41 +91,16 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
-# Dependency for request timing
-async def log_request_timing(request: Request):
-    """Dependency to log request timing and metadata."""
+# Dependency for request timing (business-specific timing beyond automatic)
+async def log_business_timing(request: Request):
+    """Dependency to log business-specific timing."""
     start_time = time.perf_counter()
+    request.state.business_start_time = start_time
 
-    # Log request start
-    log.info(
-        "Request started",
-        endpoint=str(request.url.path),
-        method=request.method,
-        client_ip=request.client.host if request.client else "unknown",
-        user_agent=request.headers.get("user-agent", "unknown"),
-    )
-
-    # Store timing info in request state
-    request.state.start_time = start_time
-
+    # Note: Basic request metadata (method, path, etc.) is automatically
+    # logged. This dependency focuses on business-specific timing
+    log.debug("Business timing started", operation="business_logic")
     return start_time
-
-
-# Dependency for response logging
-async def log_response_timing(request: Request, response: Response):
-    """Dependency to log response timing and metadata."""
-    if hasattr(request.state, "start_time"):
-        duration = time.perf_counter() - request.state.start_time
-        duration_ms = round(duration * 1000, 2)
-
-        log.info(
-            "Request completed",
-            endpoint=str(request.url.path),
-            method=request.method,
-            status_code=response.status_code,
-            duration_ms=duration_ms,
-            response_size=len(str(response.body)) if hasattr(response, "body") else 0,
-        )
 
 
 # Mock data store
@@ -150,28 +134,25 @@ orders_db = {}
 
 @app.get("/")
 async def root():
-    """Root endpoint with basic structured logging."""
-    log.info(
-        "Root endpoint accessed",
-        endpoint="/",
-        method="GET",
-        timestamp=datetime.now().isoformat(),
-    )
-
-    return {"message": "Structured logging example API"}
+    """Root endpoint - request metadata automatically logged."""
+    # Note: method, path, status_code, client_ip, duration_ms, trace_id
+    # are automatically logged by TraceIDMiddleware
+    log.info("Root endpoint accessed", service="structured-logging-example")
+    return {"message": "Structured logging example API with automatic request context"}
 
 
 @app.get("/products")
 async def get_products(
     category: Optional[str] = None,
     in_stock_only: bool = False,
-    timing: float = Depends(log_request_timing),
+    timing: float = Depends(log_business_timing),
 ):
-    """Get products with filtering and performance logging."""
+    """Get products with filtering and business metrics logging."""
+    # Request metadata (method, path, etc.) automatically captured
+    # Focus on business-specific logging
     log.info(
-        "Products request started",
-        endpoint="/products",
-        method="GET",
+        "Products query started",
+        operation="product_search",
         filters={"category": category, "in_stock_only": in_stock_only},
     )
 
@@ -187,55 +168,52 @@ async def get_products(
             continue
         filtered_products.append(product)
 
-    # Log performance metrics
+    # Log business metrics (not request metadata - that's automatic)
+    efficiency = len(filtered_products) / len(products_db) if products_db else 0
     log.info(
-        "Products retrieved successfully",
-        endpoint="/products",
-        method="GET",
-        total_products=len(products_db),
-        filtered_count=len(filtered_products),
-        filters_applied={
-            "category_filter": category is not None,
-            "stock_filter": in_stock_only,
+        "Products query completed",
+        operation="product_search",
+        metrics={
+            "total_products": len(products_db),
+            "filtered_count": len(filtered_products),
+            "filter_efficiency": efficiency,
         },
+        business_logic_ms=round((time.perf_counter() - timing) * 1000, 2),
     )
 
-    return {"products": filtered_products}
+    return {
+        "products": filtered_products,
+        "total_count": len(filtered_products),
+        "applied_filters": {"category": category, "in_stock_only": in_stock_only},
+    }
 
 
 @app.get("/products/{product_id}")
-async def get_product(product_id: int, timing: float = Depends(log_request_timing)):
+async def get_product(product_id: int):
     """Get specific product with detailed logging."""
+    # Request context automatically captured
     log.info(
-        "Product detail requested",
-        endpoint=f"/products/{product_id}",
-        method="GET",
-        product_id=product_id,
+        "Product lookup started", operation="product_detail", product_id=product_id
     )
-
-    # Simulate database lookup
-    await asyncio.sleep(0.05)
 
     if product_id not in products_db:
         log.warning(
             "Product not found",
-            endpoint=f"/products/{product_id}",
-            method="GET",
+            operation="product_detail",
             product_id=product_id,
-            available_ids=list(products_db.keys()),
+            available_products=list(products_db.keys()),
         )
         raise HTTPException(status_code=404, detail="Product not found")
 
     product = products_db[product_id]
 
+    # Log business metrics
     log.info(
         "Product retrieved successfully",
-        endpoint=f"/products/{product_id}",
-        method="GET",
+        operation="product_detail",
         product_id=product_id,
-        product_name=product["name"],
-        product_price=product["price"],
         product_category=product["category"],
+        product_price=product["price"],
         in_stock=product["in_stock"],
     )
 
@@ -243,313 +221,250 @@ async def get_product(product_id: int, timing: float = Depends(log_request_timin
 
 
 @app.post("/orders")
-async def create_order(order: Order, timing: float = Depends(log_request_timing)):
+async def create_order(order_data: Dict[str, Any]):
     """Create order with comprehensive business logging."""
     order_id = str(uuid.uuid4())
 
+    # Business logic logging (request metadata is automatic)
     log.info(
         "Order creation started",
-        endpoint="/orders",
-        method="POST",
+        operation="order_create",
         order_id=order_id,
-        customer_id=order.customer_id,
-        item_count=len(order.items),
-        shipping_address=order.shipping_address,
+        customer_id=order_data.get("customer_id"),
+        item_count=len(order_data.get("items", [])),
     )
 
-    # Validate products and calculate total
-    total_amount = 0.0
+    # Validate items and calculate total
+    total_amount = 0
     order_items = []
 
-    for item in order.items:
-        if item.product_id not in products_db:
+    for item_data in order_data.get("items", []):
+        product_id = item_data["product_id"]
+        quantity = item_data["quantity"]
+
+        if product_id not in products_db:
             log.error(
                 "Invalid product in order",
+                operation="order_create",
                 order_id=order_id,
-                product_id=item.product_id,
-                available_products=list(products_db.keys()),
+                invalid_product_id=product_id,
+                customer_id=order_data.get("customer_id"),
             )
             raise HTTPException(
-                status_code=400, detail=f"Product {item.product_id} not found"
+                status_code=400, detail=f"Product {product_id} not found"
             )
 
-        product = products_db[item.product_id]
+        product = products_db[product_id]
 
         if not product["in_stock"]:
             log.warning(
-                "Out of stock product in order",
+                "Out of stock product ordered",
+                operation="order_create",
                 order_id=order_id,
-                product_id=item.product_id,
+                product_id=product_id,
                 product_name=product["name"],
-                requested_quantity=item.quantity,
+                customer_id=order_data.get("customer_id"),
             )
-            raise HTTPException(
-                status_code=400, detail=f"Product {product['name']} is out of stock"
-            )
+            error_msg = f"Product {product['name']} is out of stock"
+            raise HTTPException(status_code=400, detail=error_msg)
 
-        item_total = product["price"] * item.quantity
+        item_total = product["price"] * quantity
         total_amount += item_total
 
         order_items.append(
             {
-                "product_id": item.product_id,
+                "product_id": product_id,
                 "product_name": product["name"],
-                "quantity": item.quantity,
+                "quantity": quantity,
                 "unit_price": product["price"],
                 "item_total": item_total,
             }
         )
 
-    # Simulate order processing
-    await asyncio.sleep(0.2)
-
-    # Create order response
-    order_response = OrderResponse(
-        order_id=order_id,
-        customer_id=order.customer_id,
-        total_amount=total_amount,
-        status="confirmed",
-        created_at=datetime.now(),
-    )
-
-    # Store order
-    orders_db[order_id] = {
-        "order": order.dict(),
-        "response": order_response.dict(),
+    # Create order
+    order = {
+        "id": order_id,
+        "customer_id": order_data["customer_id"],
         "items": order_items,
+        "total_amount": total_amount,
+        "status": "confirmed",
+        "created_at": datetime.now().isoformat(),
     }
 
-    # Log business metrics
+    orders_db[order_id] = order
+
+    # Log successful order creation with business metrics
+    avg_item_value = total_amount / len(order_items) if order_items else 0
     log.info(
         "Order created successfully",
-        endpoint="/orders",
-        method="POST",
+        operation="order_create",
         order_id=order_id,
-        customer_id=order.customer_id,
-        total_amount=total_amount,
-        item_count=len(order.items),
-        business_metrics={
-            "order_value": total_amount,
-            "items_ordered": len(order.items),
-            "unique_products": len(set(item.product_id for item in order.items)),
+        customer_id=order_data["customer_id"],
+        metrics={
+            "total_amount": total_amount,
+            "item_count": len(order_items),
+            "average_item_value": avg_item_value,
         },
+        business_category="order_fulfillment",
     )
 
-    return order_response
+    return order
 
 
 @app.get("/orders/{order_id}")
-async def get_order(order_id: str, timing: float = Depends(log_request_timing)):
+async def get_order(order_id: str):
     """Get order details with audit logging."""
-    log.info(
-        "Order details requested",
-        endpoint=f"/orders/{order_id}",
-        method="GET",
-        order_id=order_id,
-    )
-
-    # Simulate database lookup
-    await asyncio.sleep(0.05)
+    # Request metadata automatically captured
+    log.info("Order lookup started", operation="order_detail", order_id=order_id)
 
     if order_id not in orders_db:
         log.warning(
             "Order not found",
-            endpoint=f"/orders/{order_id}",
-            method="GET",
+            operation="order_detail",
             order_id=order_id,
-            total_orders=len(orders_db),
+            available_orders=len(orders_db),
         )
         raise HTTPException(status_code=404, detail="Order not found")
 
-    order_data = orders_db[order_id]
+    order = orders_db[order_id]
 
+    # Audit logging for order access
     log.info(
-        "Order retrieved successfully",
-        endpoint=f"/orders/{order_id}",
-        method="GET",
+        "Order accessed",
+        operation="order_detail",
         order_id=order_id,
-        customer_id=order_data["response"]["customer_id"],
-        total_amount=order_data["response"]["total_amount"],
-        status=order_data["response"]["status"],
-        created_at=order_data["response"]["created_at"],
+        customer_id=order["customer_id"],
+        order_value=order["total_amount"],
+        audit_category="data_access",
     )
 
-    return order_data["response"]
+    return order
 
 
 @app.get("/analytics/orders")
 async def get_order_analytics():
     """Get order analytics with business intelligence logging."""
-    log.info("Order analytics requested", endpoint="/analytics/orders", method="GET")
+    log.info("Order analytics requested", operation="analytics", report_type="orders")
 
     # Calculate analytics
     total_orders = len(orders_db)
-    total_revenue = sum(
-        order["response"]["total_amount"] for order in orders_db.values()
-    )
+    total_revenue = sum(order["total_amount"] for order in orders_db.values())
     avg_order_value = total_revenue / total_orders if total_orders > 0 else 0
 
-    # Product popularity
-    product_counts = {}
+    # Category breakdown
+    category_sales = {}
     for order in orders_db.values():
         for item in order["items"]:
-            product_id = item["product_id"]
-            product_counts[product_id] = (
-                product_counts.get(product_id, 0) + item["quantity"]
-            )
+            product = products_db.get(item["product_id"])
+            if product:
+                category = product["category"]
+                current_sales = category_sales.get(category, 0)
+                category_sales[category] = current_sales + item["item_total"]
 
-    most_popular_product = (
-        max(product_counts.items(), key=lambda x: x[1]) if product_counts else None
-    )
-
-    # Log business intelligence
-    log.info(
-        "Order analytics calculated",
-        endpoint="/analytics/orders",
-        method="GET",
-        analytics={
-            "total_orders": total_orders,
-            "total_revenue": total_revenue,
-            "avg_order_value": avg_order_value,
-            "most_popular_product_id": (
-                most_popular_product[0] if most_popular_product else None
-            ),
-            "most_popular_product_quantity": (
-                most_popular_product[1] if most_popular_product else 0
-            ),
-        },
-        business_insights={
-            "revenue_per_order": avg_order_value,
-            "total_products_ordered": sum(product_counts.values()),
-            "unique_products_ordered": len(product_counts),
-        },
-    )
-
-    return {
+    analytics = {
         "total_orders": total_orders,
         "total_revenue": total_revenue,
-        "avg_order_value": avg_order_value,
-        "most_popular_product": most_popular_product,
+        "average_order_value": avg_order_value,
+        "category_sales": category_sales,
+        "generated_at": datetime.now().isoformat(),
     }
+
+    # Business intelligence logging
+    log.info(
+        "Order analytics generated",
+        operation="analytics",
+        report_type="orders",
+        metrics=analytics,
+        business_category="business_intelligence",
+    )
+
+    return analytics
 
 
 @app.get("/performance/slow")
 async def slow_endpoint():
-    """Slow endpoint to demonstrate performance monitoring."""
-    log.info("Slow endpoint started", endpoint="/performance/slow", method="GET")
+    """Slow endpoint for performance monitoring."""
+    log.info("Slow operation started", operation="performance_test", test_type="slow")
 
     # Simulate slow operation
-    await asyncio.sleep(3)
+    await asyncio.sleep(2.0)
 
-    log.info(
-        "Slow endpoint completed",
-        endpoint="/performance/slow",
-        method="GET",
-        duration_seconds=3,
-    )
-
-    return {"message": "Slow operation completed"}
+    log.info("Slow operation completed", operation="performance_test", test_type="slow")
+    return {"message": "Slow operation completed", "duration": "2000ms"}
 
 
 @app.get("/performance/fast")
 async def fast_endpoint():
-    """Fast endpoint for comparison."""
-    log.info("Fast endpoint accessed", endpoint="/performance/fast", method="GET")
+    """Fast endpoint for performance comparison."""
+    log.info("Fast operation started", operation="performance_test", test_type="fast")
 
-    return {"message": "Fast operation completed"}
+    # Simulate fast operation
+    await asyncio.sleep(0.01)
+
+    log.info("Fast operation completed", operation="performance_test", test_type="fast")
+    return {"message": "Fast operation completed", "duration": "10ms"}
 
 
 @app.get("/metrics/business")
-async def business_metrics():
-    """Business metrics endpoint with comprehensive logging."""
-    log.info("Business metrics requested", endpoint="/metrics/business", method="GET")
-
-    # Calculate various business metrics
-    total_products = len(products_db)
-    in_stock_products = sum(1 for p in products_db.values() if p["in_stock"])
-    total_orders = len(orders_db)
-    total_revenue = sum(
-        order["response"]["total_amount"] for order in orders_db.values()
+async def get_business_metrics():
+    """Generate business metrics with comprehensive logging."""
+    log.info(
+        "Business metrics calculation started",
+        operation="metrics",
+        metric_type="business",
     )
 
-    # Category breakdown
-    category_revenue = {}
-    for order in orders_db.values():
-        for item in order["items"]:
-            product = products_db[item["product_id"]]
-            category = product["category"]
-            revenue = item["item_total"]
-            category_revenue[category] = category_revenue.get(category, 0) + revenue
+    # Calculate various business metrics
+    in_stock_count = sum(1 for p in products_db.values() if p["in_stock"])
+    out_of_stock_count = sum(1 for p in products_db.values() if not p["in_stock"])
+    product_metrics = {
+        "total_products": len(products_db),
+        "in_stock_products": in_stock_count,
+        "out_of_stock_products": out_of_stock_count,
+        "categories": len(set(p["category"] for p in products_db.values())),
+    }
 
+    total_revenue = sum(order["total_amount"] for order in orders_db.values())
+    order_metrics = {
+        "total_orders": len(orders_db),
+        "total_revenue": total_revenue,
+    }
+
+    # Comprehensive business metrics logging
     log.info(
         "Business metrics calculated",
-        endpoint="/metrics/business",
-        method="GET",
-        metrics={
-            "total_products": total_products,
-            "in_stock_products": in_stock_products,
-            "stock_ratio": (
-                in_stock_products / total_products if total_products > 0 else 0
-            ),
-            "total_orders": total_orders,
-            "total_revenue": total_revenue,
-            "avg_order_value": total_revenue / total_orders if total_orders > 0 else 0,
-            "category_revenue": category_revenue,
-        },
+        operation="metrics",
+        metric_type="business",
+        product_metrics=product_metrics,
+        order_metrics=order_metrics,
+        business_category="key_performance_indicators",
     )
 
     return {
-        "total_products": total_products,
-        "in_stock_products": in_stock_products,
-        "stock_ratio": in_stock_products / total_products if total_products > 0 else 0,
-        "total_orders": total_orders,
-        "total_revenue": total_revenue,
-        "avg_order_value": total_revenue / total_orders if total_orders > 0 else 0,
-        "category_revenue": category_revenue,
+        "products": product_metrics,
+        "orders": order_metrics,
+        "timestamp": datetime.now().isoformat(),
     }
-
-
-# Middleware for response logging
-@app.middleware("http")
-async def response_logging_middleware(request: Request, call_next):
-    """Middleware to log response timing and metadata."""
-    start_time = time.perf_counter()
-
-    # Process the request
-    response = await call_next(request)
-
-    # Calculate timing
-    duration = time.perf_counter() - start_time
-    duration_ms = round(duration * 1000, 2)
-
-    # Log response metrics
-    log.info(
-        "Response metrics",
-        endpoint=str(request.url.path),
-        method=request.method,
-        status_code=response.status_code,
-        duration_ms=duration_ms,
-        response_size=len(str(response.body)) if hasattr(response, "body") else 0,
-        performance_category=(
-            "slow" if duration_ms > 1000 else "fast" if duration_ms < 100 else "normal"
-        ),
-    )
-
-    return response
 
 
 def main():
     """Run the FastAPI application."""
     import uvicorn
 
-    print("=== FastAPI Structured Logging Example ===")
+    print("=== FastAPI Structured Logging Example (Updated for Story 6.1) ===")
     print("This example demonstrates:")
+    print(
+        "✅ Automatic request context enrichment (method, path, "
+        "status_code, client_ip, duration_ms, trace_id)"
+    )
+    print(
+        "✅ Business-specific structured logging (avoiding duplication "
+        "with automatic context)"
+    )
     print("✅ Performance monitoring and timing")
     print("✅ Business metrics and analytics")
-    print("✅ Comprehensive request/response logging")
     print("✅ Audit trails and tracking")
     print("✅ Business intelligence logging")
-    print("✅ Structured data in all logs")
     print()
     print("Available endpoints:")
     print("  GET  /products              - List products with filtering")
@@ -562,14 +477,21 @@ def main():
     print("  GET  /metrics/business      - Business metrics")
     print()
     print("Key logging features:")
-    print("✅ Request timing and performance metrics")
+    print("✅ Automatic request metadata (via TraceIDMiddleware)")
     print("✅ Business metrics and KPIs")
     print("✅ Error tracking and debugging")
     print("✅ Audit trails for compliance")
     print("✅ Structured data for analysis")
     print()
     print(
-        "Start the server with: uvicorn examples.08_fastapi_structured_logging:app --reload"
+        "Note: Request metadata (method, path, status_code, client_ip, "
+        "duration_ms, trace_id)"
+    )
+    print("      is now automatically captured - no manual logging needed!")
+    print()
+    print(
+        "Start the server with: uvicorn "
+        "examples.08_fastapi_structured_logging:app --reload"
     )
     print("Then visit: http://localhost:8000/docs")
 

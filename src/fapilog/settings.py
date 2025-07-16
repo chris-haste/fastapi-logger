@@ -69,6 +69,10 @@ class LoggingSettings(BaseSettings):
         default=False,
         description="Enable memory and CPU usage metrics in log entries",
     )
+    trace_id_header: str = Field(
+        default="X-Request-ID",
+        description="HTTP header name for incoming trace ID (default: X-Request-ID)",
+    )
 
     model_config = SettingsConfigDict(
         env_prefix="FAPILOG_",

@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Story 6.1**: Context Enricher: Request Metadata
+  - Enhanced `TraceIDMiddleware` to automatically capture HTTP request metadata in context variables
+  - New context variables: `client_ip` (client IP address), `method` (HTTP method), `path` (request path)
+  - Configurable trace ID header extraction via `LoggingSettings.trace_id_header` (default: "X-Request-ID")
+  - Updated `src/fapilog/_internal/context.py` with new context variable support and type safety
+  - All log events during HTTP requests automatically include: `trace_id`, `span_id`, `method`, `path`, `client_ip`, `status_code`, `latency_ms`, `user_agent`, `req_bytes`, `res_bytes`
+  - Context variables properly isolated per request using `contextvars` for async safety
+  - Context automatically set up at request start and cleaned up after response completion
+  - Enhanced `configure_logging()` to pass trace header settings to middleware
+  - Comprehensive unit tests (11 tests) in `tests/test_request_enricher.py` covering context injection, cleanup, custom headers, and settings integration
+  - Updated existing tests to use new default "X-Request-ID" header instead of "X-Trace-Id"
+  - Updated README with "Request Context Enrichment" section documenting automatic fields, configuration, and usage examples
+  - Zero-configuration setup: simply call `configure_logging(app=app)` for rich request metadata in all logs
+  - Perfect request traceability across microservices with automatic trace ID propagation
 - **Story 5.2**: File Sink with Rotation Support
   - New `FileSink` class in `fapilog/sinks/file.py` with automatic log rotation using `logging.handlers.RotatingFileHandler`
   - URI-based configuration format: `file:///path/to/log.log?maxBytes=10485760&backupCount=5`
