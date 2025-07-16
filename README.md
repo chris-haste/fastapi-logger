@@ -70,6 +70,7 @@ hatch run test
 - `hatch run typecheck` - Run MyPy type checker
 - `hatch run test` - Run pytest test suite
 - `hatch run test-cov` - Run tests with coverage report
+- `hatch run test-queue-load` - Run load testing for logging queue
 
 ---
 
@@ -199,6 +200,121 @@ The queue worker processes events in the background, so your application continu
 
 ---
 
+## 🚀 Benchmarking Logging Queue
+
+`fapilog` includes a comprehensive load testing script to verify the logging queue performs reliably under high throughput scenarios.
+
+### Running Load Tests
+
+**Basic test with default settings:**
+
+```bash
+python scripts/load_test_log_queue.py
+```
+
+**High concurrency test:**
+
+```bash
+python scripts/load_test_log_queue.py --concurrency 50 --rate 1000 --duration 30
+```
+
+**Test different overflow strategies:**
+
+```bash
+# Test drop strategy (default)
+python scripts/load_test_log_queue.py --overflow drop --queue-size 100
+
+# Test block strategy
+python scripts/load_test_log_queue.py --overflow block --queue-size 100
+
+# Test sample strategy
+python scripts/load_test_log_queue.py --overflow sample --queue-size 100
+```
+
+**Using environment variables:**
+
+```bash
+export LOAD_TEST_CONCURRENCY=20
+export LOAD_TEST_RATE=500
+export LOAD_TEST_DURATION=60
+export LOAD_TEST_QUEUE_SIZE=500
+export LOAD_TEST_OVERFLOW=drop
+python scripts/load_test_log_queue.py
+```
+
+**Using hatch:**
+
+```bash
+hatch run test-queue-load
+```
+
+### Test Parameters
+
+| Parameter         | Default | Description                           |
+| ----------------- | ------- | ------------------------------------- |
+| `--concurrency`   | 10      | Number of concurrent workers          |
+| `--rate`          | 100     | Logs per second per worker            |
+| `--duration`      | 30      | Test duration in seconds              |
+| `--queue-size`    | 1000    | Maximum queue size                    |
+| `--overflow`      | drop    | Overflow strategy (drop/block/sample) |
+| `--batch-size`    | 10      | Queue batch size                      |
+| `--batch-timeout` | 1.0     | Queue batch timeout in seconds        |
+
+### Performance Targets
+
+The load test script helps verify that your logging configuration meets performance targets:
+
+- **Excellent**: <100 µs average enqueue latency
+- **Good**: <500 µs average enqueue latency
+- **Poor**: >500 µs average enqueue latency
+
+### Sample Output
+
+```
+Starting load test with 10 workers...
+Target rate: 100 logs/sec per worker
+Duration: 30 seconds
+Queue size: 1000
+Overflow strategy: drop
+Batch size: 10
+Batch timeout: 1.0s
+------------------------------------------------------------
+
+============================================================
+LOAD TEST RESULTS
+============================================================
+Test Duration:           30.05 seconds
+Total Logs Attempted:    30,000
+Successfully Enqueued:   29,875
+Dropped:                 125
+Actual Logs/Second:      998.33
+Average Enqueue Latency: 42.15 µs
+Min Latency:             12.34 µs
+Max Latency:             156.78 µs
+
+Queue Configuration:
+  Queue Size:            1000
+  Overflow Strategy:      drop
+  Batch Size:            10
+  Batch Timeout:         1.0s
+
+Performance Assessment:
+  ✅ Excellent: <100 µs average latency
+  ⚠️  0.42% of logs dropped
+============================================================
+```
+
+### Interpreting Results
+
+- **Latency**: Measures the time to enqueue a log event (not processing time)
+- **Dropped logs**: Occur when the queue is full and overflow strategy is "drop"
+- **Throughput**: Actual logs per second achieved vs. target rate
+- **Concurrency**: How well the system handles multiple concurrent loggers
+
+The load test helps ensure your logging infrastructure can handle production workloads without impacting application performance.
+
+---
+
 ## 🔄 Shutdown Behavior and Log Flushing
 
 `fapilog` ensures that all log events are flushed during application shutdown, preventing data loss when the service exits or is terminated cleanly.
@@ -277,6 +393,158 @@ configure_logging(
 )
 ```
 
+### Resource Metrics
+
+`fapilog` can optionally include memory and CPU usage metrics in log entries to help monitor system health and correlate log spikes with resource load.
+
+#### Enabling Resource Metrics
+
+**Environment variable:**
+
+```bash
+export FAPILOG_ENABLE_RESOURCE_METRICS=true
+```
+
+**Programmatic configuration:**
+
+```python
+from fapilog.settings import LoggingSettings
+
+settings = LoggingSettings(enable_resource_metrics=True)
+configure_logging(settings=settings)
+```
+
+#### Dependencies
+
+Resource metrics require the `psutil` library. Install it with:
+
+```bash
+pip install fapilog[metrics]
+```
+
+Or manually:
+
+```bash
+pip install psutil>=5.9
+```
+
+#### Usage
+
+When enabled, every log entry will include:
+
+- `memory_mb`: Resident memory usage of the current process in megabytes (rounded float)
+- `cpu_percent`: Process CPU usage percentage (float, 0.0-100.0)
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:45.123Z",
+  "level": "info",
+  "event": "Request processed",
+  "memory_mb": 45.2,
+  "cpu_percent": 12.5,
+  "trace_id": "abc123def456",
+  "status_code": 200,
+  "latency_ms": 45.2
+}
+```
+
+#### Performance Considerations
+
+- Resource metrics are cached for performance and only updated when logs are generated
+- The `psutil` library is imported lazily and only when metrics are enabled
+- If `psutil` is not available, the enricher is silently skipped
+- Resource metrics are added near the end of the pipeline (after context, before rendering)
+
+### Custom Enrichers
+
+`fapilog` supports custom enrichers that allow you to inject application-specific metadata into log events without modifying the core library. Custom enrichers are called at the end of the processor chain, after all built-in enrichers.
+
+#### Registering Custom Enrichers
+
+Custom enrichers follow the structlog processor signature: `(logger, method_name, event_dict) → event_dict`
+
+```python
+from fapilog.enrichers import register_enricher
+
+def tenant_enricher(logger, method_name, event_dict):
+    """Add tenant ID to all log events."""
+    event_dict["tenant_id"] = "tenant_123"
+    return event_dict
+
+def session_enricher(logger, method_name, event_dict):
+    """Add session ID to all log events."""
+    event_dict["session_id"] = "session_456"
+    return event_dict
+
+# Register enrichers (call this during app startup)
+register_enricher(tenant_enricher)
+register_enricher(session_enricher)
+```
+
+#### Enricher Function Requirements
+
+- **Signature**: Must have exactly 3 parameters: `logger`, `method_name`, `event_dict`
+- **Return value**: Must return the modified `event_dict`
+- **Error handling**: Exceptions are silently caught to prevent breaking the logging chain
+- **Order**: Enrichers are called in registration order
+
+#### Example: Multi-tenant Application
+
+```python
+from fapilog.enrichers import register_enricher
+from fapilog._internal.context import get_context
+
+def tenant_context_enricher(logger, method_name, event_dict):
+    """Add tenant context from request headers."""
+    context = get_context()
+    tenant_id = context.get("tenant_id")
+    if tenant_id:
+        event_dict["tenant_id"] = tenant_id
+    return event_dict
+
+def user_context_enricher(logger, method_name, event_dict):
+    """Add user context from request headers."""
+    context = get_context()
+    user_id = context.get("user_id")
+    if user_id:
+        event_dict["user_id"] = user_id
+    return event_dict
+
+# Register during app startup
+register_enricher(tenant_context_enricher)
+register_enricher(user_context_enricher)
+```
+
+#### Testing Custom Enrichers
+
+```python
+from fapilog.enrichers import clear_enrichers, register_enricher
+
+def test_custom_enricher():
+    # Clear any existing enrichers for test isolation
+    clear_enrichers()
+
+    def test_enricher(logger, method_name, event_dict):
+        event_dict["test_field"] = "test_value"
+        return event_dict
+
+    register_enricher(test_enricher)
+
+    # Your test logic here...
+    # The enricher will be automatically applied to all log events
+```
+
+#### Clearing Enrichers
+
+For test isolation or dynamic configuration, you can clear all registered enrichers:
+
+```python
+from fapilog.enrichers import clear_enrichers
+
+# Clear all custom enrichers
+clear_enrichers()
+```
+
 ---
 
 ## 📦 Project Layout
@@ -308,6 +576,8 @@ The following fields are automatically added to all log events:
 | `timestamp`   | string  | ISO-8601 UTC timestamp      | `"2024-01-15T10:30:45.123Z"` |
 | `level`       | string  | Log level                   | `"info"`, `"error"`          |
 | `event`       | string  | Log message                 | `"Request processed"`        |
+| `hostname`    | string  | System hostname             | `"web-server-01"`            |
+| `pid`         | integer | Process ID                  | `12345`                      |
 | `trace_id`    | string  | Request correlation ID      | `"abc123def456"`             |
 | `span_id`     | string  | Request span ID             | `"xyz789uvw012"`             |
 | `status_code` | integer | HTTP response status        | `200`, `404`, `500`          |
@@ -315,6 +585,8 @@ The following fields are automatically added to all log events:
 | `req_bytes`   | integer | Request body size in bytes  | `1024`                       |
 | `res_bytes`   | integer | Response body size in bytes | `512`                        |
 | `user_agent`  | string  | Client User-Agent header    | `"curl/7.68.0"`              |
+| `memory_mb`   | float   | Process memory usage in MB  | `45.2`                       |
+| `cpu_percent` | float   | Process CPU usage %         | `12.5`                       |
 
 ## 🧪 Testing
 

@@ -6,7 +6,13 @@ from typing import Any, Dict, List, Optional
 
 import structlog
 
-from .enrichers import request_response_enricher
+from .enrichers import (
+    body_size_enricher,
+    host_process_enricher,
+    request_response_enricher,
+    resource_snapshot_enricher,
+    run_registered_enrichers,
+)
 from .settings import LoggingSettings
 
 
@@ -103,20 +109,33 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
     # 5. Event renamer
     processors.append(structlog.processors.EventRenamer("event"))
 
-    # 6. Custom redaction processor
+    # 6. Host and process info enricher (early in chain)
+    processors.append(host_process_enricher)
+
+    # 7. Custom redaction processor
     processors.append(_redact_processor(settings.redact_patterns))
 
-    # 7. Request/Response metadata enricher
+    # 8. Request/Response metadata enricher
     processors.append(request_response_enricher)
 
-    # 8. Sampling processor (must be just before renderer)
+    # 9. Body size enricher (after context, before final rendering)
+    processors.append(body_size_enricher)
+
+    # 10. Resource metrics enricher (if enabled)
+    if settings.enable_resource_metrics:
+        processors.append(resource_snapshot_enricher)
+
+    # 11. Custom registered enrichers (after all built-in enrichers)
+    processors.append(run_registered_enrichers)
+
+    # 12. Sampling processor (must be just before renderer)
     sampling = _sampling_processor(settings.sampling_rate)
 
-    # 9. Filter None processor (skips rendering if None)
+    # 13. Filter None processor (skips rendering if None)
     processors.append(sampling)
     processors.append(_filter_none_processor)
 
-    # 10. Queue sink or renderer
+    # 14. Queue sink or renderer
     if settings.queue_enabled:
         # Import here to avoid circular imports
         from ._internal.queue import queue_sink
