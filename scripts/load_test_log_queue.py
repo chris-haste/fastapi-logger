@@ -26,7 +26,7 @@ import asyncio
 import os
 import sys
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -172,7 +172,6 @@ async def run_load_test(
     metrics.start_time = time.perf_counter()
 
     # Calculate log interval per worker
-    total_rate = concurrency * rate_per_second
     log_interval = 1.0 / rate_per_second if rate_per_second > 0 else 1.0
 
     # Create worker tasks
@@ -214,23 +213,23 @@ def print_results(metrics: LoadTestMetrics, settings: LoggingSettings) -> None:
         print(f"Min Latency:             {min_latency:.2f} µs")
         print(f"Max Latency:             {max_latency:.2f} µs")
 
-    print(f"\nQueue Configuration:")
+    print("\nQueue Configuration:")
     print(f"  Queue Size:            {settings.queue_maxsize}")
     print(f"  Overflow Strategy:      {settings.queue_overflow}")
     print(f"  Batch Size:            {settings.queue_batch_size}")
     print(f"  Batch Timeout:         {settings.queue_batch_timeout}s")
 
     # Performance assessment
-    print(f"\nPerformance Assessment:")
+    print("\nPerformance Assessment:")
     if avg_latency < 100:
-        print(f"  ✅ Excellent: <100 µs average latency")
+        print("  ✅ Excellent: <100 µs average latency")
     elif avg_latency < 500:
         print(f"  ⚠️  Good: {avg_latency:.2f} µs average latency")
     else:
         print(f"  ❌ Poor: {avg_latency:.2f} µs average latency")
 
     if metrics.total_dropped == 0:
-        print(f"  ✅ No logs dropped")
+        print("  ✅ No logs dropped")
     else:
         drop_rate = (metrics.total_dropped / metrics.total_attempted) * 100
         print(f"  ⚠️  {drop_rate:.2f}% of logs dropped")

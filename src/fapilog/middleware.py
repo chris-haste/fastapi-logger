@@ -6,8 +6,8 @@ from typing import Any
 
 try:
     from fastapi import Request, Response, status
-    from fastapi.responses import JSONResponse
     from fastapi.requests import Request as FastAPIRequest
+    from fastapi.responses import JSONResponse
 
     FASTAPI_AVAILABLE = True
 except ImportError:  # pragma: no cover
@@ -22,8 +22,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from ._internal.context import (
-    clear_context,
     bind_context,
+    clear_context,
 )
 
 

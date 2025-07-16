@@ -1,9 +1,7 @@
 """Tests for middleware import error handling."""
 
 import sys
-from unittest.mock import patch, MagicMock
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 
 def test_middleware_imports_without_fastapi():

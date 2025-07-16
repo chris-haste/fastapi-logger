@@ -4,8 +4,6 @@ import os
 import socket
 from unittest.mock import patch
 
-import pytest
-
 from fapilog.enrichers import host_process_enricher
 
 

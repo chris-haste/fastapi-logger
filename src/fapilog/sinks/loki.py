@@ -278,8 +278,8 @@ def parse_loki_uri(uri: str) -> tuple[str, Dict[str, str], int, float]:
                 batch_size = int(value)
                 if batch_size <= 0:
                     raise ValueError("batch_size must be positive")
-            except (ValueError, IndexError):
-                raise ValueError("Invalid batch_size parameter")
+            except (ValueError, IndexError) as e:
+                raise ValueError("Invalid batch_size parameter") from e
 
         # Extract batch_interval
         batch_interval = 2.0  # Default
@@ -291,13 +291,13 @@ def parse_loki_uri(uri: str) -> tuple[str, Dict[str, str], int, float]:
                 batch_interval = float(value)
                 if batch_interval <= 0:
                     raise ValueError("batch_interval must be positive")
-            except (ValueError, IndexError):
-                raise ValueError("Invalid batch_interval parameter")
+            except (ValueError, IndexError) as e:
+                raise ValueError("Invalid batch_interval parameter") from e
 
         return url, labels, batch_size, batch_interval
 
     except Exception as e:
-        raise ValueError(f"Invalid Loki URI '{uri}': {e}")
+        raise ValueError(f"Invalid Loki URI '{uri}': {e}") from e
 
 
 def create_loki_sink_from_uri(uri: str) -> LokiSink:

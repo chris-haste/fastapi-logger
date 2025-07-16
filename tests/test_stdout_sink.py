@@ -162,7 +162,7 @@ class TestStdoutSink:
         assert sink._console_renderer is not None  # It's initialized in __init__
 
         # But it should be properly configured
-        assert hasattr(sink._console_renderer, "__call__")
+        assert callable(sink._console_renderer)
 
     @pytest.mark.asyncio
     async def test_output_to_stdout(self) -> None:

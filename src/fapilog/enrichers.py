@@ -3,7 +3,7 @@
 import os
 import socket
 from functools import lru_cache
-from typing import Any, Callable, Dict, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Dict, List
 
 from ._internal.context import get_context
 

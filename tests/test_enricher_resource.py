@@ -1,6 +1,5 @@
 """Tests for resource snapshot enricher."""
 
-import pytest
 from unittest.mock import Mock, patch
 
 from fapilog.enrichers import resource_snapshot_enricher

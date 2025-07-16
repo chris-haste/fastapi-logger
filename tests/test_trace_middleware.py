@@ -2,7 +2,6 @@
 
 import pytest
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
 from starlette.testclient import TestClient
 
 from fapilog.bootstrap import configure_logging
@@ -468,8 +467,8 @@ async def test_middleware_with_response_no_body_attribute():
 
     @app.get("/test-no-body-attr")
     async def test_endpoint():
+
         from fastapi.responses import StreamingResponse
-        import io
 
         def generate():
             yield b"streaming data"

@@ -4,6 +4,7 @@ import asyncio
 import logging
 import random
 from typing import Any, Dict, List, Literal, Optional
+
 import structlog
 
 logger = logging.getLogger(__name__)
@@ -341,14 +342,14 @@ def queue_sink(
             worker.queue.put_nowait(event_dict)
             raise structlog.DropEvent
         except asyncio.QueueFull:
-            raise structlog.DropEvent
+            raise structlog.DropEvent from None
     elif worker.overflow_strategy == "block":
         # Block strategy: not supported in sync context, fall back to drop
         try:
             worker.queue.put_nowait(event_dict)
             raise structlog.DropEvent
         except asyncio.QueueFull:
-            raise structlog.DropEvent
+            raise structlog.DropEvent from None
     else:  # "sample"
         # Sample strategy: apply sampling and try to enqueue
         if worker.sampling_rate < 1.0 and random.random() > worker.sampling_rate:
@@ -357,7 +358,7 @@ def queue_sink(
             worker.queue.put_nowait(event_dict)
             raise structlog.DropEvent
         except asyncio.QueueFull:
-            raise structlog.DropEvent
+            raise structlog.DropEvent from None
 
 
 async def queue_sink_async(

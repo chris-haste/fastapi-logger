@@ -710,6 +710,7 @@ class TestFastAPIShutdownIntegration:
     async def test_fastapi_shutdown_handler_registration(self) -> None:
         """Test that FastAPI shutdown handler is registered when app is provided."""
         from fastapi import FastAPI
+
         from fapilog.bootstrap import configure_logging
         from fapilog.settings import LoggingSettings
 
@@ -737,9 +738,10 @@ class TestFastAPIShutdownIntegration:
     async def test_fastapi_shutdown_flushes_logs(self) -> None:
         """Test that FastAPI shutdown event flushes remaining logs."""
         from fastapi import FastAPI
+
+        from fapilog._internal.queue import get_queue_worker
         from fapilog.bootstrap import configure_logging
         from fapilog.settings import LoggingSettings
-        from fapilog._internal.queue import get_queue_worker
 
         # Create mock sink
         mock_sink = MockSink()
@@ -787,9 +789,9 @@ class TestAtexitShutdownIntegration:
 
     def test_atexit_shutdown_in_sync_context(self) -> None:
         """Test that atexit shutdown works in sync context."""
-        from fapilog.bootstrap import configure_logging, _shutdown_queue_worker
-        from fapilog.settings import LoggingSettings
         from fapilog._internal.queue import get_queue_worker
+        from fapilog.bootstrap import _shutdown_queue_worker, configure_logging
+        from fapilog.settings import LoggingSettings
 
         # Configure logging with queue enabled
         settings = LoggingSettings(queue_enabled=True)
@@ -941,9 +943,7 @@ class TestShutdownBehavior:
             if exception is not None and not isinstance(
                 exception, asyncio.CancelledError
             ):
-                pytest.fail(
-                    "Worker task raised unexpected exception: {}".format(exception)
-                )
+                pytest.fail(f"Worker task raised unexpected exception: {exception}")
         except asyncio.CancelledError:
             # This is expected when the task was cancelled
             pass
@@ -1005,7 +1005,7 @@ class TestShutdownBehavior:
         workers = []
 
         # Create multiple workers
-        for i in range(3):
+        for _i in range(3):
             worker = QueueWorker(sinks=[MockSink()], queue_size=5)
             await worker.start()
             workers.append(worker)
