@@ -50,7 +50,7 @@ class TestQueueWorker:
         """Create a queue worker for testing."""
         return QueueWorker(
             sinks=[mock_sink],
-            queue_size=10,
+            queue_max_size=10,
             batch_size=2,
             batch_timeout=0.1,
             retry_delay=0.01,
@@ -203,7 +203,7 @@ class TestQueueWorker:
         """Test that drop mode silently discards logs when queue is full."""
         worker = QueueWorker(
             sinks=[mock_sink],
-            queue_size=2,
+            queue_max_size=2,
             overflow_strategy="drop",
         )
 
@@ -226,7 +226,7 @@ class TestQueueWorker:
         """Test that block mode waits for queue space."""
         worker = QueueWorker(
             sinks=[mock_sink],
-            queue_size=1,
+            queue_max_size=1,
             overflow_strategy="block",
         )
 
@@ -258,7 +258,7 @@ class TestQueueWorker:
         """Test that sample mode uses probabilistic sampling."""
         worker = QueueWorker(
             sinks=[mock_sink],
-            queue_size=1,
+            queue_max_size=1,
             overflow_strategy="sample",
             sampling_rate=0.5,
         )
@@ -284,7 +284,7 @@ class TestQueueWorker:
         """Test that sample mode respects the sampling rate."""
         worker = QueueWorker(
             sinks=[mock_sink],
-            queue_size=100,  # Large queue to avoid overflow
+            queue_max_size=100,  # Large queue to avoid overflow
             overflow_strategy="sample",
             sampling_rate=0.3,
         )
@@ -310,7 +310,7 @@ class TestQueueWorker:
         # Test drop strategy with sampling
         worker_drop = QueueWorker(
             sinks=[mock_sink],
-            queue_size=100,
+            queue_max_size=100,
             overflow_strategy="drop",
             sampling_rate=0.5,
         )
@@ -318,7 +318,7 @@ class TestQueueWorker:
         # Test block strategy with sampling
         worker_block = QueueWorker(
             sinks=[mock_sink],
-            queue_size=100,
+            queue_max_size=100,
             overflow_strategy="block",
             sampling_rate=0.5,
         )
@@ -326,7 +326,7 @@ class TestQueueWorker:
         # Test sample strategy with sampling
         worker_sample = QueueWorker(
             sinks=[mock_sink],
-            queue_size=100,
+            queue_max_size=100,
             overflow_strategy="sample",
             sampling_rate=0.5,
         )
@@ -422,7 +422,7 @@ class TestQueueSink:
         # Create a mock worker with a real queue
         from fapilog._internal.queue import QueueWorker
 
-        worker = QueueWorker(sinks=[], queue_size=10)
+        worker = QueueWorker(sinks=[], queue_max_size=10)
         set_queue_worker(worker)
 
         event_dict = {"level": "info", "event": "test_event"}
@@ -436,7 +436,7 @@ class TestQueueSink:
         # Create a worker with a small queue
         worker = QueueWorker(
             sinks=[MockSink()],
-            queue_size=1,
+            queue_max_size=1,
         )
         set_queue_worker(worker)
 
@@ -454,7 +454,7 @@ class TestQueueSink:
         """Test queue_sink with drop overflow strategy."""
         worker = QueueWorker(
             sinks=[MockSink()],
-            queue_size=1,
+            queue_max_size=1,
             overflow_strategy="drop",
         )
         set_queue_worker(worker)
@@ -474,7 +474,7 @@ class TestQueueSink:
         """Test queue_sink with block overflow strategy (falls back to drop)."""
         worker = QueueWorker(
             sinks=[MockSink()],
-            queue_size=1,
+            queue_max_size=1,
             overflow_strategy="block",
         )
         set_queue_worker(worker)
@@ -494,7 +494,7 @@ class TestQueueSink:
         """Test queue_sink with sample overflow strategy."""
         worker = QueueWorker(
             sinks=[MockSink()],
-            queue_size=1,
+            queue_max_size=1,
             overflow_strategy="sample",
             sampling_rate=0.5,
         )
@@ -867,7 +867,7 @@ class TestShutdownBehavior:
     @pytest.mark.asyncio
     async def test_shutdown_does_not_hang_on_idle_queue(self) -> None:
         """Test that shutdown doesn't hang when queue is idle."""
-        worker = QueueWorker(sinks=[MockSink()], queue_size=10)
+        worker = QueueWorker(sinks=[MockSink()], queue_max_size=10)
 
         # Start the worker
         await worker.start()
@@ -891,7 +891,7 @@ class TestShutdownBehavior:
     async def test_shutdown_does_not_hang_on_drained_queue(self) -> None:
         """Test that shutdown doesn't hang when queue is already drained."""
         mock_sink = MockSink()
-        worker = QueueWorker(sinks=[mock_sink], queue_size=10)
+        worker = QueueWorker(sinks=[mock_sink], queue_max_size=10)
 
         # Start the worker
         await worker.start()
@@ -921,7 +921,7 @@ class TestShutdownBehavior:
     @pytest.mark.asyncio
     async def test_shutdown_cleans_up_background_tasks(self) -> None:
         """Test that shutdown properly cleans up background tasks."""
-        worker = QueueWorker(sinks=[MockSink()], queue_size=10)
+        worker = QueueWorker(sinks=[MockSink()], queue_max_size=10)
 
         # Start the worker
         await worker.start()
@@ -955,7 +955,7 @@ class TestShutdownBehavior:
         failing_sink = MockSink()
         failing_sink.should_fail = True
 
-        worker = QueueWorker(sinks=[failing_sink], queue_size=10)
+        worker = QueueWorker(sinks=[failing_sink], queue_max_size=10)
 
         # Start the worker
         await worker.start()
@@ -978,7 +978,7 @@ class TestShutdownBehavior:
     @pytest.mark.asyncio
     async def test_worker_cleanup_on_exception(self) -> None:
         """Test that worker cleanup works even when exceptions occur."""
-        worker = QueueWorker(sinks=[MockSink()], queue_size=10)
+        worker = QueueWorker(sinks=[MockSink()], queue_max_size=10)
 
         # Start the worker
         await worker.start()
@@ -1006,7 +1006,7 @@ class TestShutdownBehavior:
 
         # Create multiple workers
         for _i in range(3):
-            worker = QueueWorker(sinks=[MockSink()], queue_size=5)
+            worker = QueueWorker(sinks=[MockSink()], queue_max_size=5)
             await worker.start()
             workers.append(worker)
 
