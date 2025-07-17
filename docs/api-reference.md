@@ -10,6 +10,7 @@ This document provides a complete reference for all public APIs in `fapilog`. Th
 - [Configuration](#configuration)
 - [Logging Interface](#logging-interface)
 - [Middleware](#middleware)
+- [Trace Propagation](#trace-propagation)
 - [Enrichers](#enrichers)
 - [Sinks](#sinks)
 - [Context Management](#context-management)
@@ -62,6 +63,43 @@ configure_logging(settings=settings)
 - When `app` is provided, middleware is registered and shutdown handlers are configured
 - Environment variables with `FAPILOG_` prefix are automatically loaded
 
+### `get_current_trace_id()`
+
+Access the current trace ID from within a request context (Story 6.2).
+
+```python
+from fapilog import get_current_trace_id
+
+@app.get("/api/status")
+async def get_status():
+    trace_id = get_current_trace_id()
+
+    if trace_id:
+        log.info("Status check requested", trace_id=trace_id)
+        return {"status": "ok", "trace_id": trace_id}
+    else:
+        log.info("Status check outside request context")
+        return {"status": "ok", "trace_id": None}
+```
+
+**Returns:**
+
+- `str | None`: Current trace ID if within a request context, `None` otherwise
+
+**Use Cases:**
+
+- Business logic that needs to include trace ID in responses
+- Custom error handling with trace correlation
+- Integration with external services requiring trace headers
+- Audit logging with request correlation
+
+**Notes:**
+
+- Only available within request context (when using `TraceIDMiddleware`)
+- Returns `None` when called outside of a request (e.g., startup, background tasks)
+- The trace ID is either extracted from incoming headers or auto-generated
+- Thread-safe and async-safe via `contextvars`
+
 ### `reset_logging()`
 
 Reset logging configuration for testing purposes.
@@ -106,21 +144,23 @@ settings = LoggingSettings(
 
 **Fields:**
 
-| Field                     | Type      | Default      | Description                                        |
-| ------------------------- | --------- | ------------ | -------------------------------------------------- |
-| `level`                   | str       | `"INFO"`     | Logging level (DEBUG, INFO, WARN, ERROR, CRITICAL) |
-| `sinks`                   | List[str] | `["stdout"]` | List of sink names for log output                  |
-| `json_console`            | str       | `"auto"`     | Console format (auto, json, pretty)                |
-| `redact_patterns`         | List[str] | `[]`         | Regex patterns to redact from logs                 |
-| `sampling_rate`           | float     | `1.0`        | Log sampling rate (0.0 to 1.0)                     |
-| `queue_enabled`           | bool      | `True`       | Enable async queue for non-blocking logging        |
-| `queue_maxsize`           | int       | `1000`       | Maximum size of async log queue                    |
-| `queue_overflow`          | str       | `"drop"`     | Queue overflow strategy (drop, block, sample)      |
-| `queue_batch_size`        | int       | `10`         | Events per batch                                   |
-| `queue_batch_timeout`     | float     | `1.0`        | Batch timeout in seconds                           |
-| `queue_retry_delay`       | float     | `1.0`        | Retry delay in seconds                             |
-| `queue_max_retries`       | int       | `3`          | Maximum retries per event                          |
-| `enable_resource_metrics` | bool      | `False`      | Enable memory/CPU metrics in logs                  |
+| Field                            | Type      | Default          | Description                                        |
+| -------------------------------- | --------- | ---------------- | -------------------------------------------------- |
+| `level`                          | str       | `"INFO"`         | Logging level (DEBUG, INFO, WARN, ERROR, CRITICAL) |
+| `sinks`                          | List[str] | `["stdout"]`     | List of sink names for log output                  |
+| `json_console`                   | str       | `"auto"`         | Console format (auto, json, pretty)                |
+| `redact_patterns`                | List[str] | `[]`             | Regex patterns to redact from logs                 |
+| `sampling_rate`                  | float     | `1.0`            | Log sampling rate (0.0 to 1.0)                     |
+| `queue_enabled`                  | bool      | `True`           | Enable async queue for non-blocking logging        |
+| `queue_maxsize`                  | int       | `1000`           | Maximum size of async log queue                    |
+| `queue_overflow`                 | str       | `"drop"`         | Queue overflow strategy (drop, block, sample)      |
+| `queue_batch_size`               | int       | `10`             | Events per batch                                   |
+| `queue_batch_timeout`            | float     | `1.0`            | Batch timeout in seconds                           |
+| `queue_retry_delay`              | float     | `1.0`            | Retry delay in seconds                             |
+| `queue_max_retries`              | int       | `3`              | Maximum retries per event                          |
+| `enable_resource_metrics`        | bool      | `False`          | Enable memory/CPU metrics in logs                  |
+| `trace_id_header`                | str       | `"X-Request-ID"` | HTTP header name for incoming trace ID             |
+| `enable_httpx_trace_propagation` | bool      | `False`          | Enable automatic trace ID propagation in httpx     |
 
 **Environment Variables:**
 
@@ -131,6 +171,8 @@ export FAPILOG_LEVEL=DEBUG
 export FAPILOG_QUEUE_ENABLED=true
 export FAPILOG_QUEUE_MAXSIZE=2000
 export FAPILOG_SINKS=stdout,loki
+export FAPILOG_TRACE_ID_HEADER=X-Custom-Trace-ID
+export FAPILOG_ENABLE_HTTPX_TRACE_PROPAGATION=true
 ```
 
 ---
@@ -276,6 +318,74 @@ add_trace_exception_handler(app)
 - Adds trace headers to 500 error responses
 - Preserves original error handling
 - Includes latency information in error responses
+
+---
+
+## Trace Propagation
+
+### HTTP Request Trace Propagation (Story 6.2)
+
+Automatic trace ID propagation for outgoing HTTP requests made with `httpx.AsyncClient`.
+
+```python
+from fapilog.settings import LoggingSettings
+from fapilog import configure_logging
+import httpx
+
+# Enable httpx trace propagation
+settings = LoggingSettings(
+    enable_httpx_trace_propagation=True,
+    trace_id_header="X-Request-ID"  # Header used for propagation
+)
+configure_logging(settings=settings, app=app)
+
+# Now all httpx requests automatically include trace ID
+async with httpx.AsyncClient() as client:
+    # This request will automatically include the X-Request-ID header
+    # with the current trace ID value
+    response = await client.get("https://api.example.com/data")
+```
+
+**Features:**
+
+- **Automatic Headers**: Outgoing requests include current trace ID in configured header
+- **Opt-in**: Must be explicitly enabled via settings to avoid side effects
+- **Thread-safe**: Works correctly with concurrent requests
+- **Graceful Fallback**: No errors if httpx is not installed
+
+**Configuration:**
+
+```python
+# Via LoggingSettings
+settings = LoggingSettings(
+    enable_httpx_trace_propagation=True,  # Enable the feature
+    trace_id_header="X-Custom-Trace"      # Custom header name
+)
+
+# Via environment variables
+export FAPILOG_ENABLE_HTTPX_TRACE_PROPAGATION=true
+export FAPILOG_TRACE_ID_HEADER=X-Custom-Trace
+```
+
+**Requirements:**
+
+- `httpx` must be installed: `pip install httpx`
+- Feature must be enabled in settings
+- Must be within a request context (trace ID available)
+
+**Use Cases:**
+
+- **Distributed Tracing**: Correlate requests across microservices
+- **API Gateway Integration**: Maintain trace continuity through service mesh
+- **External Service Calls**: Include correlation IDs in third-party API calls
+- **Debugging**: Follow request flow through multiple services
+
+**Notes:**
+
+- Only applied when `get_current_trace_id()` returns a valid trace ID
+- Header is only added if not already present in the request
+- Works with both sync and async httpx clients
+- Minimal performance overhead
 
 ---
 
@@ -600,21 +710,23 @@ worker = QueueWorker(
 
 All configuration can be set via environment variables:
 
-| Variable                          | Default  | Description                    |
-| --------------------------------- | -------- | ------------------------------ |
-| `FAPILOG_LEVEL`                   | `INFO`   | Logging level                  |
-| `FAPILOG_SINKS`                   | `stdout` | Comma-separated sink list      |
-| `FAPILOG_JSON_CONSOLE`            | `auto`   | Console format                 |
-| `FAPILOG_QUEUE_ENABLED`           | `true`   | Enable async queue             |
-| `FAPILOG_QUEUE_MAXSIZE`           | `1000`   | Queue maximum size             |
-| `FAPILOG_QUEUE_OVERFLOW`          | `drop`   | Queue overflow strategy        |
-| `FAPILOG_QUEUE_BATCH_SIZE`        | `10`     | Events per batch               |
-| `FAPILOG_QUEUE_BATCH_TIMEOUT`     | `1.0`    | Batch timeout (seconds)        |
-| `FAPILOG_QUEUE_RETRY_DELAY`       | `1.0`    | Retry delay (seconds)          |
-| `FAPILOG_QUEUE_MAX_RETRIES`       | `3`      | Maximum retries                |
-| `FAPILOG_SAMPLING_RATE`           | `1.0`    | Log sampling rate              |
-| `FAPILOG_ENABLE_RESOURCE_METRICS` | `false`  | Enable resource metrics        |
-| `FAPILOG_REDACT_PATTERNS`         | ``       | Comma-separated regex patterns |
+| Variable                                 | Default        | Description                    |
+| ---------------------------------------- | -------------- | ------------------------------ |
+| `FAPILOG_LEVEL`                          | `INFO`         | Logging level                  |
+| `FAPILOG_SINKS`                          | `stdout`       | Comma-separated sink list      |
+| `FAPILOG_JSON_CONSOLE`                   | `auto`         | Console format                 |
+| `FAPILOG_QUEUE_ENABLED`                  | `true`         | Enable async queue             |
+| `FAPILOG_QUEUE_MAXSIZE`                  | `1000`         | Queue maximum size             |
+| `FAPILOG_QUEUE_OVERFLOW`                 | `drop`         | Queue overflow strategy        |
+| `FAPILOG_QUEUE_BATCH_SIZE`               | `10`           | Events per batch               |
+| `FAPILOG_QUEUE_BATCH_TIMEOUT`            | `1.0`          | Batch timeout (seconds)        |
+| `FAPILOG_QUEUE_RETRY_DELAY`              | `1.0`          | Retry delay (seconds)          |
+| `FAPILOG_QUEUE_MAX_RETRIES`              | `3`            | Maximum retries                |
+| `FAPILOG_SAMPLING_RATE`                  | `1.0`          | Log sampling rate              |
+| `FAPILOG_ENABLE_RESOURCE_METRICS`        | `false`        | Enable resource metrics        |
+| `FAPILOG_TRACE_ID_HEADER`                | `X-Request-ID` | HTTP header for trace ID       |
+| `FAPILOG_ENABLE_HTTPX_TRACE_PROPAGATION` | `false`        | Enable httpx propagation       |
+| `FAPILOG_REDACT_PATTERNS`                | ``             | Comma-separated regex patterns |
 
 ---
 

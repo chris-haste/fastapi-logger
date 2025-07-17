@@ -15,6 +15,7 @@ from .settings import LoggingSettings
 from .sinks.file import create_file_sink_from_uri
 from .sinks.loki import create_loki_sink_from_uri
 from .sinks.stdout import StdoutSink
+from .httpx_patch import configure_httpx_trace_propagation
 
 # Module-level flag to track if logging has been configured
 _configured = False
@@ -117,6 +118,9 @@ def configure_logging(
 
     # Mark as configured
     _configured = True
+
+    # Configure httpx trace propagation
+    configure_httpx_trace_propagation(settings)
 
     # Register middleware if app is provided
     if app is not None:

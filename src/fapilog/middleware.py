@@ -27,10 +27,14 @@ from ._internal.context import (
 )
 
 
-def add_trace_exception_handler(app):
+def add_trace_exception_handler(app, trace_id_header: str = "X-Request-ID"):
     """
     Register a custom exception handler that adds trace/span/latency
     headers to 500 responses.
+
+    Args:
+        app: FastAPI application instance
+        trace_id_header: Header name for trace ID (default: X-Request-ID)
     """
 
     @app.exception_handler(Exception)
@@ -46,7 +50,7 @@ def add_trace_exception_handler(app):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
         if trace_id:
-            response.headers["X-Trace-Id"] = trace_id
+            response.headers[trace_id_header] = trace_id
         if span_id:
             response.headers["X-Span-Id"] = span_id
         response.headers["X-Response-Time-ms"] = str(latency)
@@ -73,7 +77,8 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
 
         Args:
             app: The ASGI application to wrap
-            trace_id_header: HTTP header name for incoming trace ID
+            trace_id_header: The HTTP header name for trace ID
+                           (default: X-Request-ID)
         """
         super().__init__(app)
         self.trace_id_header = trace_id_header
@@ -182,7 +187,7 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
             )
 
             # Add correlation headers to response
-            response.headers["X-Trace-Id"] = trace_id
+            response.headers[self.trace_id_header] = trace_id
             response.headers["X-Span-Id"] = span_id
             response.headers["X-Response-Time-ms"] = str(duration)
 

@@ -73,6 +73,11 @@ class LoggingSettings(BaseSettings):
         default="X-Request-ID",
         description="HTTP header name for incoming trace ID (default: X-Request-ID)",
     )
+    enable_httpx_trace_propagation: bool = Field(
+        default=False,
+        description="Enable automatic trace ID propagation in httpx.AsyncClient "
+        "(default: False)",
+    )
 
     model_config = SettingsConfigDict(
         env_prefix="FAPILOG_",

@@ -1004,6 +1004,7 @@ Now that you've learned the basics, explore these advanced topics:
 - [Environment Config](examples/02_environment_config.py) - Environment-based setup
 - [FastAPI Basic](examples/05_fastapi_basic.py) - FastAPI integration
 - [Structured Logging](examples/08_fastapi_structured_logging.py) - Advanced patterns
+- [Trace Propagation](examples/17_trace_propagation.py) - Story 6.2 features
 - [Custom Enrichers](examples/custom_enricher_example.py) - Custom metadata
 - [Custom Sinks](examples/15_custom_sink.py) - Specialized logging
 

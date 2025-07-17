@@ -24,7 +24,7 @@ async def test_forward_trace_header():
     # Test with custom trace ID
     response = client.get("/test", headers={"X-Request-ID": "custom-trace-123"})
     assert response.status_code == 200
-    assert response.headers["X-Trace-Id"] == "custom-trace-123"
+    assert response.headers["X-Request-ID"] == "custom-trace-123"
 
 
 @pytest.mark.asyncio
@@ -43,8 +43,8 @@ async def test_generate_trace_header():
     # Test without trace ID header
     response = client.get("/test")
     assert response.status_code == 200
-    assert "X-Trace-Id" in response.headers
-    assert len(response.headers["X-Trace-Id"]) == 32  # UUID hex length
+    assert "X-Request-ID" in response.headers
+    assert len(response.headers["X-Request-ID"]) == 32  # UUID hex length
 
 
 @pytest.mark.asyncio
@@ -101,13 +101,13 @@ async def test_exception_handling():
         raise ValueError("Test error")
 
     app.add_middleware(TraceIDMiddleware)
-    add_trace_exception_handler(app)
+    add_trace_exception_handler(app, "X-Request-ID")
     configure_logging(app=app)
     client = TestClient(app, raise_server_exceptions=False)
 
     response = client.get("/error")
     assert response.status_code == 500
-    assert "X-Trace-Id" in response.headers
+    assert "X-Request-ID" in response.headers
     assert "X-Response-Time-ms" in response.headers
 
 
@@ -123,7 +123,7 @@ async def test_context_cleanup_after_exception():
         raise ValueError("Test error")
 
     app.add_middleware(TraceIDMiddleware)
-    add_trace_exception_handler(app)
+    add_trace_exception_handler(app, "X-Request-ID")
     configure_logging(app=app)
     client = TestClient(app, raise_server_exceptions=False)
 
@@ -154,7 +154,7 @@ async def test_middleware_idempotent_registration():
 
     response = client.get("/test")
     assert response.status_code == 200
-    assert "X-Trace-Id" in response.headers
+    assert "X-Request-ID" in response.headers
 
 
 @pytest.mark.asyncio
@@ -177,12 +177,12 @@ async def test_json_response_body_size_calculation():
     # Test with JSON response
     response = client.get("/json-test")
     assert response.status_code == 200
-    assert "X-Trace-Id" in response.headers
+    assert "X-Request-ID" in response.headers
 
     # Test with empty JSON response
     response = client.get("/empty-json")
     assert response.status_code == 200
-    assert "X-Trace-Id" in response.headers
+    assert "X-Request-ID" in response.headers
 
 
 @pytest.mark.asyncio
@@ -202,7 +202,7 @@ async def test_non_json_response_body_size():
 
     response = client.get("/text-test")
     assert response.status_code == 200
-    assert "X-Trace-Id" in response.headers
+    assert "X-Request-ID" in response.headers
     assert response.text == "Hello, World!"
 
 
@@ -223,7 +223,7 @@ async def test_exception_handler_with_missing_state():
         raise ValueError("Test error")
 
     # Don't add middleware, just add exception handler
-    add_trace_exception_handler(app)
+    add_trace_exception_handler(app, "X-Request-ID")
     configure_logging(app=app)
     client = TestClient(app, raise_server_exceptions=False)
 
@@ -251,14 +251,14 @@ async def test_exception_handler_with_partial_state():
         # Don't set span_id
         raise ValueError("Test error")
 
-    add_trace_exception_handler(app)
+    add_trace_exception_handler(app, "X-Request-ID")
     configure_logging(app=app)
     client = TestClient(app, raise_server_exceptions=False)
 
     response = client.get("/error-partial-state")
     assert response.status_code == 500
     # The middleware will generate its own trace_id, so we can't predict it
-    assert "X-Trace-Id" in response.headers
+    assert "X-Request-ID" in response.headers
     assert "X-Response-Time-ms" in response.headers
     # The actual value will be the actual latency, not 150.0
     assert float(response.headers["X-Response-Time-ms"]) >= 0
@@ -286,7 +286,7 @@ async def test_middleware_with_content_length_header():
         headers={"Content-Length": "25", "X-Request-ID": "custom-trace-456"},
     )
     assert response.status_code == 200
-    assert response.headers["X-Trace-Id"] == "custom-trace-456"
+    assert response.headers["X-Request-ID"] == "custom-trace-456"
 
 
 @pytest.mark.asyncio
@@ -309,7 +309,7 @@ async def test_middleware_with_empty_content_length():
         headers={"Content-Length": "", "X-Request-ID": "custom-trace-789"},
     )
     assert response.status_code == 200
-    assert response.headers["X-Trace-Id"] == "custom-trace-789"
+    assert response.headers["X-Request-ID"] == "custom-trace-789"
 
 
 @pytest.mark.asyncio
@@ -332,7 +332,7 @@ async def test_middleware_with_invalid_content_length():
         headers={"Content-Length": "invalid", "X-Request-ID": "custom-trace-abc"},
     )
     assert response.status_code == 200
-    assert response.headers["X-Trace-Id"] == "custom-trace-abc"
+    assert response.headers["X-Request-ID"] == "custom-trace-abc"
 
 
 @pytest.mark.asyncio
@@ -354,7 +354,7 @@ async def test_middleware_with_custom_user_agent():
         headers={"User-Agent": "CustomAgent/1.0", "X-Request-ID": "custom-trace-def"},
     )
     assert response.status_code == 200
-    assert response.headers["X-Trace-Id"] == "custom-trace-def"
+    assert response.headers["X-Request-ID"] == "custom-trace-def"
 
 
 @pytest.mark.asyncio
@@ -373,7 +373,7 @@ async def test_middleware_without_user_agent():
     # Test without user agent header
     response = client.get("/test-no-user-agent")
     assert response.status_code == 200
-    assert "X-Trace-Id" in response.headers
+    assert "X-Request-ID" in response.headers
 
 
 @pytest.mark.asyncio
@@ -391,7 +391,7 @@ async def test_middleware_with_response_body():
 
     response = client.get("/test-with-body")
     assert response.status_code == 200
-    assert "X-Trace-Id" in response.headers
+    assert "X-Request-ID" in response.headers
     assert "X-Response-Time-ms" in response.headers
     assert response.json()["message"] == "test"
 
@@ -411,7 +411,7 @@ async def test_middleware_with_empty_response_body():
 
     response = client.get("/test-empty-body")
     assert response.status_code == 200
-    assert "X-Trace-Id" in response.headers
+    assert "X-Request-ID" in response.headers
     assert "X-Response-Time-ms" in response.headers
     assert response.json() == {}
 
@@ -433,7 +433,7 @@ async def test_middleware_with_non_json_response():
 
     response = client.get("/test-plain-text")
     assert response.status_code == 200
-    assert "X-Trace-Id" in response.headers
+    assert "X-Request-ID" in response.headers
     assert "X-Response-Time-ms" in response.headers
     assert response.text == "Hello, World!"
 
@@ -455,7 +455,7 @@ async def test_middleware_with_binary_response():
 
     response = client.get("/test-binary")
     assert response.status_code == 200
-    assert "X-Trace-Id" in response.headers
+    assert "X-Request-ID" in response.headers
     assert "X-Response-Time-ms" in response.headers
     assert response.content == b"binary data"
 
@@ -480,7 +480,7 @@ async def test_middleware_with_response_no_body_attribute():
 
     response = client.get("/test-no-body-attr")
     assert response.status_code == 200
-    assert "X-Trace-Id" in response.headers
+    assert "X-Request-ID" in response.headers
     assert "X-Response-Time-ms" in response.headers
     assert response.text == "streaming data"
 
@@ -506,5 +506,5 @@ async def test_middleware_with_response_no_media_type():
 
     response = client.get("/test-no-media-type")
     assert response.status_code == 200
-    assert "X-Trace-Id" in response.headers
+    assert "X-Request-ID" in response.headers
     assert "X-Response-Time-ms" in response.headers
