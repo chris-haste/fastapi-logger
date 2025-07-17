@@ -35,6 +35,9 @@ def test_get_context_returns_expected_keys():
             "has_client_ip": "client_ip" in context,
             "has_method": "method" in context,
             "has_path": "path" in context,
+            "has_user_id": "user_id" in context,
+            "has_user_roles": "user_roles" in context,
+            "has_auth_scheme": "auth_scheme" in context,
             "context_keys": list(context.keys()),
         }
 
@@ -56,9 +59,12 @@ def test_get_context_returns_expected_keys():
     assert data["has_client_ip"]
     assert data["has_method"]
     assert data["has_path"]
+    assert data["has_user_id"]
+    assert data["has_user_roles"]
+    assert data["has_auth_scheme"]
 
-    # Should have exactly 10 keys (7 original + 3 new context vars)
-    assert len(data["context_keys"]) == 10
+    # Should have exactly 13 keys (10 original + 3 user context vars)
+    assert len(data["context_keys"]) == 13
     assert set(data["context_keys"]) == {
         "trace_id",
         "span_id",
@@ -70,6 +76,9 @@ def test_get_context_returns_expected_keys():
         "client_ip",
         "method",
         "path",
+        "user_id",
+        "user_roles",
+        "auth_scheme",
     }
 
 
