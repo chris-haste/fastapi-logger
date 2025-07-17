@@ -978,6 +978,100 @@ curl -H "X-Request-ID: external-trace-123" http://localhost:8000/api/users
 curl http://localhost:8000/api/users
 ```
 
+### Accessing Trace ID Programmatically
+
+You can access the current trace ID from within your application code:
+
+```python
+from fapilog import get_current_trace_id
+
+@app.get("/api/status")
+async def get_status():
+    trace_id = get_current_trace_id()
+
+    if trace_id:
+        log.info("Status check requested", trace_id=trace_id)
+        return {"status": "ok", "trace_id": trace_id}
+    else:
+        log.info("Status check requested outside request context")
+        return {"status": "ok", "trace_id": None}
+```
+
+### Downstream Service Propagation
+
+`fapilog` can automatically propagate trace IDs to downstream services via httpx requests:
+
+#### Configuration
+
+Enable httpx trace propagation:
+
+```bash
+# Environment variable
+export FAPILOG_ENABLE_HTTPX_TRACE_PROPAGATION=true
+export FAPILOG_TRACE_ID_HEADER=X-Request-ID
+```
+
+```python
+from fapilog.settings import LoggingSettings
+
+settings = LoggingSettings(
+    enable_httpx_trace_propagation=True,  # Enable automatic propagation
+    trace_id_header="X-Request-ID"        # Header to use (default)
+)
+configure_logging(settings=settings, app=app)
+```
+
+#### Usage
+
+Once enabled, all httpx requests automatically include the current trace ID:
+
+```python
+import httpx
+from fapilog import configure_logging, log
+
+# Configure with httpx propagation enabled
+settings = LoggingSettings(enable_httpx_trace_propagation=True)
+configure_logging(settings=settings, app=app)
+
+@app.post("/api/orders")
+async def create_order(order_data: dict):
+    log.info("Creating order", order_data=order_data)
+
+    # This request automatically includes X-Request-ID header with current trace ID
+    async with httpx.AsyncClient() as client:
+        payment_response = await client.post(
+            "https://payment-service/process",
+            json={"amount": order_data["total"]}
+        )
+
+    # Both services will log with the same trace ID
+    log.info("Payment processed", status=payment_response.status_code)
+
+    return {"order_id": "12345", "payment_status": "completed"}
+```
+
+#### Cross-Service Tracing
+
+With httpx propagation enabled, trace IDs flow seamlessly across microservices:
+
+```
+Client Request [trace_id: abc123]
+    ↓ (X-Request-ID: abc123)
+Service A logs [trace_id: abc123]
+    ↓ httpx request (X-Request-ID: abc123)
+Service B logs [trace_id: abc123]
+    ↓ httpx request (X-Request-ID: abc123)
+Service C logs [trace_id: abc123]
+```
+
+All services in the request chain will log with the same `trace_id`, enabling end-to-end request tracing.
+
+#### Requirements
+
+- **httpx installation**: `pip install httpx`
+- **Opt-in configuration**: Must be explicitly enabled via settings
+- **Request context**: Only works within FastAPI request context
+
 ### Manual Middleware Registration
 
 If you prefer manual setup instead of using `configure_logging(app=app)`:
