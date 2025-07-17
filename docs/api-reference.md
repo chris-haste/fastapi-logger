@@ -144,24 +144,27 @@ settings = LoggingSettings(
 
 **Fields:**
 
-| Field                            | Type      | Default          | Description                                                  |
-| -------------------------------- | --------- | ---------------- | ------------------------------------------------------------ |
-| `level`                          | str       | `"INFO"`         | Logging level (DEBUG, INFO, WARN, ERROR, CRITICAL)           |
-| `sinks`                          | List[str] | `["stdout"]`     | List of sink names for log output                            |
-| `json_console`                   | str       | `"auto"`         | Console format (auto, json, pretty)                          |
-| `redact_patterns`                | List[str] | `[]`             | Regex patterns to redact from logs                           |
-| `sampling_rate`                  | float     | `1.0`            | Log sampling rate (0.0 to 1.0)                               |
-| `queue_enabled`                  | bool      | `True`           | Enable async queue for non-blocking logging                  |
-| `queue_maxsize`                  | int       | `1000`           | Maximum size of async log queue                              |
-| `queue_overflow`                 | str       | `"drop"`         | Queue overflow strategy (drop, block, sample)                |
-| `queue_batch_size`               | int       | `10`             | Events per batch                                             |
-| `queue_batch_timeout`            | float     | `1.0`            | Batch timeout in seconds                                     |
-| `queue_retry_delay`              | float     | `1.0`            | Retry delay in seconds                                       |
-| `queue_max_retries`              | int       | `3`              | Maximum retries per event                                    |
-| `enable_resource_metrics`        | bool      | `False`          | Enable memory/CPU metrics in logs                            |
-| `trace_id_header`                | str       | `"X-Request-ID"` | HTTP header name for incoming trace ID                       |
-| `enable_httpx_trace_propagation` | bool      | `False`          | Enable automatic trace ID propagation in httpx               |
-| `user_context_enabled`           | bool      | `True`           | Enable user context enrichment (user_id, roles, auth_scheme) |
+| Field                            | Type      | Default          | Description                                                             |
+| -------------------------------- | --------- | ---------------- | ----------------------------------------------------------------------- |
+| `level`                          | str       | `"INFO"`         | Logging level (DEBUG, INFO, WARN, ERROR, CRITICAL)                      |
+| `sinks`                          | List[str] | `["stdout"]`     | List of sink names for log output                                       |
+| `json_console`                   | str       | `"auto"`         | Console format (auto, json, pretty)                                     |
+| `redact_patterns`                | List[str] | `[]`             | Regex patterns to redact from logs                                      |
+| `redact_fields`                  | List[str] | `[]`             | Field names to redact (supports dot notation for nested fields)         |
+| `redact_replacement`             | str       | `"REDACTED"`     | Replacement value for redacted fields                                   |
+| `redact_level`                   | str       | `"INFO"`         | Minimum log level for redaction (DEBUG, INFO, WARNING, ERROR, CRITICAL) |
+| `sampling_rate`                  | float     | `1.0`            | Log sampling rate (0.0 to 1.0)                                          |
+| `queue_enabled`                  | bool      | `True`           | Enable async queue for non-blocking logging                             |
+| `queue_maxsize`                  | int       | `1000`           | Maximum size of async log queue                                         |
+| `queue_overflow`                 | str       | `"drop"`         | Queue overflow strategy (drop, block, sample)                           |
+| `queue_batch_size`               | int       | `10`             | Events per batch                                                        |
+| `queue_batch_timeout`            | float     | `1.0`            | Batch timeout in seconds                                                |
+| `queue_retry_delay`              | float     | `1.0`            | Retry delay in seconds                                                  |
+| `queue_max_retries`              | int       | `3`              | Maximum retries per event                                               |
+| `enable_resource_metrics`        | bool      | `False`          | Enable memory/CPU metrics in logs                                       |
+| `trace_id_header`                | str       | `"X-Request-ID"` | HTTP header name for incoming trace ID                                  |
+| `enable_httpx_trace_propagation` | bool      | `False`          | Enable automatic trace ID propagation in httpx                          |
+| `user_context_enabled`           | bool      | `True`           | Enable user context enrichment (user_id, roles, auth_scheme)            |
 
 **Environment Variables:**
 
@@ -172,6 +175,7 @@ export FAPILOG_LEVEL=DEBUG
 export FAPILOG_QUEUE_ENABLED=true
 export FAPILOG_QUEUE_MAXSIZE=2000
 export FAPILOG_SINKS=stdout,loki
+export FAPILOG_REDACT_LEVEL=INFO
 export FAPILOG_TRACE_ID_HEADER=X-Custom-Trace-ID
 export FAPILOG_ENABLE_HTTPX_TRACE_PROPAGATION=true
 export FAPILOG_USER_CONTEXT_ENABLED=true
@@ -712,23 +716,26 @@ worker = QueueWorker(
 
 All configuration can be set via environment variables:
 
-| Variable                                 | Default        | Description                    |
-| ---------------------------------------- | -------------- | ------------------------------ |
-| `FAPILOG_LEVEL`                          | `INFO`         | Logging level                  |
-| `FAPILOG_SINKS`                          | `stdout`       | Comma-separated sink list      |
-| `FAPILOG_JSON_CONSOLE`                   | `auto`         | Console format                 |
-| `FAPILOG_QUEUE_ENABLED`                  | `true`         | Enable async queue             |
-| `FAPILOG_QUEUE_MAXSIZE`                  | `1000`         | Queue maximum size             |
-| `FAPILOG_QUEUE_OVERFLOW`                 | `drop`         | Queue overflow strategy        |
-| `FAPILOG_QUEUE_BATCH_SIZE`               | `10`           | Events per batch               |
-| `FAPILOG_QUEUE_BATCH_TIMEOUT`            | `1.0`          | Batch timeout (seconds)        |
-| `FAPILOG_QUEUE_RETRY_DELAY`              | `1.0`          | Retry delay (seconds)          |
-| `FAPILOG_QUEUE_MAX_RETRIES`              | `3`            | Maximum retries                |
-| `FAPILOG_SAMPLING_RATE`                  | `1.0`          | Log sampling rate              |
-| `FAPILOG_ENABLE_RESOURCE_METRICS`        | `false`        | Enable resource metrics        |
-| `FAPILOG_TRACE_ID_HEADER`                | `X-Request-ID` | HTTP header for trace ID       |
-| `FAPILOG_ENABLE_HTTPX_TRACE_PROPAGATION` | `false`        | Enable httpx propagation       |
-| `FAPILOG_REDACT_PATTERNS`                | ``             | Comma-separated regex patterns |
+| Variable                                 | Default        | Description                           |
+| ---------------------------------------- | -------------- | ------------------------------------- |
+| `FAPILOG_LEVEL`                          | `INFO`         | Logging level                         |
+| `FAPILOG_SINKS`                          | `stdout`       | Comma-separated sink list             |
+| `FAPILOG_JSON_CONSOLE`                   | `auto`         | Console format                        |
+| `FAPILOG_QUEUE_ENABLED`                  | `true`         | Enable async queue                    |
+| `FAPILOG_QUEUE_MAXSIZE`                  | `1000`         | Queue maximum size                    |
+| `FAPILOG_QUEUE_OVERFLOW`                 | `drop`         | Queue overflow strategy               |
+| `FAPILOG_QUEUE_BATCH_SIZE`               | `10`           | Events per batch                      |
+| `FAPILOG_QUEUE_BATCH_TIMEOUT`            | `1.0`          | Batch timeout (seconds)               |
+| `FAPILOG_QUEUE_RETRY_DELAY`              | `1.0`          | Retry delay (seconds)                 |
+| `FAPILOG_QUEUE_MAX_RETRIES`              | `3`            | Maximum retries                       |
+| `FAPILOG_SAMPLING_RATE`                  | `1.0`          | Log sampling rate                     |
+| `FAPILOG_ENABLE_RESOURCE_METRICS`        | `false`        | Enable resource metrics               |
+| `FAPILOG_TRACE_ID_HEADER`                | `X-Request-ID` | HTTP header for trace ID              |
+| `FAPILOG_ENABLE_HTTPX_TRACE_PROPAGATION` | `false`        | Enable httpx propagation              |
+| `FAPILOG_REDACT_PATTERNS`                | ``             | Comma-separated regex patterns        |
+| `FAPILOG_REDACT_FIELDS`                  | ``             | Comma-separated field names to redact |
+| `FAPILOG_REDACT_REPLACEMENT`             | `REDACTED`     | Replacement value for redacted fields |
+| `FAPILOG_REDACT_LEVEL`                   | `INFO`         | Minimum log level for redaction       |
 
 ---
 
