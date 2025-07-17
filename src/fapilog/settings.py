@@ -31,6 +31,19 @@ class LoggingSettings(BaseSettings):
         description="List of regex patterns to redact from log messages "
         "(comma-separated or list)",
     )
+    redact_fields: Union[List[str], str] = Field(
+        default_factory=lambda: [],
+        description="List of field names to redact from log messages "
+        "(comma-separated or list, supports dot notation for nested fields)",
+    )
+    redact_replacement: str = Field(
+        default="REDACTED",
+        description="Replacement value for redacted fields",
+    )
+    redact_level: str = Field(
+        default="INFO",
+        description="Minimum log level for redaction (default: INFO)",
+    )
     sampling_rate: float = Field(
         default=1.0,
         description="Sampling rate for log messages (0.0 to 1.0)",
@@ -82,6 +95,15 @@ class LoggingSettings(BaseSettings):
         default=True,
         description="Enable user context enrichment in log entries (default: True)",
     )
+    enable_auto_redact_pii: bool = Field(
+        default=True,
+        description="Enable automatic PII detection and redaction (default: True)",
+    )
+    custom_pii_patterns: Union[List[str], str] = Field(
+        default_factory=lambda: [],
+        description="List of custom regex patterns for PII detection "
+        "(comma-separated or list)",
+    )
 
     model_config = SettingsConfigDict(
         env_prefix="FAPILOG_",
@@ -101,6 +123,31 @@ class LoggingSettings(BaseSettings):
         if isinstance(v, str):
             return [item.strip() for item in v.split(",") if item.strip()]
         return list(v) if isinstance(v, (list, tuple)) else [v]
+
+    @field_validator("redact_fields", mode="before")
+    @classmethod
+    def parse_redact_fields(cls, v: Any) -> List[str]:
+        if isinstance(v, str):
+            return [item.strip() for item in v.split(",") if item.strip()]
+        return list(v) if isinstance(v, (list, tuple)) else [v]
+
+    @field_validator("custom_pii_patterns", mode="before")
+    @classmethod
+    def parse_custom_pii_patterns(cls, v: Any) -> List[str]:
+        if isinstance(v, str):
+            return [item.strip() for item in v.split(",") if item.strip()]
+        return list(v) if isinstance(v, (list, tuple)) else [v]
+
+    @field_validator("redact_level")
+    @classmethod
+    def validate_redact_level(cls, v: str) -> str:
+        valid = {"DEBUG", "INFO", "WARN", "WARNING", "ERROR", "CRITICAL"}
+        if v.upper() not in valid:
+            valid_list = ", ".join(sorted(valid))
+            raise ValueError(
+                f"Invalid redact_level '{v}'. Must be one of: {valid_list}"
+            )
+        return v.upper()
 
     @field_validator("level")
     @classmethod

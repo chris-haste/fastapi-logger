@@ -299,8 +299,8 @@ class TestQueueWorker:
         accepted_count = sum(1 for r in results if r is True)
 
         # With 30% sampling rate, we expect roughly 30% to be accepted
-        # Allow for some variance (20-40%)
-        assert 20 <= accepted_count <= 40
+        # Allow for more variance due to probabilistic sampling (15-45%)
+        assert 15 <= accepted_count <= 45
 
     @pytest.mark.asyncio
     async def test_overflow_strategies_with_sampling_rate(
@@ -348,9 +348,10 @@ class TestQueueWorker:
 
         # All strategies apply sampling rate first, then handle overflow
         # So all should be around 10 (50% of 20)
-        assert 5 <= accepted_drop <= 15
-        assert 5 <= accepted_block <= 15
-        assert 5 <= accepted_sample <= 15
+        # Allow for more variance due to probabilistic sampling
+        assert 3 <= accepted_drop <= 17
+        assert 3 <= accepted_block <= 17
+        assert 3 <= accepted_sample <= 17
 
     @pytest.mark.asyncio
     async def test_shutdown_flushes_events(

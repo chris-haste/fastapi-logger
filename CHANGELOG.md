@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Story 7.1**: Field Redaction Support
+
+  - New field-based redaction system in `fapilog/redactors.py` for precise control over sensitive data removal
+  - Support for nested field redaction using dot notation (e.g., `user.password`, `auth.token`)
+  - Automatic redaction of fields within lists of dictionaries (e.g., `users.password`)
+  - Configurable replacement value via `FAPILOG_REDACT_REPLACEMENT` (default: `"REDACTED"`)
+  - Environment variable support: `FAPILOG_REDACT_FIELDS` for comma-separated field list
+  - Non-destructive redaction: original data is never modified, only log output is redacted
+  - Integration with existing processor pipeline positioned after pattern-based redaction
+  - Comprehensive unit tests (17 tests) covering flat fields, nested fields, lists, custom replacement values, and edge cases
+  - Tests verify redaction works correctly with complex nested structures and list handling
+  - Updated README with "Data Redaction" section documenting both pattern-based and field-based approaches
+  - Examples showing before/after redaction output and combining both redaction methods
+  - Perfect for GDPR compliance, security auditing, and protecting sensitive user data in logs
+  - Zero performance impact with efficient recursive field processing
+
+- **Story 7.3**: Context-Aware Redaction by Log Level
+
+  - Added `FAPILOG_REDACT_LEVEL` setting to control minimum log level for redaction (default: `"INFO"`)
+  - All redaction processors (pattern-based, field-based, and PII auto-detection) now respect log level thresholds
+  - DEBUG logs bypass redaction to preserve full context for development and troubleshooting
+  - INFO and higher logs apply redaction to protect sensitive data in production environments
+  - Log level hierarchy: DEBUG < INFO < WARNING < ERROR < CRITICAL
+  - Added helper functions `_get_log_level_numeric()` and `_should_redact_at_level()` for level comparison
+  - Updated all redaction processors to accept and use `redact_level` parameter
+  - Comprehensive unit tests (19 tests) covering all redaction types with different log levels
+  - Tests verify level-aware behavior: DEBUG not redacted, INFO+ redacted, custom levels, missing levels
+  - Integration tests confirm all redaction processors respect the same level setting
+  - Updated README with "Level-Aware Redaction" section including examples and environment variable documentation
+  - Perfect for development workflows where DEBUG provides full context while production logs remain secure
+  - Zero performance impact with efficient level checking before redaction processing
+
 - **Story 6.3**: Context Enricher: User and Auth Context
   - New `user_context_enricher` processor that automatically adds authenticated user information to log events
   - Added user context variables: `user_id_ctx`, `user_roles_ctx`, `auth_scheme_ctx` in `src/fapilog/_internal/context.py`
@@ -191,6 +223,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Misconfigured sinks raise errors at startup, not at runtime.
   - Comprehensive unit tests in `tests/test_multi_sink.py` verify fan-out, error isolation, and startup validation.
   - README updated with a dedicated "Multiple Sink Support" section and usage examples.
+
+### Added
+
+- **Story 7.2**: Automatic PII Redaction
+  - New regex-based PII scanner as a post-processor in the logging pipeline
+  - Automatically detects and redacts common sensitive values, including:
+    - Email addresses
+    - Credit card numbers (basic pattern, not Luhn)
+    - Phone numbers
+    - IPv4 addresses
+  - Patterns are configurable via settings (`custom_pii_patterns`, `enable_auto_redact_pii`)
+  - Redaction happens recursively across all string values in the event_dict
+  - Uses the same `REDACT_REPLACEMENT` setting as field redaction
+  - Unit tests confirm detection, replacement, and opt-out behavior
+  - README includes explanation, limitations, and opt-out instructions
 
 ### Changed
 

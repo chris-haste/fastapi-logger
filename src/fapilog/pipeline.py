@@ -14,14 +14,17 @@ from .enrichers import (
     run_registered_enrichers,
     user_context_enricher,
 )
+from .redactors import field_redactor, _should_redact_at_level
 from .settings import LoggingSettings
+from ._internal.pii_patterns import DEFAULT_PII_PATTERNS, auto_redact_pii_processor
 
 
-def _redact_processor(patterns: List[str]) -> Any:
+def _redact_processor(patterns: List[str], redact_level: str = "INFO") -> Any:
     """Create a redaction processor that masks values matching patterns.
 
     Args:
         patterns: List of regex patterns to match for redaction
+        redact_level: Minimum log level for redaction to be applied
 
     Returns:
         A processor function that redacts matching values
@@ -35,6 +38,11 @@ def _redact_processor(patterns: List[str]) -> Any:
         logger: Any, method_name: str, event_dict: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Redact sensitive information from log entries."""
+        # Check if redaction should be applied based on log level
+        event_level = event_dict.get("level", "INFO")
+        if not _should_redact_at_level(event_level, redact_level):
+            return event_dict
+
         redacted_dict = event_dict.copy()
 
         for key, value in event_dict.items():
@@ -113,34 +121,53 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
     # 6. Host and process info enricher (early in chain)
     processors.append(host_process_enricher)
 
-    # 7. Custom redaction processor
-    processors.append(_redact_processor(settings.redact_patterns))
+    # 7. Custom redaction processor (regex patterns)
+    processors.append(
+        _redact_processor(settings.redact_patterns, settings.redact_level)
+    )
 
-    # 8. Request/Response metadata enricher
+    # 8. Field redaction processor (field names)
+    processors.append(
+        field_redactor(
+            settings.redact_fields, settings.redact_replacement, settings.redact_level
+        )
+    )
+
+    # 9. PII auto-detection processor (after manual field redaction)
+    if settings.enable_auto_redact_pii:
+        # Combine default patterns with custom patterns
+        all_pii_patterns = DEFAULT_PII_PATTERNS + settings.custom_pii_patterns
+        processors.append(
+            auto_redact_pii_processor(
+                all_pii_patterns, settings.redact_replacement, settings.redact_level
+            )
+        )
+
+    # 10. Request/Response metadata enricher
     processors.append(request_response_enricher)
 
-    # 9. Body size enricher (after context, before final rendering)
+    # 11. Body size enricher (after context, before final rendering)
     processors.append(body_size_enricher)
 
-    # 10. Resource metrics enricher (if enabled)
+    # 12. Resource metrics enricher (if enabled)
     if settings.enable_resource_metrics:
         processors.append(resource_snapshot_enricher)
 
-    # 11. User context enricher (if enabled)
+    # 12. User context enricher (if enabled)
     if settings.user_context_enabled:
         processors.append(user_context_enricher)
 
-    # 12. Custom registered enrichers (after all built-in enrichers)
+    # 13. Custom registered enrichers (after all built-in enrichers)
     processors.append(run_registered_enrichers)
 
-    # 13. Sampling processor (must be just before renderer)
+    # 14. Sampling processor (must be just before renderer)
     sampling = _sampling_processor(settings.sampling_rate)
 
-    # 14. Filter None processor (skips rendering if None)
+    # 15. Filter None processor (skips rendering if None)
     processors.append(sampling)
     processors.append(_filter_none_processor)
 
-    # 14. Queue sink or renderer
+    # 16. Queue sink or renderer
     if settings.queue_enabled:
         # Import here to avoid circular imports
         from ._internal.queue import queue_sink

@@ -485,7 +485,13 @@ settings = LoggingSettings(
 
 ### Security Configuration
 
-**PII Redaction:**
+**Data Redaction:**
+
+`fapilog` provides two complementary approaches to redact sensitive information from logs:
+
+#### Pattern-Based Redaction
+
+Use regex patterns to redact values that match specific patterns in field names or values:
 
 ```python
 settings = LoggingSettings(
@@ -497,7 +503,149 @@ settings = LoggingSettings(
 )
 ```
 
-**Field Filtering:**
+**Environment Variables:**
+
+```bash
+export FAPILOG_REDACT_PATTERNS="password,token,secret"
+```
+
+#### Field-Based Redaction
+
+Use exact field names to redact specific fields, including nested fields using dot notation:
+
+```python
+settings = LoggingSettings(
+    redact_fields=[
+        "user.password",
+        "auth.token",
+        "api_key",
+        "config.secret_key"
+    ],
+    redact_replacement="***"
+)
+```
+
+**Environment Variables:**
+
+```bash
+export FAPILOG_REDACT_FIELDS="user.password,auth.token,api_key"
+export FAPILOG_REDACT_REPLACEMENT="***"
+```
+
+**Features:**
+
+- **Nested field support**: Use dot notation to redact nested fields (e.g., `user.profile.email`)
+- **List support**: Automatically redacts fields within lists of dictionaries
+- **Custom replacement**: Configure the replacement value (default: `"REDACTED"`)
+- **Non-destructive**: Original data is never modified, only the log output is redacted
+
+**Examples:**
+
+```python
+# Redact top-level fields
+redact_fields=["password", "api_key"]
+
+# Redact nested fields
+redact_fields=["user.password", "auth.token", "config.secret_key"]
+
+# Redact fields in lists
+redact_fields=["users.password", "items.secret_data"]
+
+# Custom replacement value
+redact_replacement="[REDACTED]"
+```
+
+**Before redaction:**
+
+```json
+{
+  "user": {
+    "name": "john",
+    "password": "secret123"
+  },
+  "auth": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  },
+  "users": [
+    { "name": "alice", "password": "alice_secret" },
+    { "name": "bob", "password": "bob_secret" }
+  ]
+}
+```
+
+**After redaction:**
+
+```json
+{
+  "user": {
+    "name": "john",
+    "password": "REDACTED"
+  },
+  "auth": {
+    "token": "REDACTED"
+  },
+  "users": [
+    { "name": "alice", "password": "REDACTED" },
+    { "name": "bob", "password": "REDACTED" }
+  ]
+}
+```
+
+**Combined Redaction:**
+
+You can use both pattern-based and field-based redaction together for comprehensive coverage:
+
+```python
+settings = LoggingSettings(
+    redact_patterns=[r"(?i)password", r"(?i)token"],  # Catch any password/token fields
+    redact_fields=["user.password", "auth.token"],      # Explicit field redaction
+    redact_replacement="***"
+)
+```
+
+#### Level-Aware Redaction
+
+Control redaction behavior based on log levels to preserve debugging context in development while ensuring security in production:
+
+```python
+settings = LoggingSettings(
+    redact_level="INFO",  # Only redact at INFO level and above
+    redact_patterns=[r"(?i)password"],
+    redact_fields=["user.password", "auth.token"]
+)
+```
+
+**Environment Variable:**
+
+```bash
+export FAPILOG_REDACT_LEVEL="INFO"
+```
+
+**How it works:**
+
+- **DEBUG** logs bypass redaction (full context preserved for debugging)
+- **INFO** and higher logs apply redaction (sensitive data protected)
+- Log level hierarchy: `DEBUG < INFO < WARNING < ERROR < CRITICAL`
+
+**Example behavior:**
+
+```python
+# DEBUG level - no redaction (full context for debugging)
+log.debug("Authentication attempt", user={"password": "secret123"})
+# Output: {"level": "DEBUG", "user": {"password": "secret123"}}
+
+# INFO level - redacted (production safe)
+log.info("Authentication successful", user={"password": "secret123"})
+# Output: {"level": "INFO", "user": {"password": "REDACTED"}}
+```
+
+**Use cases:**
+
+- **Development**: Set `FAPILOG_REDACT_LEVEL=DEBUG` to see all data
+- **Staging**: Set `FAPILOG_REDACT_LEVEL=INFO` for realistic testing
+- **Production**: Set `FAPILOG_REDACT_LEVEL=INFO` for security compliance
+
+**Field Filtering (Legacy):**
 
 ```python
 # In your enrichers
@@ -1160,6 +1308,8 @@ Now that you've learned the basics, explore these advanced topics:
 - [Trace Propagation](examples/17_trace_propagation.py) - Story 6.2 features
 - [Custom Enrichers](examples/custom_enricher_example.py) - Custom metadata
 - [Custom Sinks](examples/15_custom_sink.py) - Specialized logging
+- [Field Redaction](examples/19_field_redaction.py) - Manual field redaction
+- [Automatic PII Redaction](examples/20_automatic_pii_redaction.py) - Automatic PII detection
 
 ### Getting Help
 

@@ -370,12 +370,15 @@ if __name__ == "__main__":
 
 All knobs are environment-driven (perfect for 12-factor apps):
 
-| Env var                   | Default   | Description                                                                 |
-| ------------------------- | --------- | --------------------------------------------------------------------------- |
-| `FAPILOG_LEVEL`           | `INFO`    | Global log level (`DEBUG`, `INFO`, `WARN`, `ERROR`)                         |
-| `FAPILOG_SINKS`           | `stdout`  | Comma-separated list: `stdout`, `file://./logs/app.log`, `loki://loki:3100` |
-| `FAPILOG_JSON_CONSOLE`    | `auto`    | `auto` (JSON in prod, pretty in dev), `json`, or `pretty`                   |
-| `FAPILOG_REDACT_PATTERNS` | _(empty)_ | Regex list for masking PII (`password`, `token`, …)                         |
+| Env var                      | Default    | Description                                                                       |
+| ---------------------------- | ---------- | --------------------------------------------------------------------------------- |
+| `FAPILOG_LEVEL`              | `INFO`     | Global log level (`DEBUG`, `INFO`, `WARN`, `ERROR`)                               |
+| `FAPILOG_SINKS`              | `stdout`   | Comma-separated list: `stdout`, `file://./logs/app.log`, `loki://loki:3100`       |
+| `FAPILOG_JSON_CONSOLE`       | `auto`     | `auto` (JSON in prod, pretty in dev), `json`, or `pretty`                         |
+| `FAPILOG_REDACT_PATTERNS`    | _(empty)_  | Regex list for masking PII (`password`, `token`, …)                               |
+| `FAPILOG_REDACT_FIELDS`      | _(empty)_  | Field names to redact (supports dot notation for nested fields)                   |
+| `FAPILOG_REDACT_REPLACEMENT` | `REDACTED` | Replacement value for redacted fields                                             |
+| `FAPILOG_REDACT_LEVEL`       | `INFO`     | Minimum log level for redaction (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) |
 
 Programmatic override:
 
@@ -384,8 +387,158 @@ configure_logging(
     level="DEBUG",
     sinks=["stdout", "loki://loki:3100"],
     redact_patterns=[r"(?i)password"],
+    redact_fields=["user.password", "auth.token", "api_key"],
+    redact_replacement="***",
+    redact_level="INFO",
 )
 ```
+
+### Data Redaction
+
+`fapilog` provides two complementary approaches to redact sensitive information from logs:
+
+#### Pattern-Based Redaction
+
+Use regex patterns to redact values that match specific patterns in field names or values:
+
+```python
+# Environment variables
+export FAPILOG_REDACT_PATTERNS="password,token,secret"
+
+# Programmatic configuration
+configure_logging(
+    redact_patterns=[r"(?i)password", r"(?i)token", r"(?i)secret"]
+)
+```
+
+This approach is useful for catching sensitive data that might appear in unexpected field names or values.
+
+#### Field-Based Redaction
+
+Use exact field names to redact specific fields, including nested fields using dot notation:
+
+```python
+# Environment variables
+export FAPILOG_REDACT_FIELDS="user.password,auth.token,api_key"
+export FAPILOG_REDACT_REPLACEMENT="***"
+
+# Programmatic configuration
+configure_logging(
+    redact_fields=["user.password", "auth.token", "api_key"],
+    redact_replacement="***"
+)
+```
+
+**Features:**
+
+- **Nested field support**: Use dot notation to redact nested fields (e.g., `user.profile.email`)
+- **List support**: Automatically redacts fields within lists of dictionaries
+- **Custom replacement**: Configure the replacement value (default: `"REDACTED"`)
+- **Non-destructive**: Original data is never modified, only the log output is redacted
+
+**Examples:**
+
+```python
+# Redact top-level fields
+redact_fields=["password", "api_key"]
+
+# Redact nested fields
+redact_fields=["user.password", "auth.token", "config.secret_key"]
+
+# Redact fields in lists
+redact_fields=["users.password", "items.secret_data"]
+
+# Custom replacement value
+redact_replacement="[REDACTED]"
+```
+
+**Before redaction:**
+
+```json
+{
+  "user": {
+    "name": "john",
+    "password": "secret123",
+    "profile": {
+      "email": "john@example.com",
+      "api_key": "abc123def456"
+    }
+  },
+  "users": [
+    { "name": "jane", "password": "secret456" },
+    { "name": "bob", "password": "secret789" }
+  ]
+}
+```
+
+**After redaction:**
+
+```json
+{
+  "user": {
+    "name": "john",
+    "password": "REDACTED",
+    "profile": {
+      "email": "john@example.com",
+      "api_key": "REDACTED"
+    }
+  },
+  "users": [
+    { "name": "jane", "password": "REDACTED" },
+    { "name": "bob", "password": "REDACTED" }
+  ]
+}
+```
+
+#### Combining Both Approaches
+
+You can use both pattern-based and field-based redaction together for comprehensive coverage:
+
+```python
+configure_logging(
+    redact_patterns=[r"(?i)password", r"(?i)token"],  # Catch any password/token fields
+    redact_fields=["user.password", "auth.token"],      # Explicit field redaction
+    redact_replacement="***"
+)
+```
+
+#### Level-Aware Redaction
+
+Control redaction behavior based on log levels to preserve debugging context in development while ensuring security in production:
+
+```python
+# Environment variable
+export FAPILOG_REDACT_LEVEL="INFO"
+
+# Programmatic configuration
+configure_logging(
+    redact_level="INFO",  # Only redact at INFO level and above
+    redact_patterns=[r"(?i)password"],
+    redact_fields=["user.password", "auth.token"]
+)
+```
+
+**How it works:**
+
+- **DEBUG** logs bypass redaction (full context preserved for debugging)
+- **INFO** and higher logs apply redaction (sensitive data protected)
+- Log level hierarchy: `DEBUG < INFO < WARNING < ERROR < CRITICAL`
+
+**Example output at different levels:**
+
+```python
+log.debug("User login", user={"password": "secret123"})
+# Output: {"level": "DEBUG", "user": {"password": "secret123"}}  # Not redacted
+
+log.info("User login", user={"password": "secret123"})
+# Output: {"level": "INFO", "user": {"password": "REDACTED"}}   # Redacted
+```
+
+**Benefits:**
+
+- **Development**: Full context available in DEBUG logs for troubleshooting
+- **Production**: Sensitive data automatically protected in INFO+ logs
+- **Flexible**: Set different redaction levels per environment (DEBUG in dev, INFO in prod)
 
 ### Sink Configuration
 
@@ -1345,3 +1498,85 @@ Contributions welcome—see **`CONTRIBUTING.md`** for guidelines.
 Apache 2.0 — free for commercial and open-source use.
 
 > _FastAPI-Logger is built for high-throughput async APIs, but the core modules are framework-agnostic—use them in Celery workers, scripts, or any structlog pipeline with minimal tweaks._
+
+## 🔒 Automatic PII Redaction
+
+FastAPI-Logger can automatically detect and redact common types of personally identifiable information (PII) in your logs, using a configurable set of regular expressions. This feature helps you avoid accidental leakage of sensitive data without having to enumerate every field name.
+
+### How It Works
+
+- A regex-based PII scanner runs as a post-processor in the logging pipeline.
+- It recursively scans all string values in the log event dictionary.
+- Any value matching a PII pattern is replaced with the redaction placeholder (default: `REDACTED`).
+- Runs after manual field redaction, before log output.
+- **Respects log level settings**: PII redaction follows the same `FAPILOG_REDACT_LEVEL` setting as other redaction methods (DEBUG logs bypass redaction, INFO+ logs are redacted).
+
+### Built-in Patterns
+
+By default, the following PII types are detected and redacted:
+
+- **Credit card numbers** (16-digit, basic pattern)
+- **IPv4 addresses**
+- **Phone numbers** (various formats)
+- **Email addresses**
+
+> **Note:** The order of patterns is important—more specific patterns (credit card, IP) are applied before more general ones (phone, email) to avoid false matches.
+
+### Configuration
+
+You can control PII redaction via `LoggingSettings` or environment variables:
+
+```python
+from fapilog.settings import LoggingSettings
+
+settings = LoggingSettings(
+    enable_auto_redact_pii=True,  # Enable/disable automatic PII redaction (default: True)
+    custom_pii_patterns=[         # Add your own regex patterns (optional)
+        r"\bSSN:\s*\d{3}-\d{2}-\d{4}\b"
+    ],
+    redact_replacement="MASKED" # Change the replacement string (default: "REDACTED")
+)
+```
+
+#### Environment Variables
+
+| Variable                         | Default    | Description                            |
+| -------------------------------- | ---------- | -------------------------------------- |
+| `FAPILOG_ENABLE_AUTO_REDACT_PII` | `true`     | Enable/disable automatic PII redaction |
+| `FAPILOG_CUSTOM_PII_PATTERNS`    | _(empty)_  | Comma-separated list of custom regexes |
+| `FAPILOG_REDACT_REPLACEMENT`     | `REDACTED` | Replacement value for redacted PII     |
+
+### Opting Out
+
+To disable automatic PII redaction:
+
+```python
+settings = LoggingSettings(enable_auto_redact_pii=False)
+```
+
+Or set the environment variable:
+
+```bash
+export FAPILOG_ENABLE_AUTO_REDACT_PII=false
+```
+
+### Limitations & Edge Cases
+
+- **Regex-based only:** No semantic or NLP detection—only literal pattern matches.
+- **False positives:** Some patterns (especially phone numbers) may match non-PII data.
+- **Performance:** Acceptable for most log volumes, but may add overhead for very large or deeply nested logs.
+- **Customization:** You can add/remove patterns as needed for your use case.
+
+### Example
+
+```python
+log.info("user_signup", {
+    "email": "alice@example.com",
+    "phone": "+1-555-123-4567",
+    "card": "1234 5678 9012 3456",
+    "ip": "192.168.1.100"
+})
+# Output: {"email": "REDACTED", "phone": "REDACTED", "card": "REDACTED", "ip": "REDACTED"}
+```
+
+See the [PII Redaction tests](tests/test_auto_redactor.py) for more examples and edge cases.
