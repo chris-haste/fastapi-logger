@@ -8,13 +8,12 @@ error correlation with trace IDs.
 """
 
 import asyncio
-import time
-from typing import Dict, List, Optional, Union
+from typing import Dict, Optional
 
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
 from fapilog import configure_logging, log
 from fapilog.settings import LoggingSettings
@@ -446,7 +445,6 @@ async def generic_exception_handler(request: Request, exc: Exception):
 
 def main():
     """Run the FastAPI application."""
-    import uvicorn
 
     print("=== FastAPI Error Handling Example ===")
     print("This example demonstrates:")

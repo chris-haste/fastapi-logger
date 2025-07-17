@@ -8,7 +8,6 @@ It shows basic setup, middleware integration, and structured logging in API endp
 
 import asyncio
 import time
-from typing import Dict, List
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -189,7 +188,6 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 def main():
     """Run the FastAPI application."""
-    import uvicorn
 
     print("=== FastAPI Basic Integration Example ===")
     print("Starting FastAPI application with fapilog...")

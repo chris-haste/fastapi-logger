@@ -229,7 +229,7 @@ def user_context_enricher(
     return event_dict
 
 
-def create_user_dependency(get_user_func: Callable) -> Callable:
+def create_user_dependency(get_user_func: Callable[..., Any]) -> Callable[..., Any]:
     """Create a FastAPI dependency that extracts user context and binds it.
 
     This factory function creates a FastAPI dependency that wraps your existing
@@ -275,7 +275,7 @@ def create_user_dependency(get_user_func: Callable) -> Callable:
     """
     from ._internal.context import bind_user_context
 
-    async def user_dependency(*args, **kwargs):
+    async def user_dependency(*args: Any, **kwargs: Any) -> Any:
         """FastAPI dependency that extracts and binds user context."""
         # Call the original user function
         if asyncio.iscoroutinefunction(get_user_func):
@@ -332,10 +332,10 @@ def create_user_dependency(get_user_func: Callable) -> Callable:
 
 
 # Custom enricher registry
-_registered_enrichers: List[Callable] = []
+_registered_enrichers: List[Callable[..., Any]] = []
 
 
-def register_enricher(fn: Callable) -> None:
+def register_enricher(fn: Callable[..., Any]) -> None:
     """Register a custom enricher function.
 
     Custom enrichers are called at the end of the processor chain, after all

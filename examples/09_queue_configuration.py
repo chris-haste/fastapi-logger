@@ -7,6 +7,7 @@ It shows how queue settings affect logging behavior and performance.
 """
 
 import time
+
 from fapilog import configure_logging, log
 from fapilog.settings import LoggingSettings
 

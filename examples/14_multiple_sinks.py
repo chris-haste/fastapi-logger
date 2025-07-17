@@ -18,11 +18,11 @@ This example focuses on business logging across multiple sink destinations.
 """
 
 import asyncio
-import time
-import tempfile
 import os
-from typing import Dict, Any, List
+import tempfile
+import time
 from contextlib import asynccontextmanager
+from typing import Any, Dict, List
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -306,7 +306,6 @@ async def load_test():
 
 def main():
     """Run the FastAPI application."""
-    import uvicorn
 
     print("=== FastAPI Multiple Sinks Example (Updated for Story 6.1) ===")
     print("This example demonstrates:")

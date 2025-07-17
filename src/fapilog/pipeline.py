@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 
 import structlog
 
+from ._internal.pii_patterns import DEFAULT_PII_PATTERNS, auto_redact_pii_processor
 from .enrichers import (
     body_size_enricher,
     host_process_enricher,
@@ -14,9 +15,8 @@ from .enrichers import (
     run_registered_enrichers,
     user_context_enricher,
 )
-from .redactors import field_redactor, _should_redact_at_level
+from .redactors import _should_redact_at_level, field_redactor
 from .settings import LoggingSettings
-from ._internal.pii_patterns import DEFAULT_PII_PATTERNS, auto_redact_pii_processor
 
 
 def _redact_processor(patterns: List[str], redact_level: str = "INFO") -> Any:

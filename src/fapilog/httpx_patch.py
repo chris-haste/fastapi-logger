@@ -1,6 +1,7 @@
 """Optional httpx trace propagation for downstream request tracing."""
 
 import functools
+from typing import Any
 
 try:
     import httpx
@@ -44,7 +45,7 @@ def enable_httpx_trace_propagation(trace_header_name: str = "X-Request-ID") -> N
 
     # Create the patched method
     @functools.wraps(_original_request_method)
-    async def patched_request(self, method, url, **kwargs):
+    async def patched_request(self: Any, method: Any, url: Any, **kwargs: Any) -> Any:
         """Patched httpx.AsyncClient.request that adds trace ID header."""
         # Get current trace ID from context
         trace_id = get_trace_id()

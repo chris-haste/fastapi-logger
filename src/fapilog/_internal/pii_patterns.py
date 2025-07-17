@@ -1,10 +1,9 @@
 """PII (Personally Identifiable Information) detection patterns and processor."""
 
 import re
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List
 
 from ..redactors import _should_redact_at_level
-
 
 # NOTE: The order of patterns below is IMPORTANT.
 # More specific patterns (e.g., credit card, IP) must come BEFORE more general patterns (e.g., phone, email).
@@ -26,7 +25,7 @@ DEFAULT_PII_PATTERNS = [
 ]
 
 
-def _compile_pii_patterns(patterns: List[str]) -> List[re.Pattern]:
+def _compile_pii_patterns(patterns: List[str]) -> List[re.Pattern[str]]:
     """Compile regex patterns for PII detection.
 
     Args:
@@ -46,7 +45,7 @@ def _compile_pii_patterns(patterns: List[str]) -> List[re.Pattern]:
 
 
 def _redact_string_value(
-    value: str, patterns: List[re.Pattern], replacement: str
+    value: str, patterns: List[re.Pattern[str]], replacement: str
 ) -> str:
     """Redact PII from a string value using non-overlapping matches."""
     redacted_value = value
@@ -64,7 +63,7 @@ def _redact_string_value(
 
 
 def _redact_pii_recursive(
-    data: Any, patterns: List[re.Pattern], replacement: str
+    data: Any, patterns: List[re.Pattern[str]], replacement: str
 ) -> Any:
     """Recursively redact PII from data structures.
 
@@ -126,6 +125,7 @@ def auto_redact_pii_processor(
         if not _should_redact_at_level(event_level, redact_level):
             return event_dict
 
-        return _redact_pii_recursive(event_dict, compiled_patterns, replacement)
+        result = _redact_pii_recursive(event_dict, compiled_patterns, replacement)
+        return result if isinstance(result, dict) else event_dict
 
     return pii_processor

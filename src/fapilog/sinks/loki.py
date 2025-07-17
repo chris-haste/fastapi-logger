@@ -220,7 +220,7 @@ class LokiSink(Sink):
         if self._client:
             await self._client.aclose()
 
-    async def flush(self):
+    async def flush(self) -> None:
         """Flush any buffered logs immediately (for testing or shutdown)."""
         async with self._lock:
             if self._batch:

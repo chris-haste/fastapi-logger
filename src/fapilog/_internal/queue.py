@@ -318,7 +318,7 @@ def queue_sink(
                 # No running loop, start it in a new thread
                 import threading
 
-                def start_worker():
+                def start_worker() -> None:
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
                     try:

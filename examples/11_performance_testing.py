@@ -7,6 +7,7 @@ It logs a large number of events as quickly as possible and measures throughput.
 """
 
 import time
+
 from fapilog import configure_logging, log
 from fapilog.settings import LoggingSettings
 

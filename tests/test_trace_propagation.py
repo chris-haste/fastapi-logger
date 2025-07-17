@@ -1,15 +1,16 @@
 """Tests for trace propagation functionality (Story 6.2)."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
+from fapilog import get_current_trace_id
+from fapilog._internal.context import get_context
 from fapilog.bootstrap import configure_logging
 from fapilog.middleware import TraceIDMiddleware
 from fapilog.settings import LoggingSettings
-from fapilog._internal.context import get_context
-from fapilog import get_current_trace_id
 
 
 @pytest.mark.asyncio

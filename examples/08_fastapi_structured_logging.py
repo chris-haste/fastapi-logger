@@ -16,10 +16,10 @@ structured logging.
 import asyncio
 import time
 import uuid
-from typing import Dict, List, Optional, Any
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel
 
 from fapilog import configure_logging, log
@@ -421,7 +421,7 @@ async def get_business_metrics():
         "total_products": len(products_db),
         "in_stock_products": in_stock_count,
         "out_of_stock_products": out_of_stock_count,
-        "categories": len(set(p["category"] for p in products_db.values())),
+        "categories": len({p["category"] for p in products_db.values()}),
     }
 
     total_revenue = sum(order["total_amount"] for order in orders_db.values())
@@ -449,7 +449,6 @@ async def get_business_metrics():
 
 def main():
     """Run the FastAPI application."""
-    import uvicorn
 
     print("=== FastAPI Structured Logging Example (Updated for Story 6.1) ===")
     print("This example demonstrates:")

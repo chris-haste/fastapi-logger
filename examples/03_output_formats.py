@@ -9,6 +9,7 @@ This example demonstrates the different output formats available in fapilog:
 """
 
 import sys
+
 from fapilog import configure_logging, log
 from fapilog.settings import LoggingSettings
 
@@ -198,7 +199,6 @@ def demonstrate_complex_structures():
 
 def main():
     """Run all output format examples."""
-    import sys
 
     demonstrate_json_format()
     demonstrate_pretty_format()

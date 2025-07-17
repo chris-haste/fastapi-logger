@@ -13,7 +13,7 @@ credit cards, phone numbers, and IP addresses.
 """
 
 import os
-from typing import Dict, Any
+from typing import Any, Dict
 
 from fapilog import configure_logging, log
 from fapilog.settings import LoggingSettings

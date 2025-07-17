@@ -21,21 +21,20 @@ for enhanced audit logging beyond the automatic features.
 import asyncio
 import hashlib
 import json
-import logging
 import time
 import uuid
-from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, Request, Depends, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
 from fapilog import bootstrap_logger
+from fapilog.enrichers import create_user_dependency
 from fapilog.settings import LogSettings
 from fapilog.sinks.stdout import StdoutSink
-from fapilog.enrichers import create_user_dependency
 
 
 class User(BaseModel):
@@ -112,6 +111,41 @@ def mask_email(email: str) -> str:
         masked_local = local[:2] + "*" * (len(local) - 2)
         return f"{masked_local}@{domain}"
     return email
+
+
+def mask_sensitive_data(data: str, mask_char: str = "*") -> str:
+    """Mask sensitive data for logging."""
+    if len(data) <= 4:
+        return mask_char * len(data)
+    return data[:2] + mask_char * (len(data) - 4) + data[-2:]
+
+
+def sanitize_log_data(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Sanitize log data by masking sensitive fields."""
+    sensitive_fields = {
+        "password",
+        "credit_card",
+        "ssn",
+        "token",
+        "secret",
+        "api_key",
+        "private_key",
+        "session_id",
+    }
+
+    sanitized = data.copy()
+    for key, value in sanitized.items():
+        if key.lower() in sensitive_fields and isinstance(value, str):
+            sanitized[key] = mask_sensitive_data(value)
+        elif isinstance(value, dict):
+            sanitized[key] = sanitize_log_data(value)
+        elif isinstance(value, list):
+            sanitized[key] = [
+                sanitize_log_data(item) if isinstance(item, dict) else item
+                for item in value
+            ]
+
+    return sanitized
 
 
 def log_security_event(event: SecurityEvent, request_id: str):

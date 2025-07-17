@@ -1,6 +1,6 @@
 """Field redaction functionality for fapilog structured logging."""
 
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List
 
 
 def _get_log_level_numeric(level: str) -> int:

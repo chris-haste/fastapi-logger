@@ -9,13 +9,13 @@ from typing import Any, Dict, Optional
 import structlog
 
 from ._internal.queue import QueueWorker, set_queue_worker
+from .httpx_patch import configure_httpx_trace_propagation
 from .middleware import TraceIDMiddleware
 from .pipeline import build_processor_chain
 from .settings import LoggingSettings
 from .sinks.file import create_file_sink_from_uri
 from .sinks.loki import create_loki_sink_from_uri
 from .sinks.stdout import StdoutSink
-from .httpx_patch import configure_httpx_trace_propagation
 
 # Module-level flag to track if logging has been configured
 _configured = False
@@ -108,7 +108,7 @@ def configure_logging(
 
     # Configure structlog
     structlog.configure(
-        processors=processors,  # type: ignore[arg-type]
+        processors=processors,
         wrapper_class=structlog.make_filtering_bound_logger(
             getattr(logging, log_level.upper())
         ),

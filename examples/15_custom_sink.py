@@ -17,16 +17,16 @@ import asyncio
 import json
 import logging
 import time
-import aiohttp
-from typing import Dict, Any, Optional, List
 from contextlib import asynccontextmanager
+from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException
+import aiohttp
+from fastapi import FastAPI
 from pydantic import BaseModel
 
 from fapilog import configure_logging, log
-from fapilog.settings import LoggingSettings
 from fapilog._internal.queue import Sink
+from fapilog.settings import LoggingSettings
 
 
 class UserAction(BaseModel):
@@ -420,7 +420,7 @@ async def health_check():
 async def get_audit_logs():
     """Get audit logs (for demonstration)."""
     try:
-        with open("/tmp/audit.log", "r") as f:
+        with open("/tmp/audit.log") as f:
             logs = f.readlines()
         return {"audit_logs": [json.loads(log.strip()) for log in logs]}
     except FileNotFoundError:
