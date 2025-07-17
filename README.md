@@ -1,5 +1,7 @@
 # FastAPI-Logger (`fapilog`)
 
+![CI](https://github.com/fapilog/fastapi-logger/actions/workflows/ci.yml/badge.svg)
+
 **Structured, context-aware, production-ready logging for FastAPI and other ASGI apps.**
 
 `fapilog` delivers opinionated defaults—JSON logs, trace IDs, async-safe sinks—while remaining fully extensible, so every micro-service in your stack emits consistent, query-friendly events from day one.

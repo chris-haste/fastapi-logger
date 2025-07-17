@@ -1,12 +1,11 @@
 """Tests for field redaction functionality."""
 
-import pytest
 
 from fapilog.redactors import (
     _get_nested_value,
-    _set_nested_value,
     _redact_nested_fields,
     _redact_nested_fields_v2,
+    _set_nested_value,
     field_redactor,
 )
 

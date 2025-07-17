@@ -1,6 +1,6 @@
 """Configuration settings for fapilog."""
 
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, List, Literal, Union
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -99,7 +99,7 @@ class LoggingSettings(BaseSettings):
         default=True,
         description="Enable automatic PII detection and redaction (default: True)",
     )
-    custom_pii_patterns: Union[List[str], str] = Field(
+    custom_pii_patterns: List[str] = Field(
         default_factory=lambda: [],
         description="List of custom regex patterns for PII detection "
         "(comma-separated or list)",

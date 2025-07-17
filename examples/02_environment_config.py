@@ -7,6 +7,7 @@ and programmatic settings. It shows different configuration approaches.
 """
 
 import os
+
 from fapilog import configure_logging, log
 from fapilog.settings import LoggingSettings
 

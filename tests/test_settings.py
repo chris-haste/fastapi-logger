@@ -6,8 +6,8 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from fapilog.settings import LoggingSettings
 from fapilog.bootstrap import configure_logging
+from fapilog.settings import LoggingSettings
 
 
 class TestLoggingSettings:

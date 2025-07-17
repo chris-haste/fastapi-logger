@@ -2,8 +2,8 @@
 
 import structlog
 
-from .bootstrap import configure_logging
 from ._internal.context import get_trace_id as get_current_trace_id
+from .bootstrap import configure_logging
 
 __all__ = ["configure_logging", "log", "get_current_trace_id"]
 

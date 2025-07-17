@@ -13,10 +13,9 @@ Key features:
 """
 
 import asyncio
-import logging
 import time
-from typing import Dict, Any
 from contextlib import asynccontextmanager
+from typing import Any, Dict
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel

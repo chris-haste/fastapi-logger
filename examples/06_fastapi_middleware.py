@@ -9,10 +9,8 @@ propagated through the logging system.
 
 import asyncio
 import time
-from typing import Dict, Optional
 
-from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, Request
 
 from fapilog import configure_logging, log
 from fapilog.settings import LoggingSettings
@@ -221,7 +219,6 @@ async def custom_header_middleware(request: Request, call_next):
 
 def main():
     """Run the FastAPI application."""
-    import uvicorn
 
     print("=== FastAPI Middleware Integration Example ===")
     print("This example demonstrates:")

@@ -8,6 +8,7 @@ settings can optimize performance.
 """
 
 import time
+
 from fapilog import configure_logging, log
 from fapilog.settings import LoggingSettings
 

@@ -18,24 +18,20 @@ and makes it available in all log events during the request lifecycle.
 """
 
 import asyncio
-import json
-import logging
-import uuid
-from datetime import datetime
-from typing import Dict, List, Optional, Any, Union
+from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, Request, Depends, status
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import (
-    HTTPBearer,
     HTTPAuthorizationCredentials,
+    HTTPBearer,
     OAuth2PasswordBearer,
 )
 from pydantic import BaseModel
 
 from fapilog import configure_logging, log
-from fapilog.settings import LoggingSettings
-from fapilog.enrichers import create_user_dependency
 from fapilog._internal.context import bind_user_context
+from fapilog.enrichers import create_user_dependency
+from fapilog.settings import LoggingSettings
 
 
 # Pydantic models for different user representations
@@ -326,7 +322,7 @@ async def demonstrate_user_context():
     print("=" * 60)
 
     # Setup logging
-    logger = setup_logging()
+    setup_logging()
 
     print("\n🔧 Configuration:")
     print("- User context enrichment: ENABLED")
@@ -380,7 +376,7 @@ async def demonstrate_user_context():
     # Create the app
     app = await create_app()
 
-    print(f"\n✅ Application setup complete!")
+    print("\n✅ Application setup complete!")
     print(
         "💡 Note: User context fields will appear in all log events during authenticated requests"
     )
@@ -395,7 +391,7 @@ if __name__ == "__main__":
     # Run the demonstration
     app = asyncio.run(demonstrate_user_context())
 
-    print(f"\n🌐 Starting server...")
+    print("\n🌐 Starting server...")
     print("   User context enrichment will be visible in all log outputs")
     print("   Try the endpoints above to see user context in action!")
 

@@ -1,13 +1,12 @@
 """Tests for PII auto-detection redactor functionality."""
 
-import pytest
 from unittest.mock import Mock
 
 from fapilog._internal.pii_patterns import (
     DEFAULT_PII_PATTERNS,
     _compile_pii_patterns,
-    _redact_string_value,
     _redact_pii_recursive,
+    _redact_string_value,
     auto_redact_pii_processor,
 )
 

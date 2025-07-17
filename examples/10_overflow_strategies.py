@@ -9,6 +9,7 @@ This example demonstrates the different queue overflow strategies in fapilog:
 """
 
 import time
+
 from fapilog import configure_logging, log
 from fapilog.settings import LoggingSettings
 

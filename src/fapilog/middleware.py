@@ -27,7 +27,9 @@ from ._internal.context import (
 )
 
 
-def add_trace_exception_handler(app, trace_id_header: str = "X-Request-ID"):
+def add_trace_exception_handler(
+    app: Any, trace_id_header: str = "X-Request-ID"
+) -> None:
     """
     Register a custom exception handler that adds trace/span/latency
     headers to 500 responses.
@@ -38,7 +40,9 @@ def add_trace_exception_handler(app, trace_id_header: str = "X-Request-ID"):
     """
 
     @app.exception_handler(Exception)
-    async def trace_exception_handler(request: FastAPIRequest, exc: Exception):
+    async def trace_exception_handler(
+        request: FastAPIRequest, exc: Exception
+    ) -> JSONResponse:
         # Get trace/span from request.state (set by middleware)
         trace_id = getattr(request.state, "trace_id", "")
         span_id = getattr(request.state, "span_id", "")
@@ -83,7 +87,7 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.trace_id_header = trace_id_header
 
-    async def dispatch(self, request: Request, call_next: Any) -> Response:
+    async def dispatch(self, request: Request, call_next: Any) -> Any:
         """Process the request and add correlation IDs and timing.
 
         Args:

@@ -1,14 +1,15 @@
 """Tests for request context enricher functionality (Story 6.1)."""
 
+from unittest.mock import patch
+
 import pytest
 from fastapi import FastAPI
 from starlette.testclient import TestClient
-from unittest.mock import patch
 
+from fapilog._internal.context import get_context
 from fapilog.bootstrap import configure_logging
 from fapilog.middleware import TraceIDMiddleware
 from fapilog.settings import LoggingSettings
-from fapilog._internal.context import get_context
 
 
 @pytest.mark.asyncio

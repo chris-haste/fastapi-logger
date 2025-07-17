@@ -7,10 +7,9 @@ like Loki or custom APIs.
 """
 
 import asyncio
-import json
+import os
 import sys
 import tempfile
-import os
 from pathlib import Path
 
 # Add the src directory to the path
@@ -129,8 +128,8 @@ def test_security_logging_example():
     try:
         # Test security utilities
         from examples.security_logging_example import (
-            mask_sensitive_data,
             hash_sensitive_data,
+            mask_sensitive_data,
             sanitize_log_data,
         )
 
@@ -230,7 +229,7 @@ def test_file_logging():
             logger.debug("Debug message", extra={"level": "debug"})
 
             # Check if file was created and contains logs
-            with open(log_file_path, "r") as f:
+            with open(log_file_path) as f:
                 content = f.read()
                 assert "Test file logging" in content
                 assert "Debug message" in content

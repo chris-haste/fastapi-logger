@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Story 9.1**: CI Setup with GitHub Actions
+
+  - Added comprehensive GitHub Actions workflow (`.github/workflows/ci.yml`) for automated testing and quality checks
+  - Separate jobs for linting (`hatch run lint:lint`), type checking (`hatch run typecheck:typecheck`), and testing (`hatch run test:test`)
+  - Optional tox job for compatibility validation across Python versions
+  - Workflow triggers on pushes to `main` branch, pull requests to `main`, and all `feature/**` branches
+  - Uses Python 3.11 and ubuntu-latest runners for consistent build environment
+  - Added CI status badge to README.md showing build status
+  - Failures block merging to main branch ensuring code quality standards
+  - Supports both hatch-based and tox-based testing workflows
+
 - **Story 7.1**: Field Redaction Support
 
   - New field-based redaction system in `fapilog/redactors.py` for precise control over sensitive data removal

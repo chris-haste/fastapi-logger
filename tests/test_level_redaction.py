@@ -2,13 +2,13 @@
 
 import pytest
 
-from fapilog.redactors import (
-    field_redactor,
-    _should_redact_at_level,
-    _get_log_level_numeric,
-)
-from fapilog.pipeline import _redact_processor
 from fapilog._internal.pii_patterns import auto_redact_pii_processor
+from fapilog.pipeline import _redact_processor
+from fapilog.redactors import (
+    _get_log_level_numeric,
+    _should_redact_at_level,
+    field_redactor,
+)
 
 
 class TestLogLevelHelpers:

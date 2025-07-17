@@ -207,7 +207,7 @@ def bind_user_context(
 
 def set_trace_context(
     trace_id: str, span_id: str
-) -> Tuple[contextvars.Token, contextvars.Token]:
+) -> Tuple[contextvars.Token[Any], contextvars.Token[Any]]:
     """Set trace and span context variables.
 
     Args:
@@ -223,7 +223,7 @@ def set_trace_context(
 
 
 def reset_trace_context(
-    token_tid: contextvars.Token, token_sid: contextvars.Token
+    token_tid: contextvars.Token[Any], token_sid: contextvars.Token[Any]
 ) -> None:
     """Reset trace and span context variables.
 
@@ -238,7 +238,7 @@ def reset_trace_context(
 def set_request_metadata(
     req_bytes: int,
     user_agent: str,
-) -> Tuple[contextvars.Token, contextvars.Token]:
+) -> Tuple[contextvars.Token[Any], contextvars.Token[Any]]:
     """Set request metadata context variables.
 
     Args:
@@ -257,7 +257,7 @@ def set_response_metadata(
     res_bytes: int,
     status_code: int,
     latency_ms: float,
-) -> Tuple[contextvars.Token, contextvars.Token, contextvars.Token]:
+) -> Tuple[contextvars.Token[Any], contextvars.Token[Any], contextvars.Token[Any]]:
     """Set response metadata context variables.
 
     Args:
@@ -275,8 +275,8 @@ def set_response_metadata(
 
 
 def reset_request_metadata(
-    token_req: contextvars.Token,
-    token_ua: contextvars.Token,
+    token_req: contextvars.Token[Any],
+    token_ua: contextvars.Token[Any],
 ) -> None:
     """Reset request metadata context variables.
 
@@ -289,9 +289,9 @@ def reset_request_metadata(
 
 
 def reset_response_metadata(
-    token_res: contextvars.Token,
-    token_status: contextvars.Token,
-    token_latency: contextvars.Token,
+    token_res: contextvars.Token[Any],
+    token_status: contextvars.Token[Any],
+    token_latency: contextvars.Token[Any],
 ) -> None:
     """Reset response metadata context variables.
 
