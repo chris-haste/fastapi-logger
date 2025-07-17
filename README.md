@@ -834,6 +834,149 @@ from fapilog.enrichers import clear_enrichers
 clear_enrichers()
 ```
 
+### User Context Enrichment
+
+`fapilog` automatically enriches log events with authenticated user information when available. This feature is enabled by default and works with any FastAPI-compatible authentication mechanism.
+
+#### Automatic User Context Fields
+
+When user context is available, the following fields are automatically added to all log events:
+
+- `user_id`: Authenticated user identifier
+- `user_roles`: List of user roles/scopes
+- `auth_scheme`: Authentication scheme (e.g., 'Bearer', 'Basic', 'JWT')
+
+#### FastAPI Integration
+
+Use the `create_user_dependency` wrapper to automatically bind user context from your existing authentication dependencies:
+
+```python
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPBearer
+from fapilog import configure_logging, log
+from fapilog.enrichers import create_user_dependency
+
+app = FastAPI()
+configure_logging(app=app)
+
+security = HTTPBearer()
+
+def get_current_user_base(token: str = Depends(security)):
+    """Your existing authentication logic."""
+    if not validate_token(token):
+        raise HTTPException(401, "Invalid token")
+    return {
+        "user_id": "user123",
+        "roles": ["admin", "user"],
+        "auth_scheme": "Bearer"
+    }
+
+# Create the logging-aware dependency
+get_current_user = create_user_dependency(get_current_user_base)
+
+@app.get("/protected")
+async def protected_route(user = Depends(get_current_user)):
+    # All logs automatically include user context
+    log.info("Protected action", action="view_profile")
+    return {"user": user}
+```
+
+#### User Object Compatibility
+
+The dependency wrapper automatically extracts user information from different object types:
+
+**Dict-based user objects:**
+
+```python
+def get_user():
+    return {
+        "user_id": "123",           # or "id"
+        "user_roles": ["admin"],    # or "roles"
+        "auth_scheme": "Bearer"     # or "scheme"
+    }
+```
+
+**Class-based user objects:**
+
+```python
+class User:
+    def __init__(self):
+        self.id = "123"             # or user_id
+        self.roles = ["admin"]      # or user_roles
+        self.scheme = "Bearer"      # or auth_scheme
+
+def get_user():
+    return User()
+```
+
+#### Manual User Context Binding
+
+For non-FastAPI applications or custom scenarios, bind user context manually:
+
+```python
+from fapilog._internal.context import bind_user_context
+from fapilog import log
+
+# Bind user context manually
+bind_user_context(
+    user_id="user123",
+    user_roles=["admin", "moderator"],
+    auth_scheme="Bearer"
+)
+
+# All subsequent logs will include user context
+log.info("User action", action="login")
+```
+
+#### Configuration
+
+User context enrichment can be disabled via settings:
+
+```python
+from fapilog.settings import LoggingSettings
+
+settings = LoggingSettings(
+    user_context_enabled=False  # Disable user context enrichment
+)
+configure_logging(settings=settings)
+```
+
+**Environment variable:**
+
+```bash
+export FAPILOG_USER_CONTEXT_ENABLED=false
+```
+
+#### Example Log Output
+
+With user context enabled, logs automatically include user information:
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:45.123Z",
+  "level": "info",
+  "event": "Protected action",
+  "trace_id": "abc123def456",
+  "user_id": "user123",
+  "user_roles": ["admin", "user"],
+  "auth_scheme": "Bearer",
+  "action": "view_profile"
+}
+```
+
+#### Unauthenticated Requests
+
+For unauthenticated requests, user context fields are simply omitted from logs:
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:45.123Z",
+  "level": "info",
+  "event": "Public action",
+  "trace_id": "abc123def456"
+}
+```
+
 ---
 
 ## 📦 Project Layout
@@ -877,6 +1020,9 @@ The following fields are automatically added to all log events:
 | `req_bytes`   | integer | Request body size in bytes  | `1024`                       |
 | `res_bytes`   | integer | Response body size in bytes | `512`                        |
 | `user_agent`  | string  | Client User-Agent header    | `"curl/7.68.0"`              |
+| `user_id`     | string  | Authenticated user ID       | `"user123"`                  |
+| `user_roles`  | array   | User roles/permissions      | `["admin", "user"]`          |
+| `auth_scheme` | string  | Authentication scheme       | `"Bearer"`, `"Basic"`        |
 | `memory_mb`   | float   | Process memory usage in MB  | `45.2`                       |
 | `cpu_percent` | float   | Process CPU usage %         | `12.5`                       |
 
@@ -1118,27 +1264,6 @@ async def process_data():
 
 The background task will log with the same `trace_id` as the original request, enabling end-to-end tracing across async operations.
 
----
-
-## 🗺️ Roadmap
-
-- [ ] Refactor to remove dependency on structlog
-- [ ] OpenTelemetry span auto-capture
-- [ ] SQLAlchemy slow-query detector
-- [ ] Redis/RabbitMQ context propagation helpers
-- [ ] Live log-level toggle endpoint (`/admin/log-level`)
-- [ ] Kinesis / PubSub sinks
-
-Contributions welcome—see **`CONTRIBUTING.md`** for guidelines.
-
----
-
-## 🤝 License
-
-Apache 2.0 — free for commercial and open-source use.
-
-> _FastAPI-Logger is built for high-throughput async APIs, but the core modules are framework-agnostic—use them in Celery workers, scripts, or any structlog pipeline with minimal tweaks._
-
 ## Multiple Sink Support
 
 `fapilog` supports writing log events to multiple destinations (sinks) in parallel. This is useful for redundancy, local debugging, and sending logs to multiple backends (e.g., stdout, file, and Loki) at the same time.
@@ -1199,3 +1324,24 @@ Every log event will be written to your terminal, to `/tmp/app.log`, and to your
 
 - All sinks are tested for fan-out and error isolation.
 - See `tests/test_multi_sink.py` for comprehensive test coverage.
+
+---
+
+## 🗺️ Roadmap
+
+- [ ] Refactor to remove dependency on structlog
+- [ ] OpenTelemetry span auto-capture
+- [ ] SQLAlchemy slow-query detector
+- [ ] Redis/RabbitMQ context propagation helpers
+- [ ] Live log-level toggle endpoint (`/admin/log-level`)
+- [ ] Kinesis / PubSub sinks
+
+Contributions welcome—see **`CONTRIBUTING.md`** for guidelines.
+
+---
+
+## 🤝 License
+
+Apache 2.0 — free for commercial and open-source use.
+
+> _FastAPI-Logger is built for high-throughput async APIs, but the core modules are framework-agnostic—use them in Celery workers, scripts, or any structlog pipeline with minimal tweaks._

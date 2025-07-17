@@ -12,6 +12,7 @@ from .enrichers import (
     request_response_enricher,
     resource_snapshot_enricher,
     run_registered_enrichers,
+    user_context_enricher,
 )
 from .settings import LoggingSettings
 
@@ -125,13 +126,17 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
     if settings.enable_resource_metrics:
         processors.append(resource_snapshot_enricher)
 
-    # 11. Custom registered enrichers (after all built-in enrichers)
+    # 11. User context enricher (if enabled)
+    if settings.user_context_enabled:
+        processors.append(user_context_enricher)
+
+    # 12. Custom registered enrichers (after all built-in enrichers)
     processors.append(run_registered_enrichers)
 
-    # 12. Sampling processor (must be just before renderer)
+    # 13. Sampling processor (must be just before renderer)
     sampling = _sampling_processor(settings.sampling_rate)
 
-    # 13. Filter None processor (skips rendering if None)
+    # 14. Filter None processor (skips rendering if None)
     processors.append(sampling)
     processors.append(_filter_none_processor)
 

@@ -78,6 +78,10 @@ class LoggingSettings(BaseSettings):
         description="Enable automatic trace ID propagation in httpx.AsyncClient "
         "(default: False)",
     )
+    user_context_enabled: bool = Field(
+        default=True,
+        description="Enable user context enrichment in log entries (default: True)",
+    )
 
     model_config = SettingsConfigDict(
         env_prefix="FAPILOG_",

@@ -144,23 +144,24 @@ settings = LoggingSettings(
 
 **Fields:**
 
-| Field                            | Type      | Default          | Description                                        |
-| -------------------------------- | --------- | ---------------- | -------------------------------------------------- |
-| `level`                          | str       | `"INFO"`         | Logging level (DEBUG, INFO, WARN, ERROR, CRITICAL) |
-| `sinks`                          | List[str] | `["stdout"]`     | List of sink names for log output                  |
-| `json_console`                   | str       | `"auto"`         | Console format (auto, json, pretty)                |
-| `redact_patterns`                | List[str] | `[]`             | Regex patterns to redact from logs                 |
-| `sampling_rate`                  | float     | `1.0`            | Log sampling rate (0.0 to 1.0)                     |
-| `queue_enabled`                  | bool      | `True`           | Enable async queue for non-blocking logging        |
-| `queue_maxsize`                  | int       | `1000`           | Maximum size of async log queue                    |
-| `queue_overflow`                 | str       | `"drop"`         | Queue overflow strategy (drop, block, sample)      |
-| `queue_batch_size`               | int       | `10`             | Events per batch                                   |
-| `queue_batch_timeout`            | float     | `1.0`            | Batch timeout in seconds                           |
-| `queue_retry_delay`              | float     | `1.0`            | Retry delay in seconds                             |
-| `queue_max_retries`              | int       | `3`              | Maximum retries per event                          |
-| `enable_resource_metrics`        | bool      | `False`          | Enable memory/CPU metrics in logs                  |
-| `trace_id_header`                | str       | `"X-Request-ID"` | HTTP header name for incoming trace ID             |
-| `enable_httpx_trace_propagation` | bool      | `False`          | Enable automatic trace ID propagation in httpx     |
+| Field                            | Type      | Default          | Description                                                  |
+| -------------------------------- | --------- | ---------------- | ------------------------------------------------------------ |
+| `level`                          | str       | `"INFO"`         | Logging level (DEBUG, INFO, WARN, ERROR, CRITICAL)           |
+| `sinks`                          | List[str] | `["stdout"]`     | List of sink names for log output                            |
+| `json_console`                   | str       | `"auto"`         | Console format (auto, json, pretty)                          |
+| `redact_patterns`                | List[str] | `[]`             | Regex patterns to redact from logs                           |
+| `sampling_rate`                  | float     | `1.0`            | Log sampling rate (0.0 to 1.0)                               |
+| `queue_enabled`                  | bool      | `True`           | Enable async queue for non-blocking logging                  |
+| `queue_maxsize`                  | int       | `1000`           | Maximum size of async log queue                              |
+| `queue_overflow`                 | str       | `"drop"`         | Queue overflow strategy (drop, block, sample)                |
+| `queue_batch_size`               | int       | `10`             | Events per batch                                             |
+| `queue_batch_timeout`            | float     | `1.0`            | Batch timeout in seconds                                     |
+| `queue_retry_delay`              | float     | `1.0`            | Retry delay in seconds                                       |
+| `queue_max_retries`              | int       | `3`              | Maximum retries per event                                    |
+| `enable_resource_metrics`        | bool      | `False`          | Enable memory/CPU metrics in logs                            |
+| `trace_id_header`                | str       | `"X-Request-ID"` | HTTP header name for incoming trace ID                       |
+| `enable_httpx_trace_propagation` | bool      | `False`          | Enable automatic trace ID propagation in httpx               |
+| `user_context_enabled`           | bool      | `True`           | Enable user context enrichment (user_id, roles, auth_scheme) |
 
 **Environment Variables:**
 
@@ -173,6 +174,7 @@ export FAPILOG_QUEUE_MAXSIZE=2000
 export FAPILOG_SINKS=stdout,loki
 export FAPILOG_TRACE_ID_HEADER=X-Custom-Trace-ID
 export FAPILOG_ENABLE_HTTPX_TRACE_PROPAGATION=true
+export FAPILOG_USER_CONTEXT_ENABLED=true
 ```
 
 ---

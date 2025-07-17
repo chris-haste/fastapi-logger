@@ -1,23 +1,54 @@
 """Context variables for request correlation and tracing."""
 
 import contextvars
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 # Context variables for request correlation
-trace_ctx = contextvars.ContextVar("trace_id", default=None)
-span_ctx = contextvars.ContextVar("span_id", default=None)
+trace_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "trace_id", default=None
+)
+span_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "span_id", default=None
+)
 
 # Context variables for request/response metadata
-req_bytes_ctx = contextvars.ContextVar("req_bytes", default=None)
-res_bytes_ctx = contextvars.ContextVar("res_bytes", default=None)
-status_code_ctx = contextvars.ContextVar("status_code", default=None)
-latency_ctx = contextvars.ContextVar("latency_ms", default=None)
-user_agent_ctx = contextvars.ContextVar("user_agent", default=None)
+req_bytes_ctx: contextvars.ContextVar[Optional[int]] = contextvars.ContextVar(
+    "req_bytes", default=None
+)
+res_bytes_ctx: contextvars.ContextVar[Optional[int]] = contextvars.ContextVar(
+    "res_bytes", default=None
+)
+status_code_ctx: contextvars.ContextVar[Optional[int]] = contextvars.ContextVar(
+    "status_code", default=None
+)
+latency_ctx: contextvars.ContextVar[Optional[float]] = contextvars.ContextVar(
+    "latency_ms", default=None
+)
+user_agent_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "user_agent", default=None
+)
 
 # Context variables for request details (Story 6.1)
-client_ip_ctx = contextvars.ContextVar("client_ip", default=None)
-method_ctx = contextvars.ContextVar("method", default=None)
-path_ctx = contextvars.ContextVar("path", default=None)
+client_ip_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "client_ip", default=None
+)
+method_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "method", default=None
+)
+path_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "path", default=None
+)
+
+# Context variables for user authentication (Story 6.3)
+user_id_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "user_id", default=None
+)
+user_roles_ctx: contextvars.ContextVar[Optional[List[str]]] = contextvars.ContextVar(
+    "user_roles", default=None
+)
+auth_scheme_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "auth_scheme", default=None
+)
 
 
 def get_context() -> Dict[str, Any]:
@@ -26,7 +57,7 @@ def get_context() -> Dict[str, Any]:
     Returns:
         Dictionary containing current trace_id, span_id, latency_ms,
         status_code, req_bytes, res_bytes, user_agent, client_ip, method,
-        and path values.
+        path, user_id, user_roles, and auth_scheme values.
     """
     return {
         "trace_id": trace_ctx.get(),
@@ -39,6 +70,9 @@ def get_context() -> Dict[str, Any]:
         "client_ip": client_ip_ctx.get(),
         "method": method_ctx.get(),
         "path": path_ctx.get(),
+        "user_id": user_id_ctx.get(),
+        "user_roles": user_roles_ctx.get(),
+        "auth_scheme": auth_scheme_ctx.get(),
     }
 
 
@@ -48,7 +82,8 @@ def bind_context(**kwargs: Any) -> None:
     Args:
         **kwargs: Context variables to set. Valid keys are:
             trace_id, span_id, latency_ms, status_code, req_bytes, res_bytes,
-            user_agent, client_ip, method, path
+            user_agent, client_ip, method, path, user_id, user_roles,
+            auth_scheme
     """
     valid_keys = {
         "trace_id",
@@ -61,6 +96,9 @@ def bind_context(**kwargs: Any) -> None:
         "client_ip",
         "method",
         "path",
+        "user_id",
+        "user_roles",
+        "auth_scheme",
     }
 
     for key, value in kwargs.items():
@@ -87,6 +125,12 @@ def bind_context(**kwargs: Any) -> None:
             method_ctx.set(value)
         elif key == "path":
             path_ctx.set(value)
+        elif key == "user_id":
+            user_id_ctx.set(value)
+        elif key == "user_roles":
+            user_roles_ctx.set(value)
+        elif key == "auth_scheme":
+            auth_scheme_ctx.set(value)
 
 
 def clear_context() -> None:
@@ -101,6 +145,9 @@ def clear_context() -> None:
     client_ip_ctx.set(None)
     method_ctx.set(None)
     path_ctx.set(None)
+    user_id_ctx.set(None)
+    user_roles_ctx.set(None)
+    auth_scheme_ctx.set(None)
 
 
 def context_copy() -> contextvars.Context:
@@ -121,6 +168,41 @@ def get_trace_id() -> Optional[str]:
 def get_span_id() -> Optional[str]:
     """Get the current span ID from context."""
     return span_ctx.get()
+
+
+def get_user_id() -> Optional[str]:
+    """Get the current user ID from context."""
+    return user_id_ctx.get()
+
+
+def get_user_roles() -> Optional[List[str]]:
+    """Get the current user roles from context."""
+    return user_roles_ctx.get()
+
+
+def get_auth_scheme() -> Optional[str]:
+    """Get the current auth scheme from context."""
+    return auth_scheme_ctx.get()
+
+
+def bind_user_context(
+    user_id: Optional[str] = None,
+    user_roles: Optional[List[str]] = None,
+    auth_scheme: Optional[str] = None,
+) -> None:
+    """Bind user context variables.
+
+    Args:
+        user_id: User identifier
+        user_roles: List of user roles/scopes
+        auth_scheme: Authentication scheme (e.g., 'Bearer', 'Basic')
+    """
+    if user_id is not None:
+        user_id_ctx.set(user_id)
+    if user_roles is not None:
+        user_roles_ctx.set(user_roles)
+    if auth_scheme is not None:
+        auth_scheme_ctx.set(auth_scheme)
 
 
 def set_trace_context(
@@ -175,7 +257,7 @@ def set_response_metadata(
     res_bytes: int,
     status_code: int,
     latency_ms: float,
-) -> tuple[contextvars.Token, contextvars.Token, contextvars.Token]:
+) -> Tuple[contextvars.Token, contextvars.Token, contextvars.Token]:
     """Set response metadata context variables.
 
     Args:

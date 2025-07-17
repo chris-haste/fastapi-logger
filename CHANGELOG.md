@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Story 6.3**: Context Enricher: User and Auth Context
+  - New `user_context_enricher` processor that automatically adds authenticated user information to log events
+  - Added user context variables: `user_id_ctx`, `user_roles_ctx`, `auth_scheme_ctx` in `src/fapilog/_internal/context.py`
+  - All log events during authenticated requests automatically include: `user_id`, `user_roles`, `auth_scheme`
+  - New `create_user_dependency` factory function in `src/fapilog/enrichers.py` for FastAPI integration
+  - Compatible with any FastAPI authentication mechanism (OAuth2, JWT, Bearer tokens, custom auth)
+  - Supports both dict-based and class-based user objects with automatic field extraction
+  - Graceful handling of unauthenticated requests (user fields omitted, no errors)
+  - New `USER_CONTEXT_ENABLED` setting in `LoggingSettings` (default: True) for configuration control
+  - Environment variable support: `FAPILOG_USER_CONTEXT_ENABLED` for easy deployment configuration
+  - Manual user context binding via `bind_user_context()` helper function for non-HTTP contexts
+  - Helper functions: `get_user_id()`, `get_user_roles()`, `get_auth_scheme()` for context access
+  - Enricher positioned after request context enrichers, before custom enrichers in processor chain
+  - Comprehensive unit tests (14 tests) in `tests/test_user_context.py` covering authentication scenarios, type conversions, edge cases, and FastAPI integration
+  - Updated README with "User Context Enrichment" section documenting FastAPI integration, configuration, and usage examples
+  - New example `examples/18_user_context_enrichment.py` demonstrating real-world authentication scenarios
+  - Updated security logging example `examples/16_security_logging.py` to use user context enrichment
+  - Zero-configuration setup: wrap existing auth dependencies with `create_user_dependency()` for automatic user context
+  - Perfect for security auditing, user behavior analysis, and troubleshooting user-specific issues
 - **Story 6.1**: Context Enricher: Request Metadata
   - Enhanced `TraceIDMiddleware` to automatically capture HTTP request metadata in context variables
   - New context variables: `client_ip` (client IP address), `method` (HTTP method), `path` (request path)

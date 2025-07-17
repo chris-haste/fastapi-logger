@@ -9,6 +9,7 @@ This guide provides step-by-step tutorials for using `fapilog` in your applicati
 - [Quick Start](#quick-start)
 - [Basic Configuration](#basic-configuration)
 - [FastAPI Integration](#fastapi-integration)
+- [User Context Enrichment](#user-context-enrichment)
 - [Advanced Configuration](#advanced-configuration)
 - [Custom Enrichers](#custom-enrichers)
 - [Custom Sinks](#custom-sinks)
@@ -268,6 +269,160 @@ configure_logging(settings=settings)
 
 ---
 
+## User Context Enrichment
+
+Automatically include authenticated user information in all log events with zero code changes to your logging calls.
+
+### Automatic User Context with FastAPI
+
+Wrap your existing authentication dependencies to automatically bind user context:
+
+```python
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.security import HTTPBearer
+from fapilog import configure_logging, log
+from fapilog.enrichers import create_user_dependency
+
+app = FastAPI()
+configure_logging(app=app)
+
+security = HTTPBearer()
+
+# Your existing authentication function
+async def get_current_user_base(token: str = Depends(security)):
+    """Your existing auth logic - no changes needed."""
+    if not validate_token(token):
+        raise HTTPException(401, "Invalid token")
+
+    return {
+        "user_id": "user123",
+        "roles": ["admin", "user"],
+        "auth_scheme": "Bearer"
+    }
+
+# Create the context-aware dependency
+get_current_user = create_user_dependency(get_current_user_base)
+
+@app.get("/api/profile")
+async def get_profile(user = Depends(get_current_user)):
+    # All logs automatically include user_id, user_roles, auth_scheme
+    log.info("Profile accessed", section="personal_info")
+    log.info("Data retrieved", record_count=15)
+    return {"user": user}
+```
+
+### What Gets Added Automatically
+
+The user context enricher adds these fields to every log event:
+
+- **`user_id`**: Authenticated user identifier
+- **`user_roles`**: Array of user roles/permissions
+- **`auth_scheme`**: Authentication method (Bearer, Basic, JWT, etc.)
+
+### Compatible User Objects
+
+Works with any user object format:
+
+**Dict-based users:**
+
+```python
+def get_user():
+    return {
+        "user_id": "123",           # or "id"
+        "user_roles": ["admin"],    # or "roles"
+        "auth_scheme": "Bearer"     # or "scheme"
+    }
+```
+
+**Class-based users:**
+
+```python
+class User:
+    def __init__(self):
+        self.id = "123"             # or user_id
+        self.roles = ["admin"]      # or user_roles
+        self.scheme = "Bearer"      # or auth_scheme
+
+def get_user():
+    return User()
+```
+
+### Optional Authentication
+
+For endpoints that work with or without authentication:
+
+```python
+from fastapi.security import OAuth2PasswordBearer
+
+oauth2_optional = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
+
+async def get_user_optional(token: str = Depends(oauth2_optional)):
+    if not token:
+        return None  # No user authenticated
+    return validate_and_get_user(token)
+
+# Create optional context dependency
+get_user_context_optional = create_user_dependency(get_user_optional)
+
+@app.get("/content")
+async def get_content(user = Depends(get_user_context_optional)):
+    if user:
+        log.info("Authenticated content access")  # Includes user context
+    else:
+        log.info("Anonymous content access")      # No user context fields
+
+    return {"content": "public or premium based on user"}
+```
+
+### Configuration
+
+User context enrichment is enabled by default. To disable:
+
+```python
+from fapilog.settings import LoggingSettings
+
+settings = LoggingSettings(
+    user_context_enabled=False  # Disable user context
+)
+configure_logging(settings=settings)
+```
+
+**Environment variable:**
+
+```bash
+export FAPILOG_USER_CONTEXT_ENABLED=false
+```
+
+### Example Log Output
+
+**Authenticated request:**
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:45.123Z",
+  "level": "info",
+  "event": "Profile accessed",
+  "trace_id": "abc123def456",
+  "user_id": "user123",
+  "user_roles": ["admin", "user"],
+  "auth_scheme": "Bearer",
+  "section": "personal_info"
+}
+```
+
+**Unauthenticated request:**
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:45.123Z",
+  "level": "info",
+  "event": "Anonymous content access",
+  "trace_id": "abc123def456"
+}
+```
+
+---
+
 ## Advanced Configuration
 
 Configure `fapilog` for high-performance and production environments.
@@ -365,13 +520,11 @@ Add application-specific metadata to all log events automatically.
 from fapilog.enrichers import register_enricher
 from fapilog import configure_logging, log
 
-def user_context_enricher(logger, method_name, event_dict):
-    """Add user context from session."""
-    # Get user from your session/context
-    user = get_current_user()
-    if user:
-        event_dict["user_id"] = user.id
-        event_dict["user_role"] = user.role
+def app_metadata_enricher(logger, method_name, event_dict):
+    """Add application metadata to logs."""
+    import os
+    event_dict["app_version"] = "1.0.0"
+    event_dict["deployment_id"] = os.getenv("DEPLOYMENT_ID", "local")
     return event_dict
 
 def environment_enricher(logger, method_name, event_dict):
@@ -382,13 +535,13 @@ def environment_enricher(logger, method_name, event_dict):
     return event_dict
 
 # Register enrichers
-register_enricher(user_context_enricher)
+register_enricher(app_metadata_enricher)
 register_enricher(environment_enricher)
 
 # Configure logging
 configure_logging()
 
-# All logs now include user and environment info
+# All logs now include app metadata and environment info
 log.info("API request processed", endpoint="/api/users")
 ```
 

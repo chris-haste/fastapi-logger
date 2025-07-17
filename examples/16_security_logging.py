@@ -35,6 +35,7 @@ from pydantic import BaseModel, Field
 from fapilog import bootstrap_logger
 from fapilog.settings import LogSettings
 from fapilog.sinks.stdout import StdoutSink
+from fapilog.enrichers import create_user_dependency
 
 
 class User(BaseModel):
@@ -47,6 +48,11 @@ class User(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str = Field(..., min_length=8)
+
+
+class SensitiveData(BaseModel):
+    content: str
+    classification: str = "confidential"
 
 
 class SecurityEvent(BaseModel):
@@ -64,6 +70,34 @@ logger = bootstrap_logger(
 )
 
 security = HTTPBearer()
+
+
+# Mock user database for demonstration
+USERS_DB = {
+    "valid-token": {
+        "user_id": "user-123",
+        "email": "user@example.com",
+        "role": "admin",
+        "permissions": ["read", "write", "delete", "audit"],
+    }
+}
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> User:
+    """Verify bearer token and return user information."""
+    token = credentials.credentials
+
+    if token in USERS_DB:
+        user_data = USERS_DB[token]
+        return User(**user_data)
+
+    raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+
+
+# Create user context dependency that automatically binds user info to logs
+get_current_user_with_context = create_user_dependency(get_current_user)
 
 
 def hash_sensitive_data(data: str) -> str:
@@ -248,7 +282,7 @@ async def login(request: LoginRequest):
 
 
 @app.post("/auth/logout")
-async def logout(current_user: User = Depends(get_current_user)):
+async def logout(current_user: User = Depends(get_current_user_with_context)):
     """Logout endpoint with security logging."""
     logger.info(
         "Logout",
