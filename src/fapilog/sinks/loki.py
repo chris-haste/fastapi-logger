@@ -89,7 +89,7 @@ class LokiSink(Sink):
         if self._flush_timer and not self._flush_timer.done():
             self._flush_timer.cancel()
         loop = asyncio.get_running_loop()
-        task = loop.create_task(self._interval_flush())  # type: ignore
+        task = loop.create_task(self._interval_flush())
         self._flush_timer = task
 
     async def _interval_flush(self) -> None:

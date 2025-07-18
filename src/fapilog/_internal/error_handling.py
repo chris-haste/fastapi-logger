@@ -1,7 +1,7 @@
 """Error handling utilities for fapilog."""
 
 import logging
-from typing import Any, Callable, Dict, Optional, TypeVar
+from typing import Any, Awaitable, Callable, Dict, Optional, TypeVar
 
 from ..exceptions import (
     ConfigurationError,
@@ -389,7 +389,7 @@ def retry_with_backoff(
 
 
 async def retry_with_backoff_async(
-    func: Callable[[], T],
+    func: Callable[[], Awaitable[T]],
     max_retries: int = 3,
     base_delay: float = 1.0,
     max_delay: float = 60.0,
