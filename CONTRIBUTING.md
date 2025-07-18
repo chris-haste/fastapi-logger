@@ -309,6 +309,81 @@ This project follows the [Keep a Changelog](https://keepachangelog.com/en/1.0.0/
   - Established Keep a Changelog format compliance
 ```
 
+## 🚀 Release Process & Checklist
+
+### Release Guardrails
+
+This project includes automated guardrails to ensure proper release documentation:
+
+1. **Version Bump Required**: Every release commit must include a version bump in `pyproject.toml`
+2. **Changelog Update Required**: Every release commit must update `CHANGELOG.md` with the new version
+3. **CI Validation**: GitHub Actions automatically validates release commits
+4. **Pre-commit Hook**: Local validation warns about missing updates before commit
+
+### Release Commit Format
+
+Release commits must follow this exact format:
+
+```bash
+git commit -m "chore(release): vX.Y.Z"
+```
+
+Examples:
+
+- `chore(release): v0.1.0`
+- `chore(release): v1.2.3`
+- `chore(release): v2.0.0`
+
+### Release Checklist
+
+Before creating a release:
+
+- [ ] **Version bumped** in `pyproject.toml`
+- [ ] **CHANGELOG.md updated** with new version section
+- [ ] **All tests pass** locally and in CI
+- [ ] **Linting passes** with no errors
+- [ ] **Type checking passes** with no errors
+- [ ] **Changes committed** with proper release message format
+- [ ] **Tag created** and pushed to GitHub
+- [ ] **Build artifacts** created successfully
+
+### Automated Checks
+
+The following checks run automatically on release commits:
+
+1. **Version Match**: Ensures `pyproject.toml` version matches the release commit
+2. **Changelog Presence**: Verifies the version exists in `CHANGELOG.md`
+3. **Format Validation**: Confirms proper commit message format
+
+### Manual Testing
+
+Test the release process locally:
+
+```bash
+# Test release guardrails script
+python scripts/check_release_guardrails.py --commit-msg "chore(release): v0.1.1"
+
+# Test with incorrect version
+python scripts/check_release_guardrails.py --commit-msg "chore(release): v0.1.1" --verbose
+
+# Test pre-commit hook
+pre-commit run release-guardrails --all-files
+```
+
+### Troubleshooting Release Issues
+
+**CI fails on release commit:**
+
+- Check that version in `pyproject.toml` matches the release commit
+- Verify `CHANGELOG.md` contains the version section
+- Ensure commit message follows exact format: `chore(release): vX.Y.Z`
+
+**Pre-commit hook fails:**
+
+- Run `python scripts/check_release_guardrails.py --verbose` for detailed output
+- Check that both version and changelog are updated
+- Verify commit message format is correct
+
 ## 🤝 Community Guidelines
 
 ### Be Respectful

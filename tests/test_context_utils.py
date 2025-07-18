@@ -3,9 +3,6 @@
 import asyncio
 
 import pytest
-from fastapi import FastAPI
-from starlette.testclient import TestClient
-
 from fapilog._internal.context import (
     bind_context,
     clear_context,
@@ -15,6 +12,8 @@ from fapilog._internal.context import (
     get_trace_id,
 )
 from fapilog.bootstrap import configure_logging
+from fastapi import FastAPI
+from starlette.testclient import TestClient
 
 
 def test_get_context_returns_expected_keys():

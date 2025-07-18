@@ -1,7 +1,6 @@
 """Tests for level-aware redaction functionality."""
 
 import pytest
-
 from fapilog._internal.pii_patterns import auto_redact_pii_processor
 from fapilog.pipeline import _redact_processor
 from fapilog.redactors import (

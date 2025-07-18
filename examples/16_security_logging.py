@@ -27,14 +27,13 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, Field
-
 from fapilog import configure_logging
 from fapilog.enrichers import create_user_dependency
 from fapilog.settings import LoggingSettings
 from fapilog.sinks.stdout import StdoutSink
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel, Field
 
 
 class User(BaseModel):

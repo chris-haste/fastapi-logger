@@ -20,4 +20,15 @@ repos:
     rev: v2.10
     hooks:
       - id: vulture
-        args: [src/, tests/, .vulture] 
+        args: [src/, tests/, .vulture]
+
+  # Release guardrails check
+  - repo: local
+    hooks:
+      - id: release-guardrails
+        name: Release Guardrails Check
+        entry: python scripts/check_release_guardrails.py
+        language: system
+        stages: [commit]
+        description: "Check for proper version bumps and changelog updates on release commits"
+        always_run: true 
