@@ -1,6 +1,8 @@
 """Tests for custom enrichers integration with the pipeline."""
 
 import structlog
+from structlog.testing import CapturingLogger
+
 from fapilog.bootstrap import configure_logging
 from fapilog.enrichers import (
     clear_enrichers,
@@ -8,7 +10,6 @@ from fapilog.enrichers import (
 )
 from fapilog.pipeline import build_processor_chain
 from fapilog.settings import LoggingSettings
-from structlog.testing import CapturingLogger
 
 
 def test_custom_enrichers_in_pipeline():

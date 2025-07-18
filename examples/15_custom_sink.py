@@ -21,11 +21,12 @@ from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
 
 import aiohttp
+from fastapi import FastAPI
+from pydantic import BaseModel
+
 from fapilog import configure_logging, log
 from fapilog._internal.queue import Sink
 from fapilog.settings import LoggingSettings
-from fastapi import FastAPI
-from pydantic import BaseModel
 
 
 class UserAction(BaseModel):

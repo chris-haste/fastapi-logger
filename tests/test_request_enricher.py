@@ -3,12 +3,13 @@
 from unittest.mock import patch
 
 import pytest
+from fastapi import FastAPI
+from starlette.testclient import TestClient
+
 from fapilog._internal.context import get_context
 from fapilog.bootstrap import configure_logging
 from fapilog.middleware import TraceIDMiddleware
 from fapilog.settings import LoggingSettings
-from fastapi import FastAPI
-from starlette.testclient import TestClient
 
 
 @pytest.mark.asyncio
