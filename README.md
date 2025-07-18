@@ -97,6 +97,47 @@ pre-commit run --all-files
 
 **Note:** The pre-commit hooks will run automatically on staged files when you commit. You can also run them manually using the commands above.
 
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for detailed information on:
+
+- Setting up your development environment
+- Code style and testing guidelines
+- Commit message conventions
+- Pull request process
+- Release procedures
+
+### Development Commands
+
+- `hatch run lint` - Run Ruff linter
+- `hatch run typecheck` - Run MyPy type checker
+- `hatch run test` - Run pytest test suite
+- `hatch run test-cov` - Run tests with coverage report
+- `hatch run test-queue-load` - Run load testing for logging queue
+
+### Pre-commit Hooks
+
+This project uses pre-commit hooks to ensure code quality. The hooks run automatically on staged files and include:
+
+- **Ruff** - Linting and code formatting
+- **MyPy** - Type checking
+- **Vulture** - Dead code detection
+
+**Setup:**
+
+```bash
+# Install pre-commit (included in dev dependencies)
+pip install -e ".[dev]"
+
+# Install the git hooks
+pre-commit install
+
+# Run manually on all files
+pre-commit run --all-files
+```
+
+**Note:** The pre-commit hooks will run automatically on staged files when you commit. You can also run them manually using the commands above.
+
 ---
 
 ## 🛠 How It Works

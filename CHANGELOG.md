@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Story 10.4**: CONTRIBUTING Guide
+
+  - Created comprehensive `CONTRIBUTING.md` file with detailed setup instructions, development workflow, and contribution guidelines
+  - Added project setup section with step-by-step instructions for cloning, virtual environment setup, and dependency installation
+  - Included development workflow guidelines covering feature branch usage, code quality checks, and pre-commit hooks
+  - Documented commit message conventions using Conventional Commits format with examples for different change types
+  - Added pull request guidelines with proper title formatting and review process
+  - Included release process documentation referencing `RELEASING.md` and semantic versioning guidelines
+  - Added comprehensive "How to Get Help" section covering bug reporting, feature suggestions, and community guidelines
+  - Included testing guidelines with best practices for writing tests and running test suites
+  - Added code style guidelines covering PEP 8 compliance, type hints, and import organization
+  - Created development commands reference section for quick access to common development tasks
+  - Updated `README.md` to include link to contributing guide under new "🤝 Contributing" section
+  - Ensured all sections align with project's existing tools (hatch, ruff, mypy, pytest, pre-commit)
+  - Perfect for onboarding new contributors and maintaining consistent development practices across the project
+
 - **Story 10.1**: CHANGELOG tracking and conventions
 
   - Added changelog link to README.md for easy access to version history

@@ -1,426 +1,350 @@
-# Contributing to FastAPI-Logger
+# Contributing to fapilog
 
-Thank you for your interest in contributing to FastAPI-Logger! This document provides guidelines for contributing to the project.
+Thank you for your interest in contributing to fapilog! This document provides guidelines and instructions for contributors to help ensure a smooth development process.
 
-## 🚀 Quick Start
+## Table of Contents
 
-1. **Fork** the repository
-2. **Clone** your fork locally
-3. **Create** a feature branch: `git checkout -b feat/your-feature`
-4. **Make** your changes
-5. **Test** your changes locally
-6. **Commit** with clear messages
-7. **Push** to your fork
-8. **Create** a pull request
+- [Project Setup](#project-setup)
+- [Development Workflow](#development-workflow)
+- [Commit & PR Guidelines](#commit--pr-guidelines)
+- [Release Process](#release-process)
+- [How to Get Help or Suggest Features](#how-to-get-help-or-suggest-features)
 
-## 📋 Development Setup
+## Project Setup
 
 ### Prerequisites
 
-- Python 3.11+
-- Hatch (for development)
+- Python 3.8 or higher
+- Git
+- pip (Python package installer)
 
-### Local Development
+### Local Development Setup
+
+1. **Clone the repository**
+
+   ```bash
+   git clone https://github.com/fapilog/fapilog.git
+   cd fastapi-logger
+   ```
+
+2. **Create and activate a virtual environment**
+
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   ```
+
+3. **Install dependencies**
+
+   ```bash
+   pip install -e ".[dev]"
+   ```
+
+4. **Verify the setup**
+   ```bash
+   hatch run test
+   ```
+
+### Development Dependencies
+
+The project uses several development tools that are automatically installed with `pip install -e ".[dev]"`:
+
+- **pytest** - Testing framework
+- **ruff** - Linting and code formatting
+- **mypy** - Type checking
+- **pytest-cov** - Coverage reporting
+- **pre-commit** - Git hooks for code quality
+- **vulture** - Dead code detection
+- **hatch** - Project management and build tool
+
+## Development Workflow
+
+### 1. Create a Feature Branch
+
+Always work on feature branches, never directly on `main`:
 
 ```bash
-# Clone and setup
-git clone https://github.com/your-username/fastapi-logger.git
-cd fastapi-logger
+git checkout -b feature/your-feature-name
+# or
+git checkout -b fix/your-bug-fix
+```
 
-# Install development dependencies
-hatch env create
-hatch shell
+### 2. Make Your Changes
 
-# Run tests
-hatch run test:test
+Follow these guidelines when writing code:
 
+- **Follow PEP 8** - Use the project's Ruff configuration for consistent formatting
+- **Add type hints** - All new functions should include type annotations
+- **Write tests** - New features should include comprehensive tests
+- **Update documentation** - Keep README.md and docstrings up to date
+
+### 3. Run Quality Checks
+
+Before committing, ensure your code passes all quality checks:
+
+```bash
 # Run linting
-hatch run lint:lint
+hatch run lint
 
 # Run type checking
-hatch run typecheck:typecheck
+hatch run typecheck
 
-# Build package
-python -m build
+# Run tests
+hatch run test
+
+# Run tests with coverage
+hatch run test-cov
 ```
 
-## 🛡️ CI/CD Guidelines
+### 4. Pre-commit Hooks
 
-### Workflow Changes
-
-**⚠️ Important**: Changes to CI/CD files require maintainer review and approval.
-
-#### Protected Files
-
-The following files require maintainer approval for changes:
-
-- `.github/workflows/` - All workflow files
-- `.github/CODEOWNERS` - Code ownership rules
-- `pyproject.toml` - Project configuration
-- `tox.ini` - Test environment configuration
-- `src/fapilog/` - Core library code
-
-#### Workflow Modification Rules
-
-1. **Test locally first**: Use `act` to test workflows locally
-2. **Follow naming conventions**: Use existing job and step names
-3. **Document changes**: Explain why changes are needed
-4. **Maintain compatibility**: Don't break existing functionality
-5. **Security first**: Never commit secrets or sensitive data
-
-#### Required CI Jobs
-
-All pull requests must pass these checks:
-
-- ✅ **Build & Lint** - Code formatting and style
-- ✅ **Test (3.11)** - Unit and integration tests
-- ✅ **Type Check** - Static type checking
-- ✅ **Tox (Compatibility)** - Multi-environment testing
-
-### Testing Workflows Locally
+The project uses pre-commit hooks to automatically check code quality:
 
 ```bash
-# Install act (GitHub Actions runner)
-brew install act  # macOS
-# or download from: https://github.com/nektos/act
+# Install pre-commit hooks (first time only)
+pre-commit install
 
-# Test a specific workflow
-act pull_request -W .github/workflows/ci.yml
-
-# Test with specific event
-act push -W .github/workflows/ci.yml
+# Run manually on all files
+pre-commit run --all-files
 ```
 
-## 📝 Code Style
-
-### Python Code
-
-- Follow **PEP 8** style guidelines
-- Use **type hints** for all functions
-- Write **docstrings** for public APIs
-- Keep functions **small and focused**
-
-### Commit Messages
-
-Use conventional commit format:
-
-```
-type(scope): description
-
-feat(ci): add workflow validation job
-fix(test): resolve import error in tox environment
-docs(readme): update installation instructions
-```
-
-### Pull Request Guidelines
-
-1. **Clear title**: Describe the change concisely
-2. **Detailed description**: Explain what and why
-3. **Link issues**: Reference related issues
-4. **Test coverage**: Ensure tests pass locally
-5. **Documentation**: Update docs if needed
-
-## 🧪 Testing
-
-### Running Tests
-
-```bash
-# All tests
-hatch run test:test
-
-# Specific test file
-hatch run test:test tests/test_bootstrap.py
-
-# With coverage
-hatch run test:test --cov=src/fapilog --cov-report=html
-
-# Tox environments
-tox -e py311
-```
-
-### Test Requirements
-
-- **90%+ coverage** required
-- **All tests must pass**
-- **No linting errors**
-- **Type checking passes**
-
-## 🔧 Development Tools
-
-### Pre-commit Hooks
-
-This project uses pre-commit hooks to ensure code quality. The hooks include:
+The hooks will run automatically on staged files when you commit. They include:
 
 - **Ruff** - Linting and code formatting
 - **MyPy** - Type checking
 - **Vulture** - Dead code detection
 
-```bash
-# Install development dependencies (includes pre-commit)
-pip install -e ".[dev]"
+### 5. Update CHANGELOG.md
 
-# Install the git hooks
-pre-commit install
-
-# Run manually on all files
-pre-commit run --all-files
-
-# Run specific hooks
-pre-commit run ruff --all-files
-pre-commit run mypy --all-files
-pre-commit run vulture --all-files
-```
-
-### Local Validation
-
-```bash
-# Format code
-hatch run lint:lint
-
-# Type check
-hatch run typecheck:typecheck
-
-# Dead code detection
-vulture src/ tests/
-
-# Security scan
-bandit -r src/
-
-# Dependency check
-safety check
-```
-
-### Building Packages
-
-This project uses `python -m build` to create distribution packages. This is useful for testing your changes as a built package or for creating releases.
-
-#### Prerequisites
-
-The build process requires the `build` package, which is included in the dev dependencies:
-
-```bash
-# Install dev dependencies (includes build)
-pip install -e ".[dev]"
-```
-
-#### Building Packages
-
-```bash
-# Build both wheel and source distribution
-python -m build
-
-# Build only wheel
-python -m build --wheel
-
-# Build only source distribution
-python -m build --sdist
-
-# Build to specific output directory
-python -m build --outdir ./my-dist/
-```
-
-#### Testing Built Packages
-
-After building, you can test the packages locally:
-
-```bash
-# Install the built wheel
-pip install dist/*.whl
-
-# Test that the package works
-python -c "import fapilog; print('Package installed successfully!')"
-
-# Uninstall for testing
-pip uninstall fapilog -y
-```
-
-#### Build Artifacts
-
-The build process creates:
-
-- **Wheel** (`.whl`): Binary distribution for fast installation
-- **Source Distribution** (`.tar.gz`): Source code archive for compatibility
-
-Both artifacts are saved to the `dist/` directory, which is automatically ignored by git.
-
-#### Troubleshooting
-
-- **Build fails**: Ensure all dependencies are installed with `pip install -e ".[dev]"`
-- **Import errors**: Check that the package structure in `src/fapilog/` is correct
-- **Metadata issues**: Verify `pyproject.toml` has all required fields (name, version, description, etc.)
-
-## 🚨 Security Guidelines
-
-### Never Commit
-
-- API keys or tokens
-- Database credentials
-- Private SSH keys
-- Personal information
-- Hardcoded passwords
-
-### Security Best Practices
-
-1. **Use environment variables** for secrets
-2. **Validate inputs** thoroughly
-3. **Sanitize outputs** appropriately
-4. **Follow OWASP guidelines**
-5. **Report security issues** privately
-
-## 📚 Documentation
-
-### Code Documentation
-
-- **Docstrings**: All public functions and classes
-- **Type hints**: Comprehensive type annotations
-- **Examples**: Include usage examples
-- **API docs**: Keep documentation current
-
-### Project Documentation
-
-- **README.md**: Project overview and quick start
-- **CHANGELOG.md**: Version history and changes
-- **docs/**: Detailed documentation
-- **examples/**: Working code examples
-
-### Changelog Conventions
-
-This project follows the [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format. When contributing:
-
-1. **Add entries under `[Unreleased]`**: All new changes go in the `## [Unreleased]` section
-2. **Use appropriate categories**:
-   - `### Added` - New features
-   - `### Changed` - Changes to existing functionality
-   - `### Fixed` - Bug fixes
-   - `### Removed` - Removed features
-   - `### Deprecated` - Soon-to-be removed features
-3. **Include story references**: Reference the story number (e.g., "Story 10.1") for traceability
-4. **Be descriptive**: Explain what changed and why it matters to users
-5. **Keep entries concise**: Focus on user-visible changes, not implementation details
-
-**Example:**
+For any user-facing changes, add an entry to `CHANGELOG.md` under the `[Unreleased]` section:
 
 ```markdown
+## [Unreleased]
+
 ### Added
 
-- **Story 10.1**: CHANGELOG tracking and conventions
-  - Added changelog link to README.md
-  - Added changelog conventions to CONTRIBUTING.md
-  - Established Keep a Changelog format compliance
+- New feature description
+
+### Changed
+
+- Changed behavior description
+
+### Fixed
+
+- Bug fix description
 ```
 
-## 🚀 Release Process & Checklist
+Follow the [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
 
-### Release Guardrails
+## Commit & PR Guidelines
 
-This project includes automated guardrails to ensure proper release documentation:
+### Commit Messages
 
-1. **Version Bump Required**: Every release commit must include a version bump in `pyproject.toml`
-2. **Changelog Update Required**: Every release commit must update `CHANGELOG.md` with the new version
-3. **CI Validation**: GitHub Actions automatically validates release commits
-4. **Pre-commit Hook**: Local validation warns about missing updates before commit
+Use [Conventional Commits](https://www.conventionalcommits.org/) format:
 
-### Release Commit Format
+```
+<type>[optional scope]: <description>
 
-Release commits must follow this exact format:
+[optional body]
+
+[optional footer(s)]
+```
+
+**Types:**
+
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `docs:` - Documentation changes
+- `style:` - Code style changes (formatting, etc.)
+- `refactor:` - Code refactoring
+- `test:` - Adding or updating tests
+- `chore:` - Maintenance tasks
+
+**Examples:**
 
 ```bash
-git commit -m "chore(release): vX.Y.Z"
+git commit -m "feat: add new Loki sink for log shipping"
+git commit -m "fix: handle invalid configuration gracefully"
+git commit -m "docs: update README with new examples"
+git commit -m "chore(release): v0.1.1"
 ```
 
-Examples:
+### Pull Request Process
 
-- `chore(release): v0.1.0`
-- `chore(release): v1.2.3`
-- `chore(release): v2.0.0`
+1. **Create a PR** from your feature branch to `main`
+2. **Ensure CI passes** - All GitHub Actions checks must pass
+3. **Add a description** explaining what the PR does and why
+4. **Link related issues** using keywords like "Fixes #123" or "Closes #456"
+5. **Request review** from maintainers
 
-### Release Checklist
+**PR Title Format:**
 
-Before creating a release:
+```
+<type>(<scope>): <description>
+```
 
-- [ ] **Version bumped** in `pyproject.toml`
-- [ ] **CHANGELOG.md updated** with new version section
-- [ ] **All tests pass** locally and in CI
-- [ ] **Linting passes** with no errors
-- [ ] **Type checking passes** with no errors
-- [ ] **Changes committed** with proper release message format
-- [ ] **Tag created** and pushed to GitHub
-- [ ] **Build artifacts** created successfully
+**Examples:**
 
-### Automated Checks
+- `feat(sinks): add new file sink with rotation`
+- `fix(middleware): handle missing trace headers`
+- `docs(readme): add contributing guidelines`
 
-The following checks run automatically on release commits:
+### Code Review Guidelines
 
-1. **Version Match**: Ensures `pyproject.toml` version matches the release commit
-2. **Changelog Presence**: Verifies the version exists in `CHANGELOG.md`
-3. **Format Validation**: Confirms proper commit message format
+- **Be respectful** and constructive in feedback
+- **Focus on the code** and its impact
+- **Suggest improvements** rather than just pointing out issues
+- **Test the changes** locally if possible
 
-### Manual Testing
+## Release Process
 
-Test the release process locally:
+### Versioning
+
+The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html):
+
+- **MAJOR** version for incompatible API changes
+- **MINOR** version for backwards-compatible functionality additions
+- **PATCH** version for backwards-compatible bug fixes
+
+### Release Steps
+
+1. **Update version** in `pyproject.toml`
+2. **Update CHANGELOG.md** - Move entries from `[Unreleased]` to new version section
+3. **Commit changes** with message `chore(release): vX.Y.Z`
+4. **Create and push tag** - `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
+5. **Build artifacts** - `python -m build`
+6. **Upload to PyPI** (if applicable)
+
+For detailed release instructions, see [RELEASING.md](RELEASING.md).
+
+### Pre-release Checklist
+
+- [ ] All tests pass (`hatch run test`)
+- [ ] Linting passes (`hatch run lint`)
+- [ ] Type checking passes (`hatch run typecheck`)
+- [ ] Coverage threshold met (90% minimum)
+- [ ] CHANGELOG.md updated
+- [ ] Version bumped in `pyproject.toml`
+- [ ] Documentation updated
+
+## How to Get Help or Suggest Features
+
+### Getting Help
+
+- **GitHub Issues** - Search existing issues before creating new ones
+- **GitHub Discussions** - Ask questions and share ideas
+- **Documentation** - Check the [README.md](README.md) and [docs/](docs/) folder
+
+### Reporting Bugs
+
+When reporting bugs, please include:
+
+1. **Environment details** - Python version, OS, fapilog version
+2. **Reproduction steps** - Clear steps to reproduce the issue
+3. **Expected vs actual behavior** - What you expected vs what happened
+4. **Code example** - Minimal code that reproduces the issue
+5. **Error messages** - Full error traceback if applicable
+
+### Suggesting Features
+
+When suggesting new features:
+
+1. **Check existing issues** - The feature might already be planned
+2. **Describe the use case** - Explain why this feature would be useful
+3. **Provide examples** - Show how the feature would be used
+4. **Consider implementation** - Think about how it might be implemented
+
+### Contributing Guidelines
+
+- **Be respectful** - Treat all contributors with respect
+- **Follow the process** - Use the established workflow and tools
+- **Test thoroughly** - Ensure your changes work correctly
+- **Document changes** - Update documentation as needed
+- **Keep it simple** - Prefer simple, readable solutions
+
+## Development Commands Reference
 
 ```bash
-# Test release guardrails script
-python scripts/check_release_guardrails.py --commit-msg "chore(release): v0.1.1"
+# Testing
+hatch run test              # Run all tests
+hatch run test-cov          # Run tests with coverage
+hatch run test-queue-load   # Run queue load testing
 
-# Test with incorrect version
-python scripts/check_release_guardrails.py --commit-msg "chore(release): v0.1.1" --verbose
+# Code Quality
+hatch run lint              # Run Ruff linter
+hatch run typecheck         # Run MyPy type checker
 
-# Test pre-commit hook
-pre-commit run release-guardrails --all-files
+# Building
+python -m build             # Build distribution packages
+hatch build                 # Alternative build command
+
+# Pre-commit
+pre-commit install          # Install git hooks
+pre-commit run --all-files  # Run all hooks manually
 ```
 
-### Troubleshooting Release Issues
+## Testing Guidelines
 
-**CI fails on release commit:**
+### Writing Tests
 
-- Check that version in `pyproject.toml` matches the release commit
-- Verify `CHANGELOG.md` contains the version section
-- Ensure commit message follows exact format: `chore(release): vX.Y.Z`
+- **Test new features** - Every new feature should have tests
+- **Test edge cases** - Include tests for error conditions
+- **Use descriptive names** - Test names should explain what they test
+- **Keep tests simple** - Each test should test one thing
+- **Use fixtures** - Reuse common test setup with pytest fixtures
 
-**Pre-commit hook fails:**
+### Test Structure
 
-- Run `python scripts/check_release_guardrails.py --verbose` for detailed output
-- Check that both version and changelog are updated
-- Verify commit message format is correct
+```python
+def test_feature_name():
+    """Test description of what this test verifies."""
+    # Arrange
+    # Act
+    # Assert
+```
 
-## 🤝 Community Guidelines
+### Running Tests
 
-### Be Respectful
+```bash
+# Run all tests
+hatch run test
 
-- **Constructive feedback** only
-- **Help newcomers** learn
-- **Credit contributors** appropriately
-- **Follow the code of conduct**
+# Run specific test file
+pytest tests/test_specific.py
 
-### Communication
+# Run tests with coverage
+hatch run test-cov
 
-- **GitHub Issues**: Bug reports and feature requests
-- **GitHub Discussions**: Questions and general discussion
-- **Pull Requests**: Code contributions
-- **Releases**: Version announcements
+# Run tests matching pattern
+pytest -k "test_name_pattern"
+```
 
-## 🎯 Getting Help
+## Code Style Guidelines
 
-### Before Asking
+### Python Code
 
-1. **Check existing issues** for similar problems
-2. **Read the documentation** thoroughly
-3. **Search discussions** for solutions
-4. **Test with minimal examples**
+- **Follow PEP 8** - Use the project's Ruff configuration
+- **Use type hints** - All functions should have type annotations
+- **Write docstrings** - Document public functions and classes
+- **Keep functions small** - Aim for single responsibility
+- **Use meaningful names** - Variables and functions should be descriptive
 
-### When Creating Issues
+### Import Organization
 
-- **Clear title**: Describe the problem
-- **Detailed description**: Steps to reproduce
-- **Environment info**: OS, Python version, etc.
-- **Code examples**: Minimal reproducing code
-- **Expected vs actual**: What you expected vs what happened
+```python
+# Standard library imports
+import os
+import sys
 
-## 📄 License
+# Third-party imports
+import structlog
+import pydantic
 
-By contributing to FastAPI-Logger, you agree that your contributions will be licensed under the same license as the project.
+# Local imports
+from fapilog import configure_logging
+from fapilog.settings import LoggingSettings
+```
 
----
+## Thank You!
 
-Thank you for contributing to FastAPI-Logger! 🚀
+Thank you for contributing to fapilog! Your contributions help make this project better for everyone. If you have any questions about this guide or the contribution process, please don't hesitate to ask.
