@@ -1,6 +1,6 @@
 # FastAPI-Logger (`fapilog`)
 
-![CI](https://github.com/fapilog/fastapi-logger/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/chris-haste/fastapi-logger/actions/workflows/ci.yml/badge.svg)
 
 **Structured, context-aware, production-ready logging for FastAPI and other ASGI apps.**
 
