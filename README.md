@@ -1582,4 +1582,3 @@ log.info("user_signup", {
 ```
 
 See the [PII Redaction tests](tests/test_auto_redactor.py) for more examples and edge cases.
-# Test PR for branch protection rules
