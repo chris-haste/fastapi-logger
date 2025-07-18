@@ -3,7 +3,7 @@
 ![CI](https://github.com/chris-haste/fastapi-logger/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
-![PyPI](https://img.shields.io/badge/pypi-0.1.0-blue.svg)
+![PyPI](https://img.shields.io/pypi/v/fapilog)
 
 **Structured, context-aware, production-ready logging for FastAPI and other ASGI apps.**
 
@@ -28,9 +28,29 @@
 
 ## 🚀 Quick Start
 
+### Installation
+
 ```bash
 pip install fapilog
 ```
+
+For additional features, install optional dependencies:
+
+```bash
+# With Loki support
+pip install fapilog[loki]
+
+# With FastAPI integration helpers
+pip install fapilog[fastapi]
+
+# With system metrics support
+pip install fapilog[metrics]
+
+# For development
+pip install fapilog[dev]
+```
+
+### Basic Usage
 
 ```python
 # main.py
