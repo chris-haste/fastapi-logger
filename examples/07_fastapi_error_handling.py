@@ -10,12 +10,13 @@ error correlation with trace IDs.
 import asyncio
 from typing import Dict, Optional
 
-from fapilog import configure_logging, log
-from fapilog.settings import LoggingSettings
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+
+from fapilog import configure_logging, log
+from fapilog.settings import LoggingSettings
 
 
 # Custom exception classes

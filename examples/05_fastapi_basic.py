@@ -9,10 +9,11 @@ It shows basic setup, middleware integration, and structured logging in API endp
 import asyncio
 import time
 
-from fapilog import configure_logging, log
-from fapilog.settings import LoggingSettings
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+
+from fapilog import configure_logging, log
+from fapilog.settings import LoggingSettings
 
 
 def create_app() -> FastAPI:

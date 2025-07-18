@@ -19,10 +19,11 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fapilog import configure_logging, log
-from fapilog.settings import LoggingSettings
 from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel
+
+from fapilog import configure_logging, log
+from fapilog.settings import LoggingSettings
 
 
 # Pydantic models

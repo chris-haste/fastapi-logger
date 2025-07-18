@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import pytest
 import structlog
+
 from fapilog._internal.queue import (
     QueueWorker,
     Sink,
@@ -717,9 +718,10 @@ class TestFastAPIShutdownIntegration:
     @pytest.mark.asyncio
     async def test_fastapi_shutdown_handler_registration(self) -> None:
         """Test that FastAPI shutdown handler is registered when app is provided."""
+        from fastapi import FastAPI
+
         from fapilog.bootstrap import configure_logging
         from fapilog.settings import LoggingSettings
-        from fastapi import FastAPI
 
         # Create settings with queue enabled
         settings = LoggingSettings(queue_enabled=True)
@@ -744,10 +746,11 @@ class TestFastAPIShutdownIntegration:
     @pytest.mark.asyncio
     async def test_fastapi_shutdown_flushes_logs(self) -> None:
         """Test that FastAPI shutdown event flushes remaining logs."""
+        from fastapi import FastAPI
+
         from fapilog._internal.queue import get_queue_worker
         from fapilog.bootstrap import configure_logging
         from fapilog.settings import LoggingSettings
-        from fastapi import FastAPI
 
         # Create mock sink
         mock_sink = MockSink()

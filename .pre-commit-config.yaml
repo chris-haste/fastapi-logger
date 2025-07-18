@@ -1,12 +1,12 @@
 repos:
   # Ruff for linting and formatting
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.10
+    rev: v0.4.11
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
-        args: [--check]
+        args: [--exit-non-zero-on-format]
 
   # MyPy for type checking
   - repo: https://github.com/pre-commit/mirrors-mypy
