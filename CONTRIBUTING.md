@@ -1,219 +1,249 @@
-# Contributing to fapilog
+# Contributing to FastAPI-Logger
 
-First, thank you for considering contributing to **fapilog**! Your help is appreciated, whether it's filing an issue, improving documentation, or submitting code.
+Thank you for your interest in contributing to FastAPI-Logger! This document provides guidelines for contributing to the project.
 
----
+## 🚀 Quick Start
 
-## 📜 Code of Conduct
+1. **Fork** the repository
+2. **Clone** your fork locally
+3. **Create** a feature branch: `git checkout -b feat/your-feature`
+4. **Make** your changes
+5. **Test** your changes locally
+6. **Commit** with clear messages
+7. **Push** to your fork
+8. **Create** a pull request
 
-We follow the [Contributor Covenant Code of Conduct](https://www.contributor-covenant.org/version/2/1/code_of_conduct/). Please be respectful and constructive in all interactions.
+## 📋 Development Setup
 
----
+### Prerequisites
 
-## 💡 How to Contribute
+- Python 3.11+
+- Hatch (for development)
 
-You can contribute in many ways:
-
-- File bug reports and feature requests via [GitHub Issues](https://github.com/fapilog/fapilog/issues)
-- Improve or clarify the documentation
-- Submit bug fixes or new features via Pull Request (PR)
-- Add tests for new or existing features
-- Improve the async logging queue performance
-- Add new sinks (Loki, HTTP endpoints, etc.)
-- Enhance the middleware or enrichers
-
----
-
-## ⚙️ Development Setup
-
-### 1. Fork and Clone
+### Local Development
 
 ```bash
-git clone https://github.com/your-username/fapilog.git
-cd fapilog
+# Clone and setup
+git clone https://github.com/your-username/fastapi-logger.git
+cd fastapi-logger
+
+# Install development dependencies
+hatch env create
+hatch shell
+
+# Run tests
+hatch run test:test
+
+# Run linting
+hatch run lint:lint
+
+# Run type checking
+hatch run typecheck:typecheck
 ```
 
-### 2. Create a Virtual Environment
+## 🛡️ CI/CD Guidelines
+
+### Workflow Changes
+
+**⚠️ Important**: Changes to CI/CD files require maintainer review and approval.
+
+#### Protected Files
+
+The following files require maintainer approval for changes:
+
+- `.github/workflows/` - All workflow files
+- `.github/CODEOWNERS` - Code ownership rules
+- `pyproject.toml` - Project configuration
+- `tox.ini` - Test environment configuration
+- `src/fapilog/` - Core library code
+
+#### Workflow Modification Rules
+
+1. **Test locally first**: Use `act` to test workflows locally
+2. **Follow naming conventions**: Use existing job and step names
+3. **Document changes**: Explain why changes are needed
+4. **Maintain compatibility**: Don't break existing functionality
+5. **Security first**: Never commit secrets or sensitive data
+
+#### Required CI Jobs
+
+All pull requests must pass these checks:
+
+- ✅ **Build & Lint** - Code formatting and style
+- ✅ **Test (3.11)** - Unit and integration tests
+- ✅ **Type Check** - Static type checking
+- ✅ **Tox (Compatibility)** - Multi-environment testing
+
+### Testing Workflows Locally
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+# Install act (GitHub Actions runner)
+brew install act  # macOS
+# or download from: https://github.com/nektos/act
+
+# Test a specific workflow
+act pull_request -W .github/workflows/ci.yml
+
+# Test with specific event
+act push -W .github/workflows/ci.yml
 ```
 
-### 3. Install Dependencies
+## 📝 Code Style
 
-```bash
-pip install -e ".[dev]"
+### Python Code
+
+- Follow **PEP 8** style guidelines
+- Use **type hints** for all functions
+- Write **docstrings** for public APIs
+- Keep functions **small and focused**
+
+### Commit Messages
+
+Use conventional commit format:
+
+```
+type(scope): description
+
+feat(ci): add workflow validation job
+fix(test): resolve import error in tox environment
+docs(readme): update installation instructions
 ```
 
-This installs the package in editable mode with all development dependencies including:
+### Pull Request Guidelines
 
-- `pytest` and `pytest-asyncio` for testing
-- `ruff` for linting and formatting
-- `mypy` for type checking
-- `pytest-cov` for coverage reporting
-- `fastapi` and `httpx` for integration tests
-
-### 4. Run the Tests
-
-```bash
-hatch run test
-```
-
-This runs the full test suite with coverage reporting. The project enforces a minimum coverage threshold of 90%.
-
-### 5. Format and Lint
-
-We use [`ruff`](https://docs.astral.sh/ruff/) for both linting and formatting:
-
-```bash
-hatch run lint
-```
-
-Or run formatting and linting separately:
-
-```bash
-ruff format .
-ruff check .
-```
-
-### 6. Type Checking
-
-```bash
-hatch run typecheck
-```
-
----
+1. **Clear title**: Describe the change concisely
+2. **Detailed description**: Explain what and why
+3. **Link issues**: Reference related issues
+4. **Test coverage**: Ensure tests pass locally
+5. **Documentation**: Update docs if needed
 
 ## 🧪 Testing
 
 ### Running Tests
 
-- **Full test suite**: `hatch run test`
-- **Coverage report**: `hatch run test-cov`
-- **Load testing**: `hatch run test-queue-load`
+```bash
+# All tests
+hatch run test:test
 
-### Test Coverage
+# Specific test file
+hatch run test:test tests/test_bootstrap.py
 
-The project enforces a **90% minimum coverage threshold**. Pull requests must maintain or improve test coverage. Coverage reports are generated in `htmlcov/` after running tests.
+# With coverage
+hatch run test:test --cov=src/fapilog --cov-report=html
 
-### Test Structure
-
-- **Unit tests**: `tests/test_*.py`
-- **Integration tests**: Marked with `@pytest.mark.integration`
-- **Async tests**: Marked with `@pytest.mark.asyncio`
-- **Slow tests**: Marked with `@pytest.mark.slow`
-
----
-
-## 🏗️ Project Structure
-
-```
-src/fapilog/
-├── __init__.py          # Public API
-├── bootstrap.py         # Logging configuration
-├── middleware.py        # FastAPI middleware
-├── enrichers.py        # Log enrichment
-├── pipeline.py          # Logging pipeline
-├── settings.py          # Configuration
-├── _internal/          # Internal utilities
-│   ├── context.py      # Context management
-│   ├── queue.py        # Async queue
-│   └── utils.py        # Utilities
-└── sinks/              # Log output handlers
-    ├── __init__.py
-    ├── stdout.py       # Console output
-    └── loki.py         # Loki integration
+# Tox environments
+tox -e py311
 ```
 
-### Key Components
+### Test Requirements
 
-- **Middleware**: `TraceIDMiddleware` for request tracing
-- **Queue**: Async, non-blocking log processing
-- **Sinks**: Pluggable output handlers (stdout, Loki, etc.)
-- **Enrichers**: Context-aware log enhancement
-- **Settings**: Pydantic-based configuration
+- **90%+ coverage** required
+- **All tests must pass**
+- **No linting errors**
+- **Type checking passes**
+
+## 🔧 Development Tools
+
+### Pre-commit Hooks
+
+```bash
+# Install pre-commit
+pip install pre-commit
+
+# Install hooks
+pre-commit install
+
+# Run manually
+pre-commit run --all-files
+```
+
+### Local Validation
+
+```bash
+# Format code
+hatch run lint:lint
+
+# Type check
+hatch run typecheck:typecheck
+
+# Security scan
+bandit -r src/
+
+# Dependency check
+safety check
+```
+
+## 🚨 Security Guidelines
+
+### Never Commit
+
+- API keys or tokens
+- Database credentials
+- Private SSH keys
+- Personal information
+- Hardcoded passwords
+
+### Security Best Practices
+
+1. **Use environment variables** for secrets
+2. **Validate inputs** thoroughly
+3. **Sanitize outputs** appropriately
+4. **Follow OWASP guidelines**
+5. **Report security issues** privately
+
+## 📚 Documentation
+
+### Code Documentation
+
+- **Docstrings**: All public functions and classes
+- **Type hints**: Comprehensive type annotations
+- **Examples**: Include usage examples
+- **API docs**: Keep documentation current
+
+### Project Documentation
+
+- **README.md**: Project overview and quick start
+- **CHANGELOG.md**: Version history and changes
+- **docs/**: Detailed documentation
+- **examples/**: Working code examples
+
+## 🤝 Community Guidelines
+
+### Be Respectful
+
+- **Constructive feedback** only
+- **Help newcomers** learn
+- **Credit contributors** appropriately
+- **Follow the code of conduct**
+
+### Communication
+
+- **GitHub Issues**: Bug reports and feature requests
+- **GitHub Discussions**: Questions and general discussion
+- **Pull Requests**: Code contributions
+- **Releases**: Version announcements
+
+## 🎯 Getting Help
+
+### Before Asking
+
+1. **Check existing issues** for similar problems
+2. **Read the documentation** thoroughly
+3. **Search discussions** for solutions
+4. **Test with minimal examples**
+
+### When Creating Issues
+
+- **Clear title**: Describe the problem
+- **Detailed description**: Steps to reproduce
+- **Environment info**: OS, Python version, etc.
+- **Code examples**: Minimal reproducing code
+- **Expected vs actual**: What you expected vs what happened
+
+## 📄 License
+
+By contributing to FastAPI-Logger, you agree that your contributions will be licensed under the same license as the project.
 
 ---
 
-## ✅ Submitting a Pull Request
-
-1. Create a new branch from `main`:
-
-   ```bash
-   git checkout -b feature/my-awesome-feature
-   ```
-
-2. Follow existing code style and add appropriate tests.
-
-3. Run tests and lint before submitting:
-
-   ```bash
-   hatch run test
-   hatch run lint
-   hatch run typecheck
-   ```
-
-4. Push to your fork and open a PR with a **clear description** of your changes and motivation.
-
-> We squash and merge PRs. Keep commits clean and meaningful.
-
----
-
-## 🔧 Development Commands
-
-| Command                     | Description                      |
-| --------------------------- | -------------------------------- |
-| `hatch run lint`            | Run Ruff linter and formatter    |
-| `hatch run typecheck`       | Run MyPy type checker            |
-| `hatch run test`            | Run pytest with coverage         |
-| `hatch run test-cov`        | Run tests with detailed coverage |
-| `hatch run test-queue-load` | Run async queue load testing     |
-
----
-
-## 🧱 Dependencies
-
-### Core Dependencies
-
-- `structlog` - Structured logging (required)
-- `pydantic>=2.0.0` - Settings and validation
-- `pydantic-settings>=2.0.0` - Configuration management
-- `anyio` - Async utilities
-
-### Optional Dependencies
-
-- `fastapi>=0.100.0` - For FastAPI integration
-- `httpx>=0.27.0` - For HTTP sinks and testing
-- `psutil>=5.9` - For resource metrics
-
-### Development Dependencies
-
-- `pytest>=7.0.0` - Testing framework
-- `pytest-asyncio>=0.21.0` - Async test support
-- `ruff>=0.1.0` - Linting and formatting
-- `mypy>=1.0.0` - Type checking
-- `pytest-cov>=4.0.0` - Coverage reporting
-
-**Note**: Your code **may not introduce unnecessary dependencies**. All new dependencies must be justified and approved.
-
----
-
-## 🚀 Performance Considerations
-
-When contributing to fapilog, consider the performance impact:
-
-- **Async-first**: All I/O operations should be non-blocking
-- **Queue efficiency**: The async queue is critical for performance
-- **Memory usage**: Avoid unbounded memory growth
-- **Context propagation**: Use `contextvars` for request-scoped data
-
----
-
-## 📝 License
-
-By contributing, you agree that your contributions will be licensed under the Apache License, the same as the rest of the project.
-
----
-
-Thanks again for helping improve **fapilog**!
+Thank you for contributing to FastAPI-Logger! 🚀
