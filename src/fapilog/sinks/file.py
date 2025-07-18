@@ -9,6 +9,7 @@ from typing import Any, Dict
 from urllib.parse import parse_qs, urlparse
 
 from .._internal.queue import Sink
+from ..exceptions import ConfigurationError
 
 
 class FileSink(Sink):
@@ -98,10 +99,17 @@ def parse_file_uri(uri: str) -> tuple[str, int, int]:
         parsed = urlparse(uri)
 
         if parsed.scheme != "file":
-            raise ValueError(f"Invalid scheme '{parsed.scheme}'. Expected 'file'")
+            raise ConfigurationError(
+                f"Invalid scheme '{parsed.scheme}'. Expected 'file'",
+                "file_uri_scheme",
+                parsed.scheme,
+                "file",
+            )
 
         if not parsed.path:
-            raise ValueError("File path is required")
+            raise ConfigurationError(
+                "File path is required", "file_uri_path", None, "valid file path"
+            )
 
         # Handle Windows paths (file:///C:/path/to/file)
         file_path = parsed.path
@@ -117,31 +125,60 @@ def parse_file_uri(uri: str) -> tuple[str, int, int]:
         if "maxBytes" in query_params:
             value = query_params["maxBytes"][0]
             if value == "":
-                raise ValueError("maxBytes parameter cannot be empty")
+                raise ConfigurationError(
+                    "maxBytes parameter cannot be empty",
+                    "maxBytes",
+                    value,
+                    "positive integer",
+                )
             try:
                 max_bytes = int(value)
                 if max_bytes <= 0:
-                    raise ValueError("maxBytes must be positive")
+                    raise ConfigurationError(
+                        "maxBytes must be positive",
+                        "maxBytes",
+                        max_bytes,
+                        "positive integer",
+                    )
             except (ValueError, IndexError) as e:
-                raise ValueError("Invalid maxBytes parameter") from e
+                raise ConfigurationError(
+                    "Invalid maxBytes parameter", "maxBytes", value, "valid integer"
+                ) from e
 
         # Extract backupCount parameter
         backup_count = 5  # Default
         if "backupCount" in query_params:
             value = query_params["backupCount"][0]
             if value == "":
-                raise ValueError("backupCount parameter cannot be empty")
+                raise ConfigurationError(
+                    "backupCount parameter cannot be empty",
+                    "backupCount",
+                    value,
+                    "non-negative integer",
+                )
             try:
                 backup_count = int(value)
                 if backup_count < 0:
-                    raise ValueError("backupCount must be non-negative")
+                    raise ConfigurationError(
+                        "backupCount must be non-negative",
+                        "backupCount",
+                        backup_count,
+                        "non-negative integer",
+                    )
             except (ValueError, IndexError) as e:
-                raise ValueError("Invalid backupCount parameter") from e
+                raise ConfigurationError(
+                    "Invalid backupCount parameter",
+                    "backupCount",
+                    value,
+                    "valid integer",
+                ) from e
 
         return file_path, max_bytes, backup_count
 
     except Exception as e:
-        raise ValueError(f"Invalid file URI '{uri}': {e}") from e
+        raise ConfigurationError(
+            f"Invalid file URI '{uri}': {e}", "file_uri", uri, "valid file URI"
+        ) from e
 
 
 def create_file_sink_from_uri(uri: str) -> FileSink:

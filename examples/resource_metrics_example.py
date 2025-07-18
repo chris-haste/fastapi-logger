@@ -4,6 +4,7 @@
 import time
 
 from fapilog import configure_logging, log
+from fapilog.exceptions import ConfigurationError
 from fapilog.settings import LoggingSettings
 
 
@@ -44,9 +45,9 @@ def main():
 
     # Simulate error
     try:
-        raise ValueError("Example error")
-    except ValueError as e:
-        log.error("Error occurred", error=str(e))
+        raise ConfigurationError("Example error")
+    except ConfigurationError as e:
+        print(f"Configuration error: {e}")
 
     log.info("Application completed")
 

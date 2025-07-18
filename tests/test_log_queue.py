@@ -16,6 +16,7 @@ from fapilog._internal.queue import (
     set_queue_worker,
 )
 from fapilog.bootstrap import configure_logging, reset_logging
+from fapilog.exceptions import QueueError
 from fapilog.settings import LoggingSettings
 from fapilog.sinks.stdout import StdoutSink
 
@@ -972,13 +973,15 @@ class TestShutdownBehavior:
         # Enqueue an event
         await worker.enqueue({"event": "test_event"})
 
-        # Shutdown - should not hang or raise exceptions
+        # Shutdown - should raise QueueError due to failing sink
         start_time = time.time()
-        await worker.shutdown()
+        with pytest.raises(QueueError) as exc_info:
+            await worker.shutdown()
         shutdown_time = time.time() - start_time
 
-        # Shutdown should complete (allow more time for retries)
+        # Shutdown should complete quickly despite the error
         assert shutdown_time < 10.0  # Increased timeout for retries
+        assert "Mock sink failure" in str(exc_info.value)
 
         # Worker should be stopped
         assert worker._running is False

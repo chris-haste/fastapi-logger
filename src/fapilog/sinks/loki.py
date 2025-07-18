@@ -12,7 +12,9 @@ try:
 except ImportError:
     httpx = None
 
+from .._internal.error_handling import handle_sink_error, retry_with_backoff_async
 from .._internal.queue import Sink
+from ..exceptions import ConfigurationError
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +44,11 @@ class LokiSink(Sink):
             retry_delay: Base delay between retries in seconds (default: 1.0s)
         """
         if httpx is None:
-            raise ImportError(
-                "httpx is required for LokiSink. "
-                "Install with: pip install fapilog[loki]"
+            raise handle_sink_error(
+                ImportError("httpx is required for LokiSink"),
+                "loki",
+                {"url": url},
+                "initialize",
             )
 
         self.url = url.rstrip("/") + "/loki/api/v1/push"
@@ -85,7 +89,8 @@ class LokiSink(Sink):
         if self._flush_timer and not self._flush_timer.done():
             self._flush_timer.cancel()
         loop = asyncio.get_running_loop()
-        self._flush_timer = loop.create_task(self._interval_flush())
+        task = loop.create_task(self._interval_flush())
+        self._flush_timer = task
 
     async def _interval_flush(self) -> None:
         try:
@@ -126,23 +131,28 @@ class LokiSink(Sink):
         # Format batch for Loki
         payload = self._format_loki_payload(batch)
 
-        # Send with retry logic
-        for attempt in range(self.max_retries + 1):
-            try:
-                await self._send_request(payload)
-                break  # Success, exit retry loop
-            except Exception as e:
-                if attempt == self.max_retries:
-                    logger.warning(
-                        f"Failed to send batch to Loki after "
-                        f"{self.max_retries} retries: {e}"
-                    )
-                else:
-                    delay = self.retry_delay * (2**attempt)  # Exponential backoff
-                    logger.warning(
-                        f"Retrying Loki batch send (attempt {attempt + 1}): {e}"
-                    )
-                    await asyncio.sleep(delay)
+        async def send_request_with_retry() -> None:
+            """Send request to Loki with proper error handling."""
+            await self._send_request(payload)
+
+        try:
+            await retry_with_backoff_async(
+                send_request_with_retry,
+                max_retries=self.max_retries,
+                base_delay=self.retry_delay,
+                error_handler=lambda e: handle_sink_error(
+                    e, "loki", {"url": self.url, "batch_size": len(batch)}, "send"
+                ),
+            )
+        except Exception as e:
+            # Final failure after all retries
+            sink_config = {
+                "url": self.url,
+                "batch_size": len(batch),
+                "max_retries": self.max_retries,
+                "retry_delay": self.retry_delay,
+            }
+            raise handle_sink_error(e, "loki", sink_config, "send") from e
 
     async def _send_request(self, payload: Dict[str, Any]) -> None:
         """Send HTTP request to Loki.
@@ -151,17 +161,44 @@ class LokiSink(Sink):
             payload: The Loki-compatible payload
 
         Raises:
-            httpx.HTTPError: If the request fails
+            SinkError: If the request fails
         """
-        if self._client is None:
-            self._client = httpx.AsyncClient(timeout=self.timeout)
+        try:
+            if self._client is None:
+                self._client = httpx.AsyncClient(timeout=self.timeout)
 
-        response = await self._client.post(
-            self.url,
-            json=payload,
-            headers={"Content-Type": "application/json"},
-        )
-        await response.raise_for_status()
+            response = await self._client.post(
+                self.url,
+                json=payload,
+                headers={"Content-Type": "application/json"},
+            )
+            await response.raise_for_status()
+        except httpx.HTTPError as e:
+            # HTTP-specific errors
+            status_code = None
+            if hasattr(e, "response") and e.response is not None:
+                status_code = getattr(e.response, "status_code", None)
+
+            sink_config = {
+                "url": self.url,
+                "status_code": status_code,
+                "payload_size": len(str(payload)),
+            }
+            raise handle_sink_error(e, "loki", sink_config, "http_request") from e
+        except httpx.RequestError as e:
+            # Network/connection errors
+            sink_config = {
+                "url": self.url,
+                "error_type": type(e).__name__,
+            }
+            raise handle_sink_error(e, "loki", sink_config, "network_request") from e
+        except Exception as e:
+            # Other unexpected errors
+            sink_config = {
+                "url": self.url,
+                "error_type": type(e).__name__,
+            }
+            raise handle_sink_error(e, "loki", sink_config, "request") from e
 
     def _format_loki_payload(self, batch: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Format a batch of logs into Loki-compatible payload.
@@ -171,35 +208,59 @@ class LokiSink(Sink):
 
         Returns:
             Loki-compatible payload dictionary
+
+        Raises:
+            SinkError: If payload formatting fails
         """
-        # Convert logs to Loki format
-        values = []
-        for event in batch:
-            # Convert timestamp to nanoseconds (Loki expects nanoseconds)
-            timestamp = event.get("timestamp", time.time())
-            if isinstance(timestamp, str):
-                # Parse ISO timestamp
-                import datetime
+        try:
+            # Convert logs to Loki format
+            values = []
+            for i, event in enumerate(batch):
+                try:
+                    # Convert timestamp to nanoseconds (Loki expects nanoseconds)
+                    timestamp = event.get("timestamp", time.time())
+                    if isinstance(timestamp, str):
+                        # Parse ISO timestamp
+                        import datetime
 
-                dt = datetime.datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-                timestamp_ns = int(dt.timestamp() * 1_000_000_000)
-            else:
-                # Assume Unix timestamp in seconds
-                timestamp_ns = int(timestamp * 1_000_000_000)
+                        dt = datetime.datetime.fromisoformat(
+                            timestamp.replace("Z", "+00:00")
+                        )
+                        timestamp_ns = int(dt.timestamp() * 1_000_000_000)
+                    else:
+                        # Assume Unix timestamp in seconds
+                        timestamp_ns = int(timestamp * 1_000_000_000)
 
-            # Convert event to JSON string
-            log_line = json.dumps(event)
+                    # Convert event to JSON string
+                    log_line = json.dumps(event)
 
-            values.append([str(timestamp_ns), log_line])
+                    values.append([str(timestamp_ns), log_line])
+                except Exception as e:
+                    # Handle individual event formatting errors
+                    sink_config = {
+                        "event_index": i,
+                        "event_keys": list(event.keys()),
+                        "timestamp_value": event.get("timestamp"),
+                    }
+                    raise handle_sink_error(
+                        e, "loki", sink_config, "format_event"
+                    ) from e
 
-        return {
-            "streams": [
-                {
-                    "stream": self.labels,
-                    "values": values,
-                }
-            ]
-        }
+            return {
+                "streams": [
+                    {
+                        "stream": self.labels,
+                        "values": values,
+                    }
+                ]
+            }
+        except Exception as e:
+            # Handle overall payload formatting errors
+            sink_config = {
+                "batch_size": len(batch),
+                "labels": self.labels,
+            }
+            raise handle_sink_error(e, "loki", sink_config, "format_payload") from e
 
     async def close(self) -> None:
         """Close the sink and flush any remaining logs."""
@@ -244,12 +305,17 @@ def parse_loki_uri(uri: str) -> tuple[str, Dict[str, str], int, float]:
 
         # Handle both loki:// and https:// schemes
         if parsed.scheme not in ("loki", "https"):
-            raise ValueError(
-                f"Invalid scheme '{parsed.scheme}'. Expected 'loki' or 'https'"
+            raise ConfigurationError(
+                f"Invalid scheme '{parsed.scheme}'. Expected 'loki' or 'https'",
+                "loki_uri_scheme",
+                parsed.scheme,
+                "loki or https",
             )
 
         if not parsed.netloc:
-            raise ValueError("Host is required")
+            raise ConfigurationError(
+                "Host is required", "loki_uri_hostname", None, "valid hostname"
+            )
 
         # Build base URL
         scheme = "https" if parsed.scheme == "https" else "http"
@@ -273,31 +339,60 @@ def parse_loki_uri(uri: str) -> tuple[str, Dict[str, str], int, float]:
         if "batch_size" in query_params:
             value = query_params["batch_size"][0]
             if value == "":
-                raise ValueError("batch_size parameter cannot be empty")
+                raise ConfigurationError(
+                    "batch_size parameter cannot be empty",
+                    "batch_size",
+                    value,
+                    "positive integer",
+                )
             try:
                 batch_size = int(value)
                 if batch_size <= 0:
-                    raise ValueError("batch_size must be positive")
+                    raise ConfigurationError(
+                        "batch_size must be positive",
+                        "batch_size",
+                        batch_size,
+                        "positive integer",
+                    )
             except (ValueError, IndexError) as e:
-                raise ValueError("Invalid batch_size parameter") from e
+                raise ConfigurationError(
+                    "Invalid batch_size parameter", "batch_size", value, "valid integer"
+                ) from e
 
         # Extract batch_interval
         batch_interval = 2.0  # Default
         if "batch_interval" in query_params:
             value = query_params["batch_interval"][0]
             if value == "":
-                raise ValueError("batch_interval parameter cannot be empty")
+                raise ConfigurationError(
+                    "batch_interval parameter cannot be empty",
+                    "batch_interval",
+                    value,
+                    "positive float",
+                )
             try:
                 batch_interval = float(value)
                 if batch_interval <= 0:
-                    raise ValueError("batch_interval must be positive")
+                    raise ConfigurationError(
+                        "batch_interval must be positive",
+                        "batch_interval",
+                        batch_interval,
+                        "positive float",
+                    )
             except (ValueError, IndexError) as e:
-                raise ValueError("Invalid batch_interval parameter") from e
+                raise ConfigurationError(
+                    "Invalid batch_interval parameter",
+                    "batch_interval",
+                    value,
+                    "valid float",
+                ) from e
 
         return url, labels, batch_size, batch_interval
 
     except Exception as e:
-        raise ValueError(f"Invalid Loki URI '{uri}': {e}") from e
+        raise ConfigurationError(
+            f"Invalid Loki URI '{uri}': {e}", "loki_uri", uri, "valid Loki URI"
+        ) from e
 
 
 def create_loki_sink_from_uri(uri: str) -> LokiSink:

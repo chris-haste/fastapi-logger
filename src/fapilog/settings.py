@@ -5,6 +5,8 @@ from typing import Any, List, Literal, Union
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from .exceptions import ConfigurationError
+
 
 class LoggingSettings(BaseSettings):
     """Configuration settings for fapilog structured logging.
@@ -144,8 +146,11 @@ class LoggingSettings(BaseSettings):
         valid = {"DEBUG", "INFO", "WARN", "WARNING", "ERROR", "CRITICAL"}
         if v.upper() not in valid:
             valid_list = ", ".join(sorted(valid))
-            raise ValueError(
-                f"Invalid redact_level '{v}'. Must be one of: {valid_list}"
+            raise ConfigurationError(
+                f"Invalid redact_level '{v}'. Must be one of: {valid_list}",
+                "redact_level",
+                v,
+                f"one of {valid_list}",
             )
         return v.upper()
 
@@ -155,7 +160,12 @@ class LoggingSettings(BaseSettings):
         valid_levels = {"DEBUG", "INFO", "WARN", "WARNING", "ERROR", "CRITICAL"}
         if v.upper() not in valid_levels:
             valid_list = ", ".join(sorted(valid_levels))
-            raise ValueError(f"Invalid level '{v}'. Must be one of: {valid_list}")
+            raise ConfigurationError(
+                f"Invalid level '{v}'. Must be one of: {valid_list}",
+                "level",
+                v,
+                f"one of {valid_list}",
+            )
         return v.upper()
 
     @field_validator("json_console")
@@ -164,8 +174,11 @@ class LoggingSettings(BaseSettings):
         valid_values = {"auto", "json", "pretty"}
         if v.lower() not in valid_values:
             valid_list = ", ".join(valid_values)
-            raise ValueError(
-                f"Invalid json_console '{v}'. Must be one of: {valid_list}"
+            raise ConfigurationError(
+                f"Invalid json_console '{v}'. Must be one of: {valid_list}",
+                "json_console",
+                v,
+                f"one of {valid_list}",
             )
         return v.lower()
 
@@ -173,42 +186,69 @@ class LoggingSettings(BaseSettings):
     @classmethod
     def validate_sampling_rate(cls, v: float) -> float:
         if not 0.0 <= v <= 1.0:
-            raise ValueError(f"Sampling rate must be between 0.0 and 1.0, got {v}")
+            raise ConfigurationError(
+                f"Sampling rate must be between 0.0 and 1.0, got {v}",
+                "sampling_rate",
+                v,
+                "between 0.0 and 1.0",
+            )
         return v
 
     @field_validator("queue_maxsize")
     @classmethod
     def validate_queue_maxsize(cls, v: int) -> int:
         if v <= 0:
-            raise ValueError("Queue maxsize must be positive")
+            raise ConfigurationError(
+                "Queue maxsize must be positive", "queue_maxsize", v, "positive integer"
+            )
         return v
 
     @field_validator("queue_batch_size")
     @classmethod
     def validate_queue_batch_size(cls, v: int) -> int:
         if v <= 0:
-            raise ValueError("Queue batch size must be positive")
+            raise ConfigurationError(
+                "Queue batch size must be positive",
+                "queue_batch_size",
+                v,
+                "positive integer",
+            )
         return v
 
     @field_validator("queue_batch_timeout")
     @classmethod
     def validate_queue_batch_timeout(cls, v: float) -> float:
         if v <= 0:
-            raise ValueError("Queue batch timeout must be positive")
+            raise ConfigurationError(
+                "Queue batch timeout must be positive",
+                "queue_batch_timeout",
+                v,
+                "positive float",
+            )
         return v
 
     @field_validator("queue_retry_delay")
     @classmethod
     def validate_queue_retry_delay(cls, v: float) -> float:
         if v <= 0:
-            raise ValueError("Queue retry delay must be positive")
+            raise ConfigurationError(
+                "Queue retry delay must be positive",
+                "queue_retry_delay",
+                v,
+                "positive float",
+            )
         return v
 
     @field_validator("queue_max_retries")
     @classmethod
     def validate_queue_max_retries(cls, v: int) -> int:
         if v < 0:
-            raise ValueError("Queue max retries must be non-negative")
+            raise ConfigurationError(
+                "Queue max retries must be non-negative",
+                "queue_max_retries",
+                v,
+                "non-negative integer",
+            )
         return v
 
     @field_validator("queue_overflow")
@@ -217,7 +257,10 @@ class LoggingSettings(BaseSettings):
         valid_strategies = {"drop", "block", "sample"}
         if v.lower() not in valid_strategies:
             valid_list = ", ".join(sorted(valid_strategies))
-            raise ValueError(
-                f"Invalid queue_overflow '{v}'. Must be one of: {valid_list}"
+            raise ConfigurationError(
+                f"Invalid queue_overflow '{v}'. Must be one of: {valid_list}",
+                "queue_overflow",
+                v,
+                f"one of {valid_list}",
             )
         return v.lower()

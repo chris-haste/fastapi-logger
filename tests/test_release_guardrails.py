@@ -69,8 +69,8 @@ class TestReleaseGuardrails:
 
     def test_check_changelog_version(self):
         """Test checking version in CHANGELOG.md."""
-        # Test with current version (should exist)
-        assert check_changelog_version("0.1.0") is True
+        # Test with current version (should not exist since only Unreleased exists)
+        assert check_changelog_version("0.1.0") is False
 
         # Test with non-existent version
         assert check_changelog_version("999.999.999") is False
@@ -93,10 +93,10 @@ class TestReleaseGuardrails:
     def test_check_release_guardrails_release_commit_success(self):
         """Test guardrails check with valid release commit."""
         # This test assumes the current version in pyproject.toml is 0.1.0
-        # and that version exists in CHANGELOG.md
+        # but that version doesn't exist in CHANGELOG.md (only Unreleased exists)
         success, message = check_release_guardrails("chore(release): v0.1.0")
-        assert success is True
-        assert "All checks passed" in message
+        assert success is False
+        assert "not found in CHANGELOG.md" in message
 
     def test_check_release_guardrails_version_mismatch(self):
         """Test guardrails check with version mismatch."""
@@ -124,8 +124,8 @@ class TestReleaseGuardrails:
     def test_check_release_guardrails_with_commit_msg_param(self):
         """Test guardrails check with explicit commit message parameter."""
         success, message = check_release_guardrails("chore(release): v0.1.0")
-        assert success is True
-        assert "All checks passed" in message
+        assert success is False
+        assert "not found in CHANGELOG.md" in message
 
     def test_check_release_guardrails_without_commit_msg_param(self, monkeypatch):
         """Test guardrails check without commit message parameter."""
@@ -147,8 +147,8 @@ class TestReleaseGuardrails:
         monkeypatch.setattr(subprocess, "run", mock_git_log)
 
         success, message = check_release_guardrails()
-        assert success is True
-        assert "All checks passed" in message
+        assert success is False
+        assert "not found in CHANGELOG.md" in message
 
     def test_check_release_guardrails_git_failure(self, monkeypatch):
         """Test guardrails check when git command fails."""

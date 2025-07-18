@@ -9,6 +9,7 @@ from starlette.testclient import TestClient
 from fapilog import get_current_trace_id
 from fapilog._internal.context import get_context
 from fapilog.bootstrap import configure_logging
+from fapilog.exceptions import ConfigurationError
 from fapilog.middleware import TraceIDMiddleware
 from fapilog.settings import LoggingSettings
 
@@ -238,5 +239,7 @@ async def test_trace_propagation_with_httpx_unavailable():
 
         settings = LoggingSettings(enable_httpx_trace_propagation=True)
 
-        # This should not raise an exception
-        configure_httpx_trace_propagation(settings)
+        # This should raise ConfigurationError
+        with pytest.raises(ConfigurationError) as exc_info:
+            configure_httpx_trace_propagation(settings)
+        assert "httpx is required for trace propagation" in str(exc_info.value)

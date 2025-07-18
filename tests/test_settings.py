@@ -4,9 +4,9 @@ import os
 from unittest.mock import patch
 
 import pytest
-from pydantic import ValidationError
 
 from fapilog.bootstrap import configure_logging
+from fapilog.exceptions import ConfigurationError
 from fapilog.settings import LoggingSettings
 
 
@@ -52,11 +52,11 @@ class TestLoggingSettings:
             assert settings.level == level.upper()
 
     def test_level_validation_invalid(self) -> None:
-        """Test that invalid log levels raise ValidationError."""
+        """Test that invalid log levels raise ConfigurationError."""
         invalid_levels = ["INVALID", "NOT_A_LEVEL", "FOO", "BAR"]
 
         for level in invalid_levels:
-            with pytest.raises(ValidationError) as exc_info:
+            with pytest.raises(ConfigurationError) as exc_info:
                 LoggingSettings.model_validate({"level": level})
 
             error_msg = str(exc_info.value)
@@ -71,11 +71,11 @@ class TestLoggingSettings:
             assert settings.json_console == value.lower()
 
     def test_json_console_validation_invalid(self) -> None:
-        """Test that invalid json_console values raise ValidationError."""
+        """Test that invalid json_console values raise ConfigurationError."""
         invalid_values = ["INVALID", "NOT_A_VALUE", "FOO", "BAR"]
 
         for value in invalid_values:
-            with pytest.raises(ValidationError) as exc_info:
+            with pytest.raises(ConfigurationError) as exc_info:
                 LoggingSettings.model_validate({"json_console": value})
 
             assert "Invalid json_console" in str(exc_info.value)
@@ -89,11 +89,11 @@ class TestLoggingSettings:
             assert settings.sampling_rate == rate
 
     def test_sampling_rate_validation_invalid(self) -> None:
-        """Test that invalid sampling rates raise ValidationError."""
+        """Test that invalid sampling rates raise ConfigurationError."""
         invalid_rates = [-0.1, 1.1, 2.0, -1.0]
 
         for rate in invalid_rates:
-            with pytest.raises(ValidationError) as exc_info:
+            with pytest.raises(ConfigurationError) as exc_info:
                 LoggingSettings(sampling_rate=rate)
 
             expected = "Sampling rate must be between 0.0 and 1.0"

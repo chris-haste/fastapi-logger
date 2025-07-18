@@ -2,7 +2,7 @@
 
 import time
 import uuid
-from typing import Any
+from typing import Any, Dict
 
 try:
     from fastapi import Request, Response, status
@@ -25,6 +25,7 @@ from ._internal.context import (
     bind_context,
     clear_context,
 )
+from ._internal.error_handling import handle_middleware_error
 
 
 def add_trace_exception_handler(
@@ -87,19 +88,59 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.trace_id_header = trace_id_header
 
-    async def dispatch(self, request: Request, call_next: Any) -> Any:
-        """Process the request and add correlation IDs and timing.
+    def _extract_request_metadata(self, request: Request) -> Dict[str, Any]:
+        """Extract metadata from the request.
 
         Args:
             request: The incoming request
-            call_next: The next middleware or application in the chain
 
         Returns:
-            The response with correlation headers added
-        """
-        # Import log here to avoid circular import
-        from . import log
+            Dictionary containing request metadata
 
+        Raises:
+            MiddlewareError: If metadata extraction fails
+        """
+        try:
+            client_ip = request.client.host if request.client else "unknown"
+            method = request.method
+            path = request.url.path
+
+            # Capture request metadata
+            req_size = 0
+            try:
+                req_size = int(request.headers.get("content-length", 0) or 0)
+            except (ValueError, TypeError):
+                # Handle invalid content-length header gracefully
+                req_size = 0
+            user_agent = request.headers.get("user-agent", "-")
+
+            return {
+                "client_ip": client_ip,
+                "method": method,
+                "path": path,
+                "req_size": req_size,
+                "user_agent": user_agent,
+            }
+        except Exception as e:
+            request_info = {
+                "method": getattr(request, "method", "unknown"),
+                "path": (
+                    getattr(request.url, "path", "unknown")
+                    if hasattr(request, "url")
+                    else "unknown"
+                ),
+            }
+            raise handle_middleware_error(e, request_info, "extract_metadata") from e
+
+    def _generate_trace_ids(self, request: Request) -> tuple[str, str]:
+        """Generate or extract trace and span IDs.
+
+        Args:
+            request: The incoming request
+
+        Returns:
+            Tuple of (trace_id, span_id)
+        """
         # Generate or forward trace_id using configurable header
         trace_id = request.headers.get(self.trace_id_header)
         if not trace_id:
@@ -108,46 +149,56 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
         # Generate fresh span_id
         span_id = uuid.uuid4().hex
 
-        # Extract request details for context enrichment (Story 6.1)
-        client_ip = request.client.host if request.client else "unknown"
-        method = request.method
-        path = request.url.path
+        return trace_id, span_id
 
-        # Capture request metadata
-        req_size = 0
-        try:
-            req_size = int(request.headers.get("content-length", 0) or 0)
-        except (ValueError, TypeError):
-            # Handle invalid content-length header gracefully
-            req_size = 0
-        user_agent = request.headers.get("user-agent", "-")
+    def _set_request_context(
+        self, request: Request, trace_id: str, span_id: str, metadata: Dict[str, Any]
+    ) -> None:
+        """Set context variables and request state.
 
+        Args:
+            request: The incoming request
+            trace_id: Trace ID for the request
+            span_id: Span ID for the request
+            metadata: Request metadata dictionary
+        """
         # Set context variables with all request metadata
-        bind_context(
-            trace_id=trace_id,
-            span_id=span_id,
-            req_bytes=req_size,
-            user_agent=user_agent,
-            client_ip=client_ip,
-            method=method,
-            path=path,
-        )
+        try:
+            bind_context(
+                trace_id=trace_id,
+                span_id=span_id,
+                req_bytes=metadata["req_size"],
+                user_agent=metadata["user_agent"],
+                client_ip=metadata["client_ip"],
+                method=metadata["method"],
+                path=metadata["path"],
+            )
+        except Exception as e:
+            request_info = {
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "method": metadata["method"],
+                "path": metadata["path"],
+            }
+            raise handle_middleware_error(e, request_info, "bind_context") from e
 
         # Also store on request.state for exception handler
         request.state.trace_id = trace_id
         request.state.span_id = span_id
 
-        # Record start time
-        start_time = time.perf_counter()
+    def _calculate_response_size(self, response: Any) -> int:
+        """Calculate response body size.
 
+        Args:
+            response: The response object
+
+        Returns:
+            Size of response body in bytes
+
+        Raises:
+            MiddlewareError: If response size calculation fails
+        """
         try:
-            # Process the request
-            response = await call_next(request)
-
-            # Calculate latency
-            duration = round((time.perf_counter() - start_time) * 1000, 2)
-
-            # Calculate response body size
             res_size = 0
             if hasattr(response, "body"):
                 if response.body:
@@ -168,6 +219,126 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
                         # non-serializable types causes framework-level errors
                         # before reaching this middleware logic
                         res_size = 0
+            return res_size
+        except Exception as e:
+            response_info = {
+                "response_type": type(response).__name__,
+                "has_body": hasattr(response, "body"),
+                "has_media_type": hasattr(response, "media_type"),
+            }
+            raise handle_middleware_error(
+                e, response_info, "calculate_response_size"
+            ) from e
+
+    def _add_correlation_headers(
+        self, response: Any, trace_id: str, span_id: str, duration: float
+    ) -> None:
+        """Add correlation headers to response.
+
+        Args:
+            response: The response object
+            trace_id: Trace ID to add to headers
+            span_id: Span ID to add to headers
+            duration: Request duration in milliseconds
+        """
+        response.headers[self.trace_id_header] = trace_id
+        response.headers["X-Span-Id"] = span_id
+        response.headers["X-Response-Time-ms"] = str(duration)
+
+    def _log_request_success(
+        self,
+        request: Request,
+        response: Any,
+        trace_id: str,
+        span_id: str,
+        duration: float,
+    ) -> None:
+        """Log successful request processing.
+
+        Args:
+            request: The incoming request
+            response: The response object
+            trace_id: Trace ID for the request
+            span_id: Span ID for the request
+            duration: Request duration in milliseconds
+        """
+        # Import log here to avoid circular import
+        from . import log
+
+        # Log request details with correlation IDs
+        log.info(
+            "Request processed",
+            trace_id=trace_id,
+            span_id=span_id,
+            path=request.url.path,
+            method=request.method,
+            status_code=response.status_code,
+            latency_ms=duration,
+        )
+
+    def _log_request_error(
+        self,
+        request: Request,
+        trace_id: str,
+        span_id: str,
+        duration: float,
+        error: Exception,
+    ) -> None:
+        """Log request processing error.
+
+        Args:
+            request: The incoming request
+            trace_id: Trace ID for the request
+            span_id: Span ID for the request
+            duration: Request duration in milliseconds
+            error: The exception that occurred
+        """
+        # Import log here to avoid circular import
+        from . import log
+
+        # Log error with correlation IDs
+        log.error(
+            "Request failed",
+            trace_id=trace_id,
+            span_id=span_id,
+            path=request.url.path,
+            method=request.method,
+            latency_ms=duration,
+            error=str(error),
+            exc_info=True,
+        )
+
+    async def dispatch(self, request: Request, call_next: Any) -> Any:
+        """Process the request and add correlation IDs and timing.
+
+        Args:
+            request: The incoming request
+            call_next: The next middleware or application in the chain
+
+        Returns:
+            The response with correlation headers added
+        """
+        # Extract request metadata
+        metadata = self._extract_request_metadata(request)
+
+        # Generate trace IDs
+        trace_id, span_id = self._generate_trace_ids(request)
+
+        # Set request context
+        self._set_request_context(request, trace_id, span_id, metadata)
+
+        # Record start time
+        start_time = time.perf_counter()
+
+        try:
+            # Process the request
+            response = await call_next(request)
+
+            # Calculate latency
+            duration = round((time.perf_counter() - start_time) * 1000, 2)
+
+            # Calculate response body size
+            res_size = self._calculate_response_size(response)
 
             # Set response metadata context variables
             bind_context(
@@ -179,21 +350,11 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
             # Store latency in request.state for exception handler
             request.state.latency_ms = duration
 
-            # Log request details with correlation IDs
-            log.info(
-                "Request processed",
-                trace_id=trace_id,
-                span_id=span_id,
-                path=request.url.path,
-                method=request.method,
-                status_code=response.status_code,
-                latency_ms=duration,
-            )
+            # Log successful request
+            self._log_request_success(request, response, trace_id, span_id, duration)
 
             # Add correlation headers to response
-            response.headers[self.trace_id_header] = trace_id
-            response.headers["X-Span-Id"] = span_id
-            response.headers["X-Response-Time-ms"] = str(duration)
+            self._add_correlation_headers(response, trace_id, span_id, duration)
 
             return response
 
@@ -207,17 +368,8 @@ class TraceIDMiddleware(BaseHTTPMiddleware):
             # Store latency in request.state for exception handler
             request.state.latency_ms = duration
 
-            # Log error with correlation IDs
-            log.error(
-                "Request failed",
-                trace_id=trace_id,
-                span_id=span_id,
-                path=request.url.path,
-                method=request.method,
-                latency_ms=duration,
-                error=str(e),
-                exc_info=True,
-            )
+            # Log error
+            self._log_request_error(request, trace_id, span_id, duration, e)
 
             # Re-raise the exception so FastAPI can handle it
             # (our handler will add headers)

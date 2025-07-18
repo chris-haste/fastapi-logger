@@ -3,6 +3,8 @@
 import contextvars
 from typing import Any, Dict, List, Optional, Tuple
 
+from .error_handling import handle_context_error
+
 # Context variables for request correlation
 trace_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
     "trace_id", default=None
@@ -103,7 +105,9 @@ def bind_context(**kwargs: Any) -> None:
 
     for key, value in kwargs.items():
         if key not in valid_keys:
-            raise ValueError(f"Invalid context key: {key}")
+            raise handle_context_error(
+                ValueError(f"Invalid context key: {key}"), key, "bind"
+            )
 
         if key == "trace_id":
             trace_ctx.set(value)

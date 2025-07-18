@@ -2,11 +2,12 @@
 
 import asyncio
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
 
+from fapilog.exceptions import ConfigurationError, SinkError
 from fapilog.sinks.loki import (
     LokiSink,
     create_loki_sink_from_uri,
@@ -49,12 +50,11 @@ class TestLokiSink:
         assert sink.retry_delay == 2.0
 
     def test_init_without_httpx(self) -> None:
-        """Test that LokiSink raises ImportError when httpx is not available."""
+        """Test that LokiSink raises SinkError when httpx is not available."""
         with patch("fapilog.sinks.loki.httpx", None):
-            with pytest.raises(ImportError) as exc_info:
+            with pytest.raises(SinkError) as exc_info:
                 LokiSink("http://loki:3100")
             assert "httpx is required for LokiSink" in str(exc_info.value)
-            assert "pip install fapilog[loki]" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_write_buffers_logs(self) -> None:
@@ -200,7 +200,7 @@ class TestLokiSink:
 
         # Mock the HTTP client to fail twice, then succeed
         mock_client = AsyncMock()
-        mock_response = MagicMock()
+        mock_response = AsyncMock()
         mock_response.raise_for_status.side_effect = [
             httpx.HTTPError("Connection failed"),
             httpx.HTTPError("Connection failed"),
@@ -233,7 +233,7 @@ class TestLokiSink:
 
         # Mock the HTTP client to always fail
         mock_client = AsyncMock()
-        mock_response = MagicMock()
+        mock_response = AsyncMock()
         mock_response.raise_for_status.side_effect = httpx.HTTPError(
             "Connection failed"
         )
@@ -248,8 +248,13 @@ class TestLokiSink:
         }
         await sink.write(event)
 
-        # Explicitly flush to trigger the retry logic
-        await sink.flush()
+        # Explicitly flush to trigger the retry logic - should raise SinkError
+        with pytest.raises(SinkError) as exc_info:
+            await sink.flush()
+        # The error message should contain the original error message
+        assert "Connection failed" in str(exc_info.value) or "HTTPError" in str(
+            exc_info.value
+        )
 
         # Wait for the async retry attempts to complete
         await asyncio.sleep(0.5)
@@ -349,40 +354,40 @@ class TestParseLokiUri:
         assert batch_interval == 2.0
 
     def test_parse_loki_uri_invalid_scheme(self) -> None:
-        """Test that invalid schemes raise ValueError."""
-        with pytest.raises(ValueError) as exc_info:
+        """Test that invalid schemes raise ConfigurationError."""
+        with pytest.raises(ConfigurationError) as exc_info:
             parse_loki_uri("http://loki:3100")
         assert "Invalid scheme 'http'" in str(exc_info.value)
 
     def test_parse_loki_uri_missing_host(self) -> None:
-        """Test that missing host raises ValueError."""
-        with pytest.raises(ValueError) as exc_info:
+        """Test that missing host raises ConfigurationError."""
+        with pytest.raises(ConfigurationError) as exc_info:
             parse_loki_uri("loki://")
         assert "Host is required" in str(exc_info.value)
 
     def test_parse_loki_uri_invalid_batch_size(self) -> None:
-        """Test that invalid batch_size raises ValueError."""
-        with pytest.raises(ValueError) as exc_info:
+        """Test that invalid batch_size raises ConfigurationError."""
+        with pytest.raises(ConfigurationError) as exc_info:
             parse_loki_uri("loki://loki:3100?batch_size=invalid")
         assert "Invalid batch_size parameter" in str(exc_info.value)
 
     def test_parse_loki_uri_negative_batch_size(self) -> None:
-        """Test that negative batch_size raises ValueError."""
-        with pytest.raises(ValueError) as exc_info:
+        """Test that negative batch_size raises ConfigurationError."""
+        with pytest.raises(ConfigurationError) as exc_info:
             parse_loki_uri("loki://loki:3100?batch_size=-1")
-        assert "Invalid batch_size parameter" in str(exc_info.value)
+        assert "batch_size must be positive" in str(exc_info.value)
 
     def test_parse_loki_uri_invalid_batch_interval(self) -> None:
-        """Test that invalid batch_interval raises ValueError."""
-        with pytest.raises(ValueError) as exc_info:
+        """Test that invalid batch_interval raises ConfigurationError."""
+        with pytest.raises(ConfigurationError) as exc_info:
             parse_loki_uri("loki://loki:3100?batch_interval=invalid")
         assert "Invalid batch_interval parameter" in str(exc_info.value)
 
     def test_parse_loki_uri_negative_batch_interval(self) -> None:
-        """Test that negative batch_interval raises ValueError."""
-        with pytest.raises(ValueError) as exc_info:
+        """Test that negative batch_interval raises ConfigurationError."""
+        with pytest.raises(ConfigurationError) as exc_info:
             parse_loki_uri("loki://loki:3100?batch_interval=-1")
-        assert "Invalid batch_interval parameter" in str(exc_info.value)
+        assert "batch_interval must be positive" in str(exc_info.value)
 
 
 class TestCreateLokiSinkFromUri:
@@ -409,14 +414,14 @@ class TestCreateLokiSinkFromUri:
         assert sink.batch_interval == 1.0
 
     def test_create_loki_sink_from_uri_invalid_uri(self) -> None:
-        """Test that invalid URIs raise ValueError."""
-        with pytest.raises(ValueError) as exc_info:
+        """Test that invalid URIs raise ConfigurationError."""
+        with pytest.raises(ConfigurationError) as exc_info:
             create_loki_sink_from_uri("invalid-uri")
         assert "Invalid Loki URI" in str(exc_info.value)
 
     def test_create_loki_sink_from_uri_without_httpx(self) -> None:
-        """Test that missing httpx raises ImportError."""
+        """Test that missing httpx raises SinkError."""
         with patch("fapilog.sinks.loki.httpx", None):
-            with pytest.raises(ImportError) as exc_info:
+            with pytest.raises(SinkError) as exc_info:
                 create_loki_sink_from_uri("loki://loki:3100")
             assert "httpx is required for LokiSink" in str(exc_info.value)

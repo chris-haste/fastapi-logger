@@ -3,6 +3,7 @@
 import pytest
 
 from fapilog._internal.pii_patterns import auto_redact_pii_processor
+from fapilog.exceptions import RedactionError
 from fapilog.pipeline import _redact_processor
 from fapilog.redactors import (
     _get_log_level_numeric,
@@ -30,8 +31,8 @@ class TestLogLevelHelpers:
         assert _get_log_level_numeric("WARNING") == 30
 
     def test_get_log_level_numeric_invalid(self):
-        """Test that invalid log levels raise ValueError."""
-        with pytest.raises(ValueError, match="Unknown log level"):
+        """Test that invalid log levels raise RedactionError."""
+        with pytest.raises(RedactionError, match="Unknown log level"):
             _get_log_level_numeric("INVALID")
 
     def test_should_redact_at_level(self):
