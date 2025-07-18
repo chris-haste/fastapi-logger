@@ -62,7 +62,7 @@ jobs:
         required_jobs=("lint" "test" "typecheck" "tox")
         
         for job in "${required_jobs[@]}"; do
-          if grep -q "name:.*$job\|job:.*$job" .github/workflows/ci.yml; then
+          if grep -q "^  $job:" .github/workflows/ci.yml; then
             echo "✅ Found job: $job"
           else
             echo "❌ Missing required job: $job"
