@@ -21,6 +21,10 @@ jobs:
       with:
         python-version: "3.11"
     
+    - name: Install dependencies
+      run: |
+        pip install PyYAML
+    
     - name: Validate workflow syntax
       run: |
         echo "🔍 Validating workflow files..."
