@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Story 10.1**: CHANGELOG tracking and conventions
+
+  - Added changelog link to README.md for easy access to version history
+  - Added comprehensive changelog conventions to CONTRIBUTING.md with Keep a Changelog format guidelines
+  - Established story reference format for traceability between changes and user stories
+  - Ensured all future contributions will follow consistent changelog entry patterns
+
+- **Story 9.4**: Build Artifacts with `python -m build`
+
+  - Added `build>=1.0.0` to dev dependencies in `pyproject.toml` for package building
+  - Running `python -m build` successfully creates both wheel (`.whl`) and source distribution (`.tar.gz`) artifacts
+  - Build artifacts are saved to `dist/` folder and are valid for installation via `pip install dist/*.whl`
+  - Generated packages install correctly and `import fapilog` succeeds after installation
+  - Build process completes without warnings or errors using Hatchling backend
+  - `dist/` directory is already properly ignored in `.gitignore` to prevent build artifacts from version control
+  - Supports downstream release automation and PyPI distribution workflows
+  - All required metadata properly configured in `pyproject.toml` including name, version, description, authors, license, dependencies, and classifiers
+
 - **Story 9.2**: Pre-commit Hooks for Linting and Type-checking
 
   - Added `.pre-commit-config.yaml` with Ruff for linting and formatting, MyPy for type checking, and Vulture for dead code detection

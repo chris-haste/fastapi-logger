@@ -39,6 +39,9 @@ hatch run lint:lint
 
 # Run type checking
 hatch run typecheck:typecheck
+
+# Build package
+python -m build
 ```
 
 ## 🛡️ CI/CD Guidelines
@@ -187,6 +190,65 @@ bandit -r src/
 safety check
 ```
 
+### Building Packages
+
+This project uses `python -m build` to create distribution packages. This is useful for testing your changes as a built package or for creating releases.
+
+#### Prerequisites
+
+The build process requires the `build` package, which is included in the dev dependencies:
+
+```bash
+# Install dev dependencies (includes build)
+pip install -e ".[dev]"
+```
+
+#### Building Packages
+
+```bash
+# Build both wheel and source distribution
+python -m build
+
+# Build only wheel
+python -m build --wheel
+
+# Build only source distribution
+python -m build --sdist
+
+# Build to specific output directory
+python -m build --outdir ./my-dist/
+```
+
+#### Testing Built Packages
+
+After building, you can test the packages locally:
+
+```bash
+# Install the built wheel
+pip install dist/*.whl
+
+# Test that the package works
+python -c "import fapilog; print('Package installed successfully!')"
+
+# Uninstall for testing
+pip uninstall fapilog -y
+```
+
+#### Build Artifacts
+
+The build process creates:
+
+- **Wheel** (`.whl`): Binary distribution for fast installation
+- **Source Distribution** (`.tar.gz`): Source code archive for compatibility
+
+Both artifacts are saved to the `dist/` directory, which is automatically ignored by git.
+
+#### Troubleshooting
+
+- **Build fails**: Ensure all dependencies are installed with `pip install -e ".[dev]"`
+- **Import errors**: Check that the package structure in `src/fapilog/` is correct
+- **Metadata issues**: Verify `pyproject.toml` has all required fields (name, version, description, etc.)
+
 ## 🚨 Security Guidelines
 
 ### Never Commit
@@ -220,6 +282,32 @@ safety check
 - **CHANGELOG.md**: Version history and changes
 - **docs/**: Detailed documentation
 - **examples/**: Working code examples
+
+### Changelog Conventions
+
+This project follows the [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format. When contributing:
+
+1. **Add entries under `[Unreleased]`**: All new changes go in the `## [Unreleased]` section
+2. **Use appropriate categories**:
+   - `### Added` - New features
+   - `### Changed` - Changes to existing functionality
+   - `### Fixed` - Bug fixes
+   - `### Removed` - Removed features
+   - `### Deprecated` - Soon-to-be removed features
+3. **Include story references**: Reference the story number (e.g., "Story 10.1") for traceability
+4. **Be descriptive**: Explain what changed and why it matters to users
+5. **Keep entries concise**: Focus on user-visible changes, not implementation details
+
+**Example:**
+
+```markdown
+### Added
+
+- **Story 10.1**: CHANGELOG tracking and conventions
+  - Added changelog link to README.md
+  - Added changelog conventions to CONTRIBUTING.md
+  - Established Keep a Changelog format compliance
+```
 
 ## 🤝 Community Guidelines
 
