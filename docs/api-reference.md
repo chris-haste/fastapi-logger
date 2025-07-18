@@ -741,24 +741,124 @@ All configuration can be set via environment variables:
 
 ## Error Handling
 
-### Common Exceptions
+### Custom Exception Classes
 
-**`RuntimeError`**
+`fapilog` provides a comprehensive set of custom exceptions for different error scenarios:
 
-- Raised when `configure_logging()` is called from async context without proper setup
-- Solution: Ensure proper async context or use sync configuration
+**`FapilogError`** - Base exception class for all fapilog errors
 
-**`ValueError`**
+**`ConfigurationError`** - Configuration and settings errors
 
-- Raised for invalid configuration values
-- Common causes: Invalid log level, invalid queue settings
-- Solution: Check configuration values and environment variables
+```python
+from fapilog.exceptions import ConfigurationError
 
-**`ImportError`**
+# Invalid log level
+ConfigurationError("Invalid log level 'INVALID'", expected_type="str", actual_value="INVALID")
 
-- Raised when optional dependencies are missing
-- Common with `psutil` for resource metrics
-- Solution: Install required dependencies or disable features
+# Missing required dependency
+ConfigurationError("httpx is required for LokiSink", missing_dependency="httpx")
+```
+
+**`SinkError`** - Sink-related errors (file, stdout, loki, custom sinks)
+
+```python
+from fapilog.exceptions import SinkError
+
+# File sink error
+SinkError("Failed to write to log file", sink_type="file", operation="write", error="Permission denied")
+
+# Loki sink error
+SinkError("HTTP request failed", sink_type="loki", operation="send", status_code=500)
+```
+
+**`QueueError`** - Queue and worker-related errors
+
+```python
+from fapilog.exceptions import QueueError
+
+# Queue full
+QueueError("Queue is full", queue_size=1000, max_size=1000, operation="enqueue")
+
+# Worker shutdown error
+QueueError("Worker shutdown failed", operation="shutdown", error="Timeout")
+```
+
+**`MiddlewareError`** - Middleware and context errors
+
+```python
+from fapilog.exceptions import MiddlewareError
+
+# Context binding error
+MiddlewareError("Failed to bind context", operation="bind_context", error="Invalid key")
+
+# Trace propagation error
+MiddlewareError("Trace propagation failed", operation="propagate_trace", error="Invalid header")
+```
+
+**`RedactionError`** - Data redaction errors
+
+```python
+from fapilog.exceptions import RedactionError
+
+# Pattern compilation error
+RedactionError("Invalid regex pattern", pattern="[invalid", operation="compile_pattern")
+
+# Field redaction error
+RedactionError("Failed to redact field", field="user.password", operation="redact_field")
+```
+
+**`ContextError`** - Context management errors
+
+```python
+from fapilog.exceptions import ContextError
+
+# Context variable error
+ContextError("Invalid context variable", variable="invalid_key", operation="get_context")
+
+# Context cleanup error
+ContextError("Failed to clear context", operation="clear_context", error="Timeout")
+```
+
+### Error Context and Recovery
+
+All exceptions include rich context information:
+
+```python
+try:
+    configure_logging(settings=invalid_settings)
+except ConfigurationError as e:
+    print(f"Error: {e}")
+    print(f"Operation: {e.operation}")
+    print(f"Context: {e.context}")
+    print(f"User-friendly message: {e.user_friendly_message}")
+```
+
+### Graceful Degradation
+
+The library implements graceful degradation for non-critical errors:
+
+- **Sink failures** don't break the entire logging system
+- **Queue errors** fall back to synchronous logging
+- **Middleware errors** continue without context enrichment
+- **Redaction errors** log the original data without redaction
+
+### Retry Mechanisms
+
+Automatic retry with exponential backoff for transient failures:
+
+```python
+# Loki sink automatically retries failed HTTP requests
+# Queue worker retries failed sink operations
+# Configuration errors are logged but don't break startup
+```
+
+### Legacy Exceptions
+
+For backward compatibility, some operations may still raise standard exceptions:
+
+**`RuntimeError`** - Async context issues
+**`ValueError`** - Invalid parameter values  
+**`ImportError`** - Missing optional dependencies
 
 ### Debugging Configuration
 

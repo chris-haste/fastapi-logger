@@ -23,7 +23,7 @@ Thank you for your interest in contributing to fapilog! This document provides g
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/fapilog/fapilog.git
+   git clone https://github.com/chris-haste/fastapi-logger.git
    cd fastapi-logger
    ```
 

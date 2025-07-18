@@ -13,7 +13,7 @@ Acceptance Criteria
 
 - Docs are published to GitHub Pages on every push to `main`
 - Uses GitHub Actions with `mkdocs gh-deploy`
-- Hosted at `https://<org>.github.io/fastapi-logger` or custom domain if configured
+- Hosted at `https://chris-haste.github.io/fastapi-logger` or custom domain if configured
 - Home, Getting Started, and API pages are included in the deployed site
 - Badge in README links to the deployed docs
 - Previous deploys are cleaned before new ones are pushed
@@ -22,8 +22,8 @@ Acceptance Criteria
 Tasks / Technical Checklist
 
 1.  Configure `mkdocs.yml` with site URL:  
-     site_url: https://<org>.github.io/fastapi-logger  
-     repo_url: https://github.com/<org>/fastapi-logger  
+     site_url: https://chris-haste.github.io/fastapi-logger  
+     repo_url: https://github.com/chris-haste/fastapi-logger  
      theme:
     name: material
     features: - navigation.instant - navigation.tracking
@@ -54,7 +54,7 @@ Tasks / Technical Checklist
 3.  Enable Pages in repo settings → Deploy from `gh-pages` branch
 
 4.  Add a badge to README:  
-     [![Docs](https://img.shields.io/badge/docs-online-blue)](https://<org>.github.io/fastapi-logger)
+     [![Docs](https://img.shields.io/badge/docs-online-blue)](https://chris-haste.github.io/fastapi-logger)
 
 5.  Verify deployed site and check for broken links or rendering issues
 

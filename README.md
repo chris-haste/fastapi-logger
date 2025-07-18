@@ -50,6 +50,33 @@ pip install fapilog[metrics]
 pip install fapilog[dev]
 ```
 
+#### Version Pinning
+
+For production deployments, we recommend pinning the version to ensure reproducible builds:
+
+```bash
+# Production (allows patch updates)
+pip install fapilog~=0.1.0
+
+# Strict reproducibility (exact version)
+pip install fapilog==0.1.0
+```
+
+#### Python Compatibility
+
+`fapilog` requires Python 3.8 or higher and is compatible with Python 3.8, 3.9, 3.10, 3.11, and 3.12.
+
+#### Quick Start
+
+After installation, you can start logging immediately:
+
+```python
+from fapilog import configure_logging, log
+
+configure_logging()
+log.info("Hello from fapilog!")
+```
+
 ### Basic Usage
 
 ```python
@@ -878,7 +905,7 @@ https://host:port?labels=key1=val1
 - **Batching**: Logs are buffered and sent in batches to `/loki/api/v1/push`.
 - **Async HTTP**: Uses `httpx.AsyncClient` for non-blocking HTTP push.
 - **Retry Logic**: Failures are logged and retried with exponential backoff.
-- **Optional Dependency**: Raises `ImportError` with guidance if `httpx` is not installed.
+- **Optional Dependency**: Raises `ConfigurationError` with guidance if `httpx` is not installed.
 - **Graceful Degradation**: If Loki is unavailable, logs are retried up to the configured limit.
 
 #### Example
@@ -914,7 +941,7 @@ Each batch is sent as:
 
 - If you use the Loki sink, ensure your Loki endpoint is reachable from your app.
 - Batching reduces HTTP load and aligns with Loki best practices.
-- If `httpx` is not installed, you’ll get a clear ImportError with install instructions.
+- If `httpx` is not installed, you’ll get a clear `ConfigurationError` with install instructions.
 
 #### Installation Recap
 
@@ -1673,3 +1700,67 @@ log.info("user_signup", {
 ```
 
 See the [PII Redaction tests](tests/test_auto_redactor.py) for more examples and edge cases.
+
+## Error Handling and Troubleshooting
+
+`fapilog` uses a robust, standardized error handling system with custom exception classes for different error scenarios:
+
+- **FapilogError**: Base exception for all fapilog errors
+- **ConfigurationError**: Raised for configuration and settings errors (e.g., invalid log level, missing dependencies)
+- **SinkError**: Raised for sink-related errors (file, stdout, loki, custom sinks)
+- **QueueError**: Raised for queue and worker-related errors
+- **MiddlewareError**: Raised for middleware and context errors
+- **RedactionError**: Raised for data redaction errors
+- **ContextError**: Raised for context management errors
+
+### Example: Handling Configuration Errors
+
+```python
+from fapilog import configure_logging
+from fapilog.exceptions import ConfigurationError
+
+try:
+    configure_logging(settings=invalid_settings)
+except ConfigurationError as e:
+    print(f"Configuration error: {e}")
+    # Fallback or exit
+```
+
+### Example: Handling Sink Errors
+
+```python
+from fapilog.exceptions import SinkError
+
+try:
+    log.info("Important message")
+except SinkError as e:
+    print(f"Sink error: {e}")
+```
+
+### Example: Handling Queue Errors
+
+```python
+from fapilog.exceptions import QueueError
+
+try:
+    # High-volume logging
+    for i in range(10000):
+        log.info(f"Processing item {i}")
+except QueueError as e:
+    print(f"Queue error: {e}")
+```
+
+### Graceful Degradation and Recovery
+
+- **Sink failures**: `SinkError` is raised and logged, but other sinks continue to operate.
+- **Queue errors**: `QueueError` is raised for queue overflows or shutdown issues, with fallback to synchronous logging.
+- **Configuration errors**: `ConfigurationError` is raised for invalid settings or missing dependencies (e.g., missing `httpx` or `psutil`).
+- **Redaction errors**: `RedactionError` is raised for invalid patterns or field issues, but logging continues with a warning.
+
+### Legacy Exceptions
+
+For backward compatibility, some operations may still raise standard exceptions:
+
+- `RuntimeError`: Async context issues
+- `ValueError`: Invalid parameter values
+- `ImportError`: Missing optional dependencies

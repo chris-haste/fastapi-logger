@@ -81,7 +81,7 @@ This script will:
 
    See CHANGELOG.md for detailed changes.
 
-   https://github.com/fapilog/fapilog/blob/vX.Y.Z/CHANGELOG.md#xyz---yyyy-mm-dd"
+   https://github.com/chris-haste/fastapi-logger/blob/vX.Y.Z/CHANGELOG.md#xyz---yyyy-mm-dd"
    ```
 
 2. **Push the tag to GitHub**
