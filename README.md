@@ -1524,6 +1524,10 @@ Apache 2.0 — free for commercial and open-source use.
 
 > _FastAPI-Logger is built for high-throughput async APIs, but the core modules are framework-agnostic—use them in Celery workers, scripts, or any structlog pipeline with minimal tweaks._
 
+## 📋 Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a complete history of changes and releases.
+
 ## 🔒 Automatic PII Redaction
 
 FastAPI-Logger can automatically detect and redact common types of personally identifiable information (PII) in your logs, using a configurable set of regular expressions. This feature helps you avoid accidental leakage of sensitive data without having to enumerate every field name.
