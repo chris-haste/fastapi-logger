@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Story 11.1**: Public Package Metadata
+
+  - Enhanced `pyproject.toml` with comprehensive package metadata for PyPI discovery and distribution
+  - Updated project description to "Structured, enriched logging for FastAPI and ASGI apps" for better clarity
+  - Added keywords array: `["fastapi", "logging", "structured", "asyncio", "middleware", "observability", "json", "loki"]` for improved PyPI searchability
+  - Added metadata badges to README.md: License (MIT), Python version support (3.8+), and PyPI version (0.1.0)
+  - Verified build artifacts pass `python -m build` and `twine check dist/*` validation
+  - All required metadata fields present: name, version, description, readme, license, authors, dependencies, classifiers
+  - Project URLs configured for homepage, repository, documentation, and bug tracker
+  - Optional dependencies documented: `dev`, `loki`, `fastapi`, `metrics` extras for different use cases
+  - Ready for PyPI distribution with complete and accurate package information
+
 - **Story 10.4**: CONTRIBUTING Guide
 
   - Created comprehensive `CONTRIBUTING.md` file with detailed setup instructions, development workflow, and contribution guidelines

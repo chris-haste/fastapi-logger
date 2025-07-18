@@ -5,12 +5,13 @@ build-backend = "hatchling.build"
 [project]
 name = "fapilog"
 version = "0.1.0"
-description = "FastAPI logging middleware with structured logging and multiple sinks"
+description = "Structured, enriched logging for FastAPI and ASGI apps"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
     {name = "FastAPI Logger Contributors", email = "contributors@fapilog.dev"}
 ]
+keywords = ["fastapi", "logging", "structured", "asyncio", "middleware", "observability", "json", "loki"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -59,10 +60,10 @@ metrics = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/fapilog/fapilog"
-Repository = "https://github.com/fapilog/fapilog"
-Documentation = "https://fapilog.readthedocs.io"
-Bug-Tracker = "https://github.com/fapilog/fapilog/issues"
+Homepage = "https://github.com/chris-haste/fastapi-logger"
+Repository = "https://github.com/chris-haste/fastapi-logger"
+Documentation = "https://github.com/chris-haste/fastapi-logger#readme"
+Bug-Tracker = "https://github.com/chris-haste/fastapi-logger/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fapilog"]
