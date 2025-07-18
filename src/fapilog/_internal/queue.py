@@ -358,7 +358,7 @@ def queue_sink(
             # Try to start the worker in the current context
             try:
                 loop = asyncio.get_running_loop()
-                loop.create_task(worker.start())
+                loop.create_task(worker.start())  # type: ignore
                 # Task is stored in the event loop, no need to keep reference
             except RuntimeError:
                 # No running loop, start it in a new thread

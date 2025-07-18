@@ -89,7 +89,7 @@ class LokiSink(Sink):
         if self._flush_timer and not self._flush_timer.done():
             self._flush_timer.cancel()
         loop = asyncio.get_running_loop()
-        task = loop.create_task(self._interval_flush())
+        task = loop.create_task(self._interval_flush())  # type: ignore
         self._flush_timer = task
 
     async def _interval_flush(self) -> None:
@@ -175,10 +175,13 @@ class LokiSink(Sink):
             await response.raise_for_status()
         except httpx.HTTPError as e:
             # HTTP-specific errors
+            status_code = None
+            if hasattr(e, "response") and e.response is not None:
+                status_code = getattr(e.response, "status_code", None)
+
             sink_config = {
                 "url": self.url,
-                "status_code": getattr(e, "response", None)
-                and getattr(e.response, "status_code", None),
+                "status_code": status_code,
                 "payload_size": len(str(payload)),
             }
             raise handle_sink_error(e, "loki", sink_config, "http_request") from e
