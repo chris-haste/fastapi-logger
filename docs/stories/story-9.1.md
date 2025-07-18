@@ -47,7 +47,7 @@ Tasks / Technical Checklist
 
    - Add the following under the title section:
      ```md
-     ![CI](https://github.com/<org>/fastapi-logger/actions/workflows/ci.yml/badge.svg)
+     ![CI](https://github.com/chris-haste/fastapi-logger/actions/workflows/ci.yml/badge.svg)
      ```
 
 4. Ensure workflow triggers on:

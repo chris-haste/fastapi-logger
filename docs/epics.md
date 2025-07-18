@@ -48,34 +48,46 @@
 
 ## Epic 8 – Observability Integration
 
-- Story 8.1: OpenTelemetry span correlation (traceparent fields)
-- Story 8.2: Prometheus counters for error/warn totals
-- Story 8.3: Optional slow-SQL timer hook (SQLAlchemy event)
+- Story 8.1: Prometheus metrics export
+- Story 8.2: Health check endpoints
+- Story 8.3: Distributed tracing integration (OpenTelemetry)
+- Story 8.4: Log aggregation system integration
 
-## Epic 9 – Configuration & Runtime Controls
+## Epic 9 – Developer Experience
 
-- Story 9.1: FAPILOG_SINKS, FAPILOG_LEVEL, etc. env handling
-- Story 9.2: Programmatic overrides (configure_logging(\*\*kwargs))
-- Story 9.3: Live log-level toggle endpoint (guarded)
-- Story 9.4: Sampling configuration (rate / probabilistic)
+- Story 9.1: Comprehensive documentation (README, API docs, examples)
+- Story 9.2: Development tools (pre-commit, linting, type checking)
+- Story 9.3: CI/CD pipeline setup
+- Story 9.4: Release automation and packaging
 
-## Epic 10 – Test Suite & CI Pipeline
+## Epic 10 – Production Readiness
 
-- Story 10.1: Pytest fixtures (caplog_json)
-- Story 10.2: Integration tests with Uvicorn & TestClient
-- Story 10.3: Performance regression test harness
-- Story 10.4: GitHub Actions / Drone CI with lint, type-check, coverage gates
+- Story 10.1: Performance optimization and benchmarking
+- Story 10.2: Error handling and recovery mechanisms
+- Story 10.3: Configuration validation and error messages
+- Story 10.4: Production deployment guides
 
-## Epic 11 – Documentation & Developer Experience
+## Epic 11 – Advanced Features
 
-- Story 11.1: Expand README.md (quick-start, feature matrix, roadmap)
-- Story 11.2: Usage docs for FastAPI + worker scripts
-- Story 11.3: Docstrings & sphinx/mkdocs build
-- Story 11.4: Example repo / demo docker-compose
+- Story 11.1: Log sampling and filtering
+- Story 11.2: Custom log formats and templates
+- Story 11.3: Multi-tenant logging support
+- Story 11.4: Log archival and retention policies
 
-## Epic 12 – Copier Template Integration
+## Epic 12 – Integration & Ecosystem
 
-- Story 12.1: Add fapilog to template dependencies
-- Story 12.2: Inject configure_logging() in scaffolded main.py
-- Story 12.3: Copier questions → env-var mapping (slow_query, pii_redaction)
-- Story 12.4: Template test to assert logs emit in generated project
+- Story 12.1: FastAPI ecosystem integration (Dependency injection, background tasks)
+- Story 12.2: Cloud provider integration (AWS, GCP, Azure)
+- Story 12.3: Database logging integration
+- Story 12.4: Third-party service integration (Datadog, New Relic, etc.)
+
+## Epic 13 – Architecture Improvements
+
+- **`Story 13.1`**: Eliminate Global State and Implement Dependency Injection
+- **`Story 13.2`**: Refactor Large Functions into Smaller, Focused Functions
+- **`Story 13.3`**: Standardize Error Handling Patterns Across Codebase
+- **`Story 13.4`**: Simplify Configuration API and Remove Deprecated Patterns
+- **`Story 13.5`**: Add Comprehensive Monitoring and Metrics
+- **`Story 13.6`**: Enhance Security Features with Advanced PII Detection and Validation
+- **`Story 13.7`**: Improve Plugin Architecture and Sink Registration System
+- **`Story 13.8`**: Add Performance Benchmarks and Optimization

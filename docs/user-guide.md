@@ -1273,7 +1273,121 @@ log.warning("Warning test")
 log.error("Error test")
 ```
 
+### Error Handling Best Practices
+
+**Graceful Error Handling:**
+
+```python
+from fapilog.exceptions import ConfigurationError, SinkError, QueueError
+
+try:
+    configure_logging(settings=settings)
+except ConfigurationError as e:
+    # Log the error with context
+    log.error("Configuration failed",
+              error=str(e),
+              operation=e.operation,
+              context=e.context)
+    # Fall back to basic configuration
+    configure_logging()
+```
+
+**Sink Error Recovery:**
+
+```python
+from fapilog.exceptions import SinkError
+
+try:
+    log.info("Important message")
+except SinkError as e:
+    # Log to fallback sink
+    print(f"Logging failed: {e.user_friendly_message}")
+    # Continue application execution
+```
+
+**Queue Error Handling:**
+
+```python
+from fapilog.exceptions import QueueError
+
+try:
+    # High-volume logging
+    for i in range(10000):
+        log.info(f"Processing item {i}")
+except QueueError as e:
+    # Queue is full, use synchronous logging
+    log.warning("Queue full, falling back to sync logging",
+                queue_size=e.queue_size,
+                max_size=e.max_size)
+```
+
+**Context Error Recovery:**
+
+```python
+from fapilog.exceptions import ContextError
+from fapilog._internal.context import get_context
+
+try:
+    context = get_context()
+    log.info("Request processed", **context)
+except ContextError as e:
+    # Log without context
+    log.info("Request processed (no context available)")
+```
+
+**Redaction Error Handling:**
+
+```python
+from fapilog.exceptions import RedactionError
+
+try:
+    log.info("User data", user_email="user@example.com")
+except RedactionError as e:
+    # Log without redaction
+    log.warning("Redaction failed, logging original data",
+                error=str(e),
+                pattern=e.pattern)
+```
+
 ### Common Error Messages
+
+**`ConfigurationError: Invalid log level 'INVALID'`**
+
+- **Cause**: Invalid log level specified in configuration
+- **Solution**: Use valid log levels: DEBUG, INFO, WARN, ERROR, CRITICAL
+- **Example**: `FAPILOG_LEVEL=DEBUG` (correct) vs `FAPILOG_LEVEL=INVALID` (incorrect)
+
+**`SinkError: Failed to write to log file`**
+
+- **Cause**: File sink cannot write to specified location
+- **Solution**: Check file permissions and directory existence
+- **Example**: Ensure `/var/log/app.log` is writable
+
+**`QueueError: Queue is full`**
+
+- **Cause**: Log queue has reached maximum capacity
+- **Solution**: Increase queue size or use overflow strategies
+- **Example**: `FAPILOG_QUEUE_MAXSIZE=5000` or `FAPILOG_QUEUE_OVERFLOW=drop`
+
+**`MiddlewareError: Failed to bind context`**
+
+- **Cause**: Context variable binding failed
+- **Solution**: Check context variable names and async context
+- **Example**: Ensure context operations happen in proper async context
+
+**`RedactionError: Invalid regex pattern`**
+
+- **Cause**: Invalid regex pattern in redaction configuration
+- **Solution**: Fix regex syntax or use simpler patterns
+- **Example**: `FAPILOG_REDACT_PATTERNS=email,phone` (correct) vs `FAPILOG_REDACT_PATTERNS=[invalid` (incorrect)
+
+**`ContextError: Invalid context variable`**
+
+- **Cause**: Attempting to access non-existent context variable
+- **Solution**: Use valid context variable names
+- **Example**: Use `trace_id`, `user_id`, `method` instead of custom names
+
+**Legacy Exceptions (for backward compatibility):**
 
 **"RuntimeError: Cannot configure logging from async context"**
 

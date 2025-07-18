@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Story 11.3**: Install Instructions & Version Pinning
+
+  - Enhanced README.md Installation section with comprehensive version pinning guidance for production deployments
+  - Added version pinning examples: `fapilog~=0.1.0` for production (allows patch updates) and `fapilog==0.1.0` for strict reproducibility
+  - Added Python compatibility information: requires Python 3.8+ and supports Python 3.8, 3.9, 3.10, 3.11, and 3.12
+  - Added "Quick Start" section with minimal usage snippet: `from fapilog import configure_logging, log; configure_logging(); log.info("Hello from fapilog!")`
+  - Created `requirements-example.txt` file with common installation patterns for quick-start projects
+  - Documented all optional extras: `[loki]`, `[fastapi]`, `[metrics]`, `[dev]` with clear use cases
+  - Tested all installation commands locally in clean virtual environment to ensure copy-paste friendly instructions
+  - Installation section now includes PyPI version badge, Python compatibility, and clear guidance for different deployment scenarios
+  - Ready for new users to easily integrate fapilog into their projects with proper version management
+
 - **Story 11.2**: Manual PyPI Publishing
 
   - Enhanced `RELEASING.md` with comprehensive manual PyPI publishing instructions including PyPI account setup, secure credential storage, and step-by-step upload process
@@ -93,6 +105,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Failures block merging to main branch ensuring code quality standards
   - Supports both hatch-based and tox-based testing workflows
 
+- **Story 7.2**: Automatic PII Redaction
+
+  - New regex-based PII scanner as a post-processor in the logging pipeline
+  - Automatically detects and redacts common sensitive values, including:
+    - Email addresses
+    - Credit card numbers (basic pattern, not Luhn)
+    - Phone numbers
+    - IPv4 addresses
+  - Patterns are configurable via settings (`custom_pii_patterns`, `enable_auto_redact_pii`)
+  - Redaction happens recursively across all string values in the event_dict
+  - Uses the same `REDACT_REPLACEMENT` setting as field redaction
+  - Unit tests confirm detection, replacement, and opt-out behavior
+  - README includes explanation, limitations, and opt-out instructions
+
 - **Story 7.1**: Field Redaction Support
 
   - New field-based redaction system in `fapilog/redactors.py` for precise control over sensitive data removal
@@ -126,6 +152,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Zero performance impact with efficient level checking before redaction processing
 
 - **Story 6.3**: Context Enricher: User and Auth Context
+
   - New `user_context_enricher` processor that automatically adds authenticated user information to log events
   - Added user context variables: `user_id_ctx`, `user_roles_ctx`, `auth_scheme_ctx` in `src/fapilog/_internal/context.py`
   - All log events during authenticated requests automatically include: `user_id`, `user_roles`, `auth_scheme`
@@ -144,7 +171,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated security logging example `examples/16_security_logging.py` to use user context enrichment
   - Zero-configuration setup: wrap existing auth dependencies with `create_user_dependency()` for automatic user context
   - Perfect for security auditing, user behavior analysis, and troubleshooting user-specific issues
+
 - **Story 6.1**: Context Enricher: Request Metadata
+
   - Enhanced `TraceIDMiddleware` to automatically capture HTTP request metadata in context variables
   - New context variables: `client_ip` (client IP address), `method` (HTTP method), `path` (request path)
   - Configurable trace ID header extraction via `LoggingSettings.trace_id_header` (default: "X-Request-ID")
@@ -158,7 +187,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated README with "Request Context Enrichment" section documenting automatic fields, configuration, and usage examples
   - Zero-configuration setup: simply call `configure_logging(app=app)` for rich request metadata in all logs
   - Perfect request traceability across microservices with automatic trace ID propagation
+
+- **Story 5.4**: Multi-Sink Fan-out Support
+
+  - Logging now supports multiple sinks in parallel (fan-out) via the `FAPILOG_SINKS` environment variable or programmatic configuration.
+  - All sinks receive the same log event; failures in one sink do not block others (full error isolation).
+  - Internal runner uses `asyncio.gather(..., return_exceptions=True)` for concurrent, robust delivery.
+  - Misconfigured sinks raise errors at startup, not at runtime.
+  - Comprehensive unit tests in `tests/test_multi_sink.py` verify fan-out, error isolation, and startup validation.
+  - README updated with a dedicated "Multiple Sink Support" section and usage examples.
+
+- **Story 5.3**: Loki Sink via HTTP Push
+
+  - New `LokiSink` class in `fapilog/sinks/loki.py` for pushing logs to Grafana Loki over HTTP
+  - Supports `loki://` and `https://` URI-style config with `labels`, `batch_size`, and `batch_interval` parameters
+  - Buffers logs and pushes them in batches to `/loki/api/v1/push` using `httpx.AsyncClient`
+  - Each log is formatted as a Loki-compatible line: nanosecond timestamp and JSON-serialized event
+  - Failures are logged and retried with exponential backoff; clear ImportError if `httpx` is missing
+  - Unit tests verify batch formatting, buffering, label parsing, and retry logic
+  - README documents Loki support, configuration, and install instructions
+
 - **Story 5.2**: File Sink with Rotation Support
+
   - New `FileSink` class in `fapilog/sinks/file.py` with automatic log rotation using `logging.handlers.RotatingFileHandler`
   - URI-based configuration format: `file:///path/to/log.log?maxBytes=10485760&backupCount=5`
   - Configurable rotation parameters: `maxBytes` (default: 10 MB) and `backupCount` (default: 5)
@@ -170,7 +220,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated README with "File Sink" section documenting configuration, URI format, features, and production usage examples
   - Perfect for production environments requiring persistent logs with automatic size management
   - Support for multiple sinks simultaneously (e.g., `stdout,file:///var/log/app.log`)
+
 - **Story 5.1**: Stdout Sink Implementation
+
   - Enhanced `StdoutSink` class with new mode parameter supporting `"json"`, `"pretty"`, and `"auto"` options
   - Integration with `structlog.dev.ConsoleRenderer` for proper pretty console output with ANSI color codes
   - Automatic TTY detection in `auto` mode: pretty output in interactive terminals, JSON in non-interactive environments
@@ -181,15 +233,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated README with "Sink Configuration" section documenting stdout sink usage and mode selection behavior
   - Perfect for development (pretty logs in terminal) and production (JSON logs in Docker/Kubernetes)
   - Default sink behavior with proper integration into async queue system
-- **Story 5.3**: Loki Sink via HTTP Push
-  - New `LokiSink` class in `fapilog/sinks/loki.py` for pushing logs to Grafana Loki over HTTP
-  - Supports `loki://` and `https://` URI-style config with `labels`, `batch_size`, and `batch_interval` parameters
-  - Buffers logs and pushes them in batches to `/loki/api/v1/push` using `httpx.AsyncClient`
-  - Each log is formatted as a Loki-compatible line: nanosecond timestamp and JSON-serialized event
-  - Failures are logged and retried with exponential backoff; clear ImportError if `httpx` is missing
-  - Unit tests verify batch formatting, buffering, label parsing, and retry logic
-  - README documents Loki support, configuration, and install instructions
+
 - **Story 4.4**: Custom Enricher Registry and Hook Support
+
   - Global registry for custom enrichers in `fapilog/enrichers.py` with `register_enricher(fn)` and `clear_enrichers()` functions
   - Custom enrichers are automatically included at the end of the processor chain in registration order
   - Enricher functions follow structlog processor signature: `(logger, method_name, event_dict) → event_dict`
@@ -200,7 +246,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated README with "Custom Enrichers" section including usage examples and best practices
   - Enables application-specific metadata injection without modifying core library
   - Test isolation support via `clear_enrichers()` for clean test state
+
 - **Story 4.3**: Request Size & Response Size Enricher
+
   - New `body_size_enricher` processor that specifically adds `req_bytes` and `res_bytes` fields to log events
   - Request body size capture via `Content-Length` header or body size calculation
   - Response body size capture via `len(response.body)` when available
@@ -212,7 +260,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Integration with existing `TraceIDMiddleware` infrastructure for context variable management
   - Fields are only added if not already present, allowing manual override of values
   - Updated README "Log Fields" section already documents `req_bytes` and `res_bytes` fields
+
 - **Story 4.2**: Memory & CPU Snapshot Enricher
+
   - New `resource_snapshot_enricher` processor that adds `memory_mb` and `cpu_percent` fields to all log events
   - Memory usage capture via `psutil.Process().memory_info().rss` converted to megabytes (rounded float)
   - CPU usage capture via `psutil.Process().cpu_percent(interval=None)` as percentage (0.0-100.0)
@@ -227,7 +277,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Integration tests verifying pipeline inclusion/exclusion based on settings
   - Updated README with "Resource Metrics" section including configuration, dependencies, and performance considerations
   - Updated "Log Fields" documentation to include `memory_mb` and `cpu_percent` fields
+
 - **Story 4.1**: Hostname & Process Info Enricher
+
   - New `host_process_enricher` processor that adds `hostname` and `pid` fields to all log events
   - Automatic hostname detection via `socket.gethostname()` with performance caching using `@lru_cache`
   - Process ID capture via `os.getpid()` with caching for optimal performance
@@ -237,7 +289,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive unit tests covering field presence, manual override, caching, and edge cases
   - Updated README "Log Fields" section to document `hostname` and `pid` fields
   - Integration with existing processor pipeline ensuring consistent log format
+
 - **Story 3.4**: Load Testing the Logging Queue
+
   - Comprehensive load testing script (`scripts/load_test_log_queue.py`) for simulating high-throughput logging scenarios
   - Configurable test parameters via CLI arguments or environment variables: concurrency, rate, duration, queue settings
   - Performance metrics tracking: total logs attempted, successfully enqueued, dropped logs, average enqueue latency
@@ -248,7 +302,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Environment variable support for all test parameters: `LOAD_TEST_CONCURRENCY`, `LOAD_TEST_RATE`, `LOAD_TEST_DURATION`, etc.
   - Detailed test output with min/max latency, throughput analysis, and queue configuration summary
   - No external dependencies beyond `fapilog` and standard library modules
+
 - **Story 3.3**: Queue Overflow Strategy: Drop, Block, or Sample
+
   - Configurable queue overflow handling via `LoggingSettings.queue_overflow` with three strategies:
     - `drop`: Silently discard logs when queue is full (default)
     - `block`: Wait for queue space before continuing (guaranteed delivery)
@@ -259,7 +315,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated README with "Controlling Queue Overflow Behavior" section and configuration examples
   - Environment variable support: `FAPILOG_QUEUE_OVERFLOW` for strategy selection
   - Integration with existing `sampling_rate` setting for sample strategy
+
 - **Story 3.2**: Background Queue Worker & Graceful Shutdown
+
   - Enhanced `QueueWorker` shutdown with proper event loop management and timeout handling
   - Added `shutdown_sync()` method for safe shutdown from sync contexts (atexit, CLI)
   - Fixed event loop conflicts during shutdown using `run_coroutine_threadsafe`
@@ -269,7 +327,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All tests now pass with robust async/sync shutdown handling
   - Updated test suite to use `@pytest.mark.asyncio` decorators for async tests
   - Fixed pytest-asyncio compatibility issues by pinning to version 0.23.6
+
 - **Story 3.1**: Non-Blocking In-Process Log Queue
+
   - Async log queue implementation using `asyncio.Queue` for non-blocking logging
   - Background `QueueWorker` coroutine that processes log events in batches
   - Graceful degradation: when queue is full, events are dropped silently to prevent blocking
@@ -278,21 +338,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive unit tests verifying queue behavior, capacity limits, and non-blocking performance
   - Queue configuration via environment variables: `FAPILOG_QUEUE_ENABLED`, `FAPILOG_QUEUE_SIZE`, `FAPILOG_QUEUE_BATCH_SIZE`, etc.
   - Updated README with "Async Logging Queue" section documenting performance benefits and configuration
-- **Story 2.3**: ContextVar Utilities & Leak Prevention
-  - ContextVar utilities for safe context management with `get_context()`, `bind_context()`, `clear_context()`, and `context_copy()` functions
-  - Automatic context propagation to background tasks using `asyncio.create_task(context_copy().run(func))`
-  - Context leak prevention ensuring separate requests receive different trace_ids
-  - Comprehensive unit tests for context utilities with 100% coverage
-  - Background task context propagation example in README
-- Request & Response Metadata Enricher with automatic capture of HTTP status codes, request/response body sizes, latency, and user-agent information
-- Automatic enrichment of all log events with `status_code`, `latency_ms`, `req_bytes`, `res_bytes`, and `user_agent` fields
-- Comprehensive unit tests for request/response metadata enrichment covering POST requests with bodies, GET requests without bodies, and out-of-context logging
-- Baseline unit tests with comprehensive coverage for core functionality
-- Coverage gate enforcing minimum 85% test coverage threshold
-- GitHub Actions CI workflow with automated test execution
-- Expanded test suite covering import/bootstrap path, settings validation, and processor pipeline
-- Test coverage reporting with HTML and terminal output
+
 - **Story 2.4**: Test Coverage for Middleware & Context Propagation
+
   - Achieved ≥90% enforced test coverage for `middleware.py` and `context.py` (trace propagation, request/response enrichment, context utilities)
   - Added/expanded tests for TraceIDMiddleware: header passthrough, trace generation, context cleanup, error handling, and idempotent registration
   - Verified request/response metadata enrichment (status code, latency, byte sizes, user-agent)
@@ -300,49 +348,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added tests for context propagation in background tasks and isolation between concurrent requests (no context leakage)
   - CI and local coverage gate now enforce 90%+ threshold; PRs below threshold will fail
   - Updated README with contributor instructions for running middleware/context tests and viewing coverage delta
-- **Story 5.4**: Multi-Sink Fan-out Support
-  - Logging now supports multiple sinks in parallel (fan-out) via the `FAPILOG_SINKS` environment variable or programmatic configuration.
-  - All sinks receive the same log event; failures in one sink do not block others (full error isolation).
-  - Internal runner uses `asyncio.gather(..., return_exceptions=True)` for concurrent, robust delivery.
-  - Misconfigured sinks raise errors at startup, not at runtime.
-  - Comprehensive unit tests in `tests/test_multi_sink.py` verify fan-out, error isolation, and startup validation.
-  - README updated with a dedicated "Multiple Sink Support" section and usage examples.
 
-### Added
+- **Story 2.3**: ContextVar Utilities & Leak Prevention
 
-- **Story 7.2**: Automatic PII Redaction
-  - New regex-based PII scanner as a post-processor in the logging pipeline
-  - Automatically detects and redacts common sensitive values, including:
-    - Email addresses
-    - Credit card numbers (basic pattern, not Luhn)
-    - Phone numbers
-    - IPv4 addresses
-  - Patterns are configurable via settings (`custom_pii_patterns`, `enable_auto_redact_pii`)
-  - Redaction happens recursively across all string values in the event_dict
-  - Uses the same `REDACT_REPLACEMENT` setting as field redaction
-  - Unit tests confirm detection, replacement, and opt-out behavior
-  - README includes explanation, limitations, and opt-out instructions
-
-### Changed
-
-- Enhanced test_import.py with actual log.info call testing
-- Improved test organization and coverage reporting
-
-### Fixed
-
-- None
-
-### Removed
-
-- None
-
-## [0.1.0] - 2024-01-01
-
-### Added
-
-- Initial release of fapilog library
-- Core logging functionality with structured JSON output
-- FastAPI middleware integration
-- Configurable sinks (stdout, loki)
-- Environment-based configuration
-- Pydantic V2 settings management
+  - ContextVar utilities for safe context management with `get_context()`, `bind_context()`, `clear_context()`, and `context_copy()` functions
+  - Automatic context propagation to background tasks using `asyncio.create_task(context_copy().run(func))`
+  - Context leak prevention ensuring separate requests receive different trace_ids
+  - Comprehensive unit tests for context utilities with 100% coverage
+  - Background task context propagation example in README
+  - Request & Response Metadata Enricher with automatic capture of HTTP status codes, request/response body sizes, latency, and user-agent information
+  - Automatic enrichment of all log events with `status_code`, `latency_ms`, `req_bytes`, `res_bytes`, and `user_agent` fields
+  - Comprehensive unit tests for request/response metadata enrichment covering POST requests with bodies, GET requests without bodies, and out-of-context logging
+  - Baseline unit tests with comprehensive coverage for core functionality
+  - Coverage gate enforcing minimum 85% test coverage threshold
+  - GitHub Actions CI workflow with automated test execution
+  - Expanded test suite covering import/bootstrap path, settings validation, and processor pipeline
+  - Test coverage reporting with HTML and terminal output
