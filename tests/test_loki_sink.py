@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+
 from fapilog.sinks.loki import (
     LokiSink,
     create_loki_sink_from_uri,

@@ -3,6 +3,7 @@ import os
 import tempfile
 
 import pytest
+
 from fapilog.sinks.file import (
     FileSink,
     create_file_sink_from_uri,

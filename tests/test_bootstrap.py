@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 import pytest
 import structlog
+
 from fapilog.bootstrap import configure_logging, reset_logging
 from fapilog.settings import LoggingSettings
 

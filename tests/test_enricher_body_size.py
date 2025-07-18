@@ -1,5 +1,8 @@
 """Tests for body size enricher."""
 
+from fastapi import FastAPI
+from starlette.testclient import TestClient
+
 from fapilog._internal.context import (
     bind_context,
     clear_context,
@@ -8,8 +11,6 @@ from fapilog._internal.context import (
 )
 from fapilog.bootstrap import configure_logging
 from fapilog.enrichers import body_size_enricher
-from fastapi import FastAPI
-from starlette.testclient import TestClient
 
 
 def make_app():
