@@ -5,18 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.1] - 2024-01-XX
-
-### Added
-
-- **Story 10.3**: Version Bump Guardrails
-  - Added automated guardrails to ensure proper version bumps and changelog updates on release commits
-  - CI fails if release commits are missing version bumps in `pyproject.toml`
-  - CI fails if release commits do not update `CHANGELOG.md`
-  - Pre-commit hook warns when merging to `main` without proper changelog or version bump
-  - Contributing guide documents release process requirements
-  - Release checklist includes confirmation step for guardrails
-
 ## [Unreleased]
 
 ### Added

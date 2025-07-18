@@ -55,7 +55,7 @@ class TestReleaseGuardrails:
         assert version is not None
         assert isinstance(version, str)
         # Should match current version in pyproject.toml
-        assert version == "0.1.1"
+        assert version == "0.1.0"
 
     def test_get_pyproject_version_missing_file(self, tmp_path):
         """Test handling missing pyproject.toml file."""
@@ -92,9 +92,9 @@ class TestReleaseGuardrails:
 
     def test_check_release_guardrails_release_commit_success(self):
         """Test guardrails check with valid release commit."""
-        # This test assumes the current version in pyproject.toml is 0.1.1
+        # This test assumes the current version in pyproject.toml is 0.1.0
         # and that version exists in CHANGELOG.md
-        success, message = check_release_guardrails("chore(release): v0.1.1")
+        success, message = check_release_guardrails("chore(release): v0.1.0")
         assert success is True
         assert "All checks passed" in message
 
@@ -123,7 +123,7 @@ class TestReleaseGuardrails:
 
     def test_check_release_guardrails_with_commit_msg_param(self):
         """Test guardrails check with explicit commit message parameter."""
-        success, message = check_release_guardrails("chore(release): v0.1.1")
+        success, message = check_release_guardrails("chore(release): v0.1.0")
         assert success is True
         assert "All checks passed" in message
 
@@ -134,7 +134,7 @@ class TestReleaseGuardrails:
         def mock_git_log(*args, **kwargs):
             class MockResult:
                 def __init__(self):
-                    self.stdout = "chore(release): v0.1.1\n"
+                    self.stdout = "chore(release): v0.1.0\n"
                     self.returncode = 0
 
                 def check(self):
