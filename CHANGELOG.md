@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Story 11.2**: Manual PyPI Publishing
+
+  - Enhanced `RELEASING.md` with comprehensive manual PyPI publishing instructions including PyPI account setup, secure credential storage, and step-by-step upload process
+  - Added detailed sections for TestPyPI testing, production PyPI upload, and troubleshooting common issues
+  - Created `scripts/publish_to_pypi.py` helper script that validates build artifacts, checks credentials, and provides guided publishing workflow
+  - Updated README.md with proper PyPI badge using dynamic version detection and comprehensive installation instructions including optional dependencies
+  - Added installation examples for different use cases: `pip install fapilog[loki]`, `pip install fapilog[fastapi]`, `pip install fapilog[metrics]`, `pip install fapilog[dev]`
+  - Verified build process works correctly: `python -m build` produces valid wheel and sdist artifacts in `dist/`
+  - Confirmed `twine check dist/*` passes validation for both wheel and source distribution
+  - Tested local installation: `pip install dist/fapilog-0.1.0-py3-none-any.whl` succeeds and `import fapilog` works
+  - Added `__version__` attribute to `fapilog/__init__.py` for proper version detection
+  - Ready for manual PyPI publishing with secure credential storage via `~/.pypirc` or environment variables
+  - Complete documentation for repeatable manual publishing process with proper Git tagging workflow
+
 - **Story 11.1**: Public Package Metadata
 
   - Enhanced `pyproject.toml` with comprehensive package metadata for PyPI discovery and distribution

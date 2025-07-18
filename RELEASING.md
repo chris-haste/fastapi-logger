@@ -8,6 +8,23 @@ This document outlines the manual release process for fapilog following [Semanti
 - Verify all tests pass: `hatch run test:test`
 - Ensure linting passes: `hatch run lint:lint`
 - Verify type checking passes: `hatch run typecheck:typecheck`
+- Install build tools: `pip install build twine`
+
+## Helper Script
+
+For guided PyPI publishing, use the helper script:
+
+```bash
+python scripts/publish_to_pypi.py
+```
+
+This script will:
+
+- Check prerequisites (build, twine)
+- Build the package
+- Validate build artifacts
+- Check credentials
+- Provide step-by-step guidance
 
 ## Release Process
 
@@ -93,17 +110,137 @@ This document outlines the manual release process for fapilog following [Semanti
    python -c "import fapilog; print('Installation successful')"
    ```
 
-### 4. (Optional) Manual PyPI Upload
+### 4. Manual PyPI Publishing
 
-For now, PyPI uploads are manual. Future automation will be added.
+This section covers the complete manual PyPI publishing process for fapilog.
+
+#### 4.1 PyPI Account Setup
+
+1. **Create PyPI Account**
+
+   - Visit [PyPI](https://pypi.org/account/register/) and create an account
+   - Verify your email address
+
+2. **Create TestPyPI Account**
+
+   - Visit [TestPyPI](https://test.pypi.org/account/register/) and create an account
+   - This is for testing releases before publishing to production PyPI
+
+3. **Generate API Token**
+   - Go to [PyPI Account Settings](https://pypi.org/manage/account/)
+   - Click "Add API token"
+   - Give it a name like "fapilog-upload-token"
+   - Copy the token (format: `pypi-AgEI...`)
+
+#### 4.2 Secure Credential Storage
+
+**Option A: Using ~/.pypirc (Recommended)**
+
+Create `~/.pypirc` file:
+
+```ini
+[distutils]
+index-servers =
+    pypi
+    testpypi
+
+[pypi]
+username = __token__
+password = pypi-AgEI...your-token-here...
+
+[testpypi]
+repository = https://test.pypi.org/legacy/
+username = __token__
+password = pypi-AgEI...your-test-token-here...
+```
+
+**Option B: Environment Variables**
 
 ```bash
-# Upload to PyPI (requires PyPI credentials)
-python -m twine upload dist/*
-
-# Or upload to TestPyPI first
-python -m twine upload --repository testpypi dist/*
+export TWINE_USERNAME=__token__
+export TWINE_PASSWORD=pypi-AgEI...your-token-here...
 ```
+
+**Option C: Interactive (Less Secure)**
+
+```bash
+# Twine will prompt for credentials
+python -m twine upload dist/*
+```
+
+#### 4.3 TestPyPI Upload and Verification
+
+1. **Upload to TestPyPI**
+
+   ```bash
+   python -m twine upload --repository testpypi dist/*
+   ```
+
+2. **Install from TestPyPI**
+
+   ```bash
+   pip install -i https://test.pypi.org/simple/ fapilog
+   python -c "import fapilog; print('TestPyPI installation successful')"
+   ```
+
+3. **Verify Package Metadata**
+   - Visit [TestPyPI fapilog page](https://test.pypi.org/project/fapilog/)
+   - Check that description, classifiers, and URLs are correct
+   - Verify version matches `pyproject.toml`
+
+#### 4.4 Production PyPI Upload
+
+1. **Upload to PyPI**
+
+   ```bash
+   python -m twine upload dist/*
+   ```
+
+2. **Verify Upload**
+
+   ```bash
+   pip install fapilog
+   python -c "import fapilog; print('PyPI installation successful')"
+   ```
+
+3. **Check PyPI Page**
+   - Visit [PyPI fapilog page](https://pypi.org/project/fapilog/)
+   - Verify all metadata is correct
+   - Check that README renders properly
+
+#### 4.5 Troubleshooting PyPI Uploads
+
+**Common Issues:**
+
+1. **Package already exists**
+
+   ```bash
+   # Check if version already exists
+   pip index versions fapilog
+
+   # If version exists, bump version in pyproject.toml
+   # Then rebuild and upload
+   python -m build
+   python -m twine upload dist/*
+   ```
+
+2. **Authentication errors**
+
+   ```bash
+   # Verify token is correct
+   # Check ~/.pypirc file permissions (should be 600)
+   chmod 600 ~/.pypirc
+   ```
+
+3. **Metadata validation errors**
+
+   ```bash
+   # Check package metadata
+   python -m twine check dist/*
+
+   # Verify pyproject.toml is valid
+   python -c "import tomllib; tomllib.load(open('pyproject.toml', 'rb'))"
+   ```
 
 ## Version Numbering
 
