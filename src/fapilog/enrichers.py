@@ -7,6 +7,7 @@ from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Callable, Dict, List
 
 from ._internal.context import get_context
+from .exceptions import ConfigurationError
 
 if TYPE_CHECKING:
     import psutil
@@ -355,9 +356,12 @@ def register_enricher(fn: Callable[..., Any]) -> None:
     params = list(sig.parameters.keys())
 
     if len(params) != 3 or params != ["logger", "method_name", "event_dict"]:
-        raise ValueError(
+        raise ConfigurationError(
             f"Enricher function must have signature "
-            f"(logger, method_name, event_dict), got {params}"
+            f"(logger, method_name, event_dict), got {params}",
+            "enricher_signature",
+            params,
+            "(logger, method_name, event_dict)",
         )
 
     # Check if function is already registered (by reference)

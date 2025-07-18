@@ -7,6 +7,12 @@ from typing import Any, Dict, List, Literal, Optional
 
 import structlog
 
+from .error_handling import (
+    handle_queue_error,
+    log_error_with_context,
+    retry_with_backoff_async,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -206,30 +212,57 @@ class QueueWorker:
 
     async def _process_event(self, event: Dict[str, Any]) -> None:
         """Process a single event with retry logic."""
-        for attempt in range(self.max_retries + 1):
-            try:
-                # Write to all sinks
-                results = await asyncio.gather(
-                    *[sink.write(event) for sink in self.sinks],
-                    return_exceptions=True,
+
+        async def process_event_with_sinks() -> None:
+            """Process event by writing to all sinks."""
+            # Write to all sinks
+            results = await asyncio.gather(
+                *[sink.write(event) for sink in self.sinks],
+                return_exceptions=True,
+            )
+
+            # Check if any sink failed
+            exceptions = [r for r in results if isinstance(r, Exception)]
+            if exceptions:
+                # Log individual sink failures for debugging
+                for i, result in enumerate(results):
+                    if isinstance(result, Exception):
+                        sink_config = {
+                            "sink_index": i,
+                            "sink_type": type(self.sinks[i]).__name__,
+                        }
+                        log_error_with_context(result, sink_config, logging.WARNING)
+
+                # Raise the first exception with context about all failures
+                first_exception = exceptions[0]
+                raise handle_queue_error(
+                    first_exception,
+                    "process_event",
+                    {
+                        "event_keys": list(event.keys()),
+                        "total_sinks": len(self.sinks),
+                        "failed_sinks": len(exceptions),
+                    },
                 )
 
-                # Check if any sink failed
-                exceptions = [r for r in results if isinstance(r, Exception)]
-                if exceptions:
-                    raise exceptions[0]  # Raise the first exception
-
-                break  # Success, exit retry loop
-            except Exception as e:
-                if attempt == self.max_retries:
-                    logger.error(
-                        f"Failed to process event after {self.max_retries} retries: {e}"
-                    )
-                else:
-                    logger.warning(
-                        f"Retrying event processing (attempt {attempt + 1}): {e}"
-                    )
-                    await asyncio.sleep(self.retry_delay * (2**attempt))
+        try:
+            await retry_with_backoff_async(
+                process_event_with_sinks,
+                max_retries=self.max_retries,
+                base_delay=self.retry_delay,
+                error_handler=lambda e: handle_queue_error(
+                    e, "process_event", {"event_keys": list(event.keys())}
+                ),
+            )
+        except Exception as e:
+            # Final failure after all retries
+            queue_state = {
+                "queue_size": self.queue.qsize(),
+                "max_retries": self.max_retries,
+                "retry_delay": self.retry_delay,
+                "total_sinks": len(self.sinks),
+            }
+            raise handle_queue_error(e, "process_event", queue_state) from e
 
     async def enqueue(self, event_dict: Dict[str, Any]) -> bool:
         """Enqueue a log event.
@@ -240,6 +273,9 @@ class QueueWorker:
         Returns:
             True if the event was enqueued, False if the queue was full or
             shutting down
+
+        Raises:
+            QueueError: If enqueue operation fails unexpectedly
         """
         if self._stopping:
             return False
@@ -248,27 +284,36 @@ class QueueWorker:
         if self.sampling_rate < 1.0 and rnd.random() > self.sampling_rate:
             return False
 
-        if self.overflow_strategy == "drop":
-            # Drop strategy: try to enqueue, drop if full
-            try:
-                self.queue.put_nowait(event_dict)
-                return True
-            except asyncio.QueueFull:
-                return False
-        elif self.overflow_strategy == "block":
-            # Block strategy: wait until space is available
-            try:
-                await self.queue.put(event_dict)
-                return True
-            except asyncio.CancelledError:
-                return False
-        else:  # "sample"
-            # Sample strategy: use sampling rate for overflow
-            try:
-                self.queue.put_nowait(event_dict)
-                return True
-            except asyncio.QueueFull:
-                return False
+        try:
+            if self.overflow_strategy == "drop":
+                # Drop strategy: try to enqueue, drop if full
+                try:
+                    self.queue.put_nowait(event_dict)
+                    return True
+                except asyncio.QueueFull:
+                    return False
+            elif self.overflow_strategy == "block":
+                # Block strategy: wait until space is available
+                try:
+                    await self.queue.put(event_dict)
+                    return True
+                except asyncio.CancelledError:
+                    return False
+            else:  # "sample"
+                # Sample strategy: use sampling rate for overflow
+                try:
+                    self.queue.put_nowait(event_dict)
+                    return True
+                except asyncio.QueueFull:
+                    return False
+        except Exception as e:
+            # Unexpected error during enqueue
+            queue_state = {
+                "queue_size": self.queue.qsize(),
+                "overflow_strategy": self.overflow_strategy,
+                "sampling_rate": self.sampling_rate,
+            }
+            raise handle_queue_error(e, "enqueue", queue_state) from e
 
 
 # Global queue worker instance
@@ -314,6 +359,7 @@ def queue_sink(
             try:
                 loop = asyncio.get_running_loop()
                 loop.create_task(worker.start())
+                # Task is stored in the event loop, no need to keep reference
             except RuntimeError:
                 # No running loop, start it in a new thread
                 import threading

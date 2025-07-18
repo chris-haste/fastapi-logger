@@ -9,6 +9,7 @@ from fapilog.enrichers import (
     register_enricher,
     run_registered_enrichers,
 )
+from fapilog.exceptions import ConfigurationError
 
 
 def test_register_and_run_enricher():
@@ -137,21 +138,27 @@ def test_enricher_signature_validation():
     def wrong_signature_enricher(logger, method_name):
         return {}
 
-    with pytest.raises(ValueError, match="Enricher function must have signature"):
+    with pytest.raises(
+        ConfigurationError, match="Enricher function must have signature"
+    ):
         register_enricher(wrong_signature_enricher)
 
     # Test enricher with wrong parameter names
     def wrong_param_names_enricher(logger, method, event):
         return event
 
-    with pytest.raises(ValueError, match="Enricher function must have signature"):
+    with pytest.raises(
+        ConfigurationError, match="Enricher function must have signature"
+    ):
         register_enricher(wrong_param_names_enricher)
 
     # Test enricher with extra parameters
     def extra_params_enricher(logger, method_name, event_dict, extra_param):
         return event_dict
 
-    with pytest.raises(ValueError, match="Enricher function must have signature"):
+    with pytest.raises(
+        ConfigurationError, match="Enricher function must have signature"
+    ):
         register_enricher(extra_params_enricher)
 
 

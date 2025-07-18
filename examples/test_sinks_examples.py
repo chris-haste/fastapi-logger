@@ -16,6 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from fapilog import configure_logging
+from fapilog.exceptions import SinkError
 from fapilog.settings import LoggingSettings
 from fapilog.sinks.stdout import StdoutSink
 
@@ -268,6 +269,8 @@ def main():
         try:
             if test():
                 passed += 1
+        except SinkError as e:
+            print(f"Sink error: {e}")
         except Exception as e:
             print(f"✗ Test {test.__name__} failed with exception: {e}")
 

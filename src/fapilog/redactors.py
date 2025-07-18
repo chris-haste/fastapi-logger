@@ -2,6 +2,8 @@
 
 from typing import Any, Dict, List
 
+from .exceptions import RedactionError
+
 
 def _get_log_level_numeric(level: str) -> int:
     """Convert log level string to numeric value for comparison.
@@ -25,7 +27,7 @@ def _get_log_level_numeric(level: str) -> int:
     }
     level_upper = level.upper()
     if level_upper not in level_map:
-        raise ValueError(f"Unknown log level: {level}")
+        raise RedactionError(f"Unknown log level: {level}", "level", level)
     return level_map[level_upper]
 
 
@@ -43,7 +45,7 @@ def _should_redact_at_level(event_level: str, redact_level: str) -> bool:
         event_numeric = _get_log_level_numeric(event_level)
         redact_numeric = _get_log_level_numeric(redact_level)
         return event_numeric >= redact_numeric
-    except ValueError:
+    except (ValueError, RedactionError):
         # If either level is invalid, apply redaction as a safe default
         return True
 
@@ -94,54 +96,6 @@ def _set_nested_value(data: Dict[str, Any], path: str, value: Any) -> None:
 def _redact_nested_fields(
     data: Dict[str, Any], fields_to_redact: List[str], replacement: str = "REDACTED"
 ) -> Dict[str, Any]:
-    """Recursively redact fields from a nested dictionary.
-
-    Args:
-        data: The dictionary to redact
-        fields_to_redact: List of field paths to redact (supports dot notation)
-        replacement: Value to use for redacted fields
-
-    Returns:
-        A new dictionary with redacted fields
-    """
-    if not fields_to_redact:
-        return data
-
-    # Create a copy to avoid modifying the original
-    result = data.copy()
-
-    # Process each field to redact
-    for field_path in fields_to_redact:
-        if "." in field_path:
-            # Nested field - check if it exists and redact it
-            if _get_nested_value(result, field_path) is not None:
-                _set_nested_value(result, field_path, replacement)
-        else:
-            # Top-level field
-            if field_path in result:
-                result[field_path] = replacement
-
-    # Recursively process nested dictionaries and lists
-    for key, value in result.items():
-        if isinstance(value, dict):
-            result[key] = _redact_nested_fields(value, fields_to_redact, replacement)
-        elif isinstance(value, list):
-            # Handle lists of dictionaries
-            result[key] = [
-                (
-                    _redact_nested_fields(item, fields_to_redact, replacement)
-                    if isinstance(item, dict)
-                    else item
-                )
-                for item in value
-            ]
-
-    return result
-
-
-def _redact_nested_fields_v2(
-    data: Dict[str, Any], fields_to_redact: List[str], replacement: str = "REDACTED"
-) -> Dict[str, Any]:
     """Recursively redact fields from a nested dictionary with better list support.
 
     Args:
@@ -166,12 +120,12 @@ def _redact_nested_fields_v2(
     # Recursively process nested dictionaries and lists
     for key, value in result.items():
         if isinstance(value, dict):
-            result[key] = _redact_nested_fields_v2(value, fields_to_redact, replacement)
+            result[key] = _redact_nested_fields(value, fields_to_redact, replacement)
         elif isinstance(value, list):
             # Handle lists of dictionaries
             result[key] = [
                 (
-                    _redact_nested_fields_v2(item, fields_to_redact, replacement)
+                    _redact_nested_fields(item, fields_to_redact, replacement)
                     if isinstance(item, dict)
                     else item
                 )
@@ -253,6 +207,6 @@ def field_redactor(
         if not _should_redact_at_level(event_level, redact_level):
             return event_dict
 
-        return _redact_nested_fields_v2(event_dict, fields_to_redact, replacement)
+        return _redact_nested_fields(event_dict, fields_to_redact, replacement)
 
     return redactor_processor

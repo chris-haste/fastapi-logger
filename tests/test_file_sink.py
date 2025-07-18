@@ -4,6 +4,7 @@ import tempfile
 
 import pytest
 
+from fapilog.exceptions import ConfigurationError
 from fapilog.sinks.file import (
     FileSink,
     create_file_sink_from_uri,
@@ -47,16 +48,16 @@ async def test_rotation_behavior():
 @pytest.mark.asyncio
 async def test_invalid_uri_handling():
     # Invalid scheme
-    with pytest.raises(ValueError):
+    with pytest.raises(ConfigurationError):
         parse_file_uri("notafile:///tmp/foo.log")
     # Missing path
-    with pytest.raises(ValueError):
+    with pytest.raises(ConfigurationError):
         parse_file_uri("file://")
     # Invalid maxBytes
-    with pytest.raises(ValueError):
+    with pytest.raises(ConfigurationError):
         parse_file_uri("file:///tmp/foo.log?maxBytes=abc")
     # Invalid backupCount
-    with pytest.raises(ValueError):
+    with pytest.raises(ConfigurationError):
         parse_file_uri("file:///tmp/foo.log?backupCount=-1")
 
 
@@ -137,8 +138,8 @@ async def test_file_sink_close_safety():
 
 
 def test_parse_file_uri_generic_exception_handling():
-    # Test that generic exceptions are wrapped in ValueError
+    # Test that generic exceptions are wrapped in ConfigurationError
     # This tests the final except block in parse_file_uri
-    with pytest.raises(ValueError, match="Invalid file URI"):
+    with pytest.raises(ConfigurationError, match="Invalid file URI"):
         # This will cause a generic exception in urlparse
         parse_file_uri("file://invalid[uri")

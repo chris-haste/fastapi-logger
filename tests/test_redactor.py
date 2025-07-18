@@ -3,7 +3,6 @@
 from fapilog.redactors import (
     _get_nested_value,
     _redact_nested_fields,
-    _redact_nested_fields_v2,
     _set_nested_value,
     field_redactor,
 )
@@ -120,7 +119,7 @@ class TestRedactNestedFields:
         }
         fields_to_redact = ["users.password"]
 
-        result = _redact_nested_fields_v2(data, fields_to_redact)
+        result = _redact_nested_fields(data, fields_to_redact)
 
         assert result["users"][0]["password"] == "REDACTED"
         assert result["users"][1]["password"] == "REDACTED"
@@ -148,7 +147,7 @@ class TestRedactNestedFields:
             "global_config.admin_token",
         ]
 
-        result = _redact_nested_fields_v2(data, fields_to_redact)
+        result = _redact_nested_fields(data, fields_to_redact)
 
         # Check that all sensitive fields are redacted
         assert result["users"][0]["credentials"]["password"] == "REDACTED"
@@ -183,7 +182,7 @@ class TestRedactNestedFields:
         }
         fields_to_redact = ["items.secret"]
 
-        result = _redact_nested_fields_v2(data, fields_to_redact)
+        result = _redact_nested_fields(data, fields_to_redact)
 
         assert result["items"][0]["secret"] == "REDACTED"
         assert result["items"][1] == "not_a_dict"  # Should remain unchanged
@@ -194,7 +193,7 @@ class TestRedactNestedFields:
         data = {}
         fields_to_redact = ["user.password"]
 
-        result = _redact_nested_fields_v2(data, fields_to_redact)
+        result = _redact_nested_fields(data, fields_to_redact)
 
         assert result == data  # Should remain unchanged
 
@@ -206,7 +205,7 @@ class TestRedactNestedFields:
         }
         fields_to_redact = ["user.password", "auth.token"]
 
-        result = _redact_nested_fields_v2(data, fields_to_redact)
+        result = _redact_nested_fields(data, fields_to_redact)
 
         assert result["user"]["password"] == "REDACTED"
         assert result["auth"]["token"] == "REDACTED"
@@ -233,7 +232,7 @@ class TestRedactNestedFields:
         }
         fields_to_redact = ["departments.employees.ssn"]
 
-        result = _redact_nested_fields_v2(data, fields_to_redact)
+        result = _redact_nested_fields(data, fields_to_redact)
 
         # Check that SSNs are redacted
         assert result["departments"][0]["employees"][0]["ssn"] == "REDACTED"

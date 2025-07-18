@@ -7,6 +7,7 @@ import pytest
 
 from fapilog._internal.queue import QueueWorker, Sink
 from fapilog.bootstrap import configure_logging, reset_logging
+from fapilog.exceptions import SinkError
 from fapilog.settings import LoggingSettings
 
 
@@ -244,16 +245,16 @@ class TestMultiSinkFunctionality:
         # Test with invalid file URI
         settings = LoggingSettings(sinks=["file://invalid/path/that/does/not/exist"])
 
-        with pytest.raises(RuntimeError) as exc_info:
+        with pytest.raises(SinkError) as exc_info:
             configure_logging(settings=settings)
-        assert "Failed to initialize file sink" in str(exc_info.value)
+        assert "Sink initialize failed for file" in str(exc_info.value)
 
         # Test with invalid Loki URI (without httpx)
         with patch("fapilog.sinks.loki.httpx", None):
             settings = LoggingSettings(sinks=["loki://loki:3100"])
-            with pytest.raises(RuntimeError) as exc_info:
+            with pytest.raises(SinkError) as exc_info:
                 configure_logging(settings=settings)
-            assert "Loki sink requires httpx" in str(exc_info.value)
+            assert "Sink initialize failed for loki" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_multiple_sinks_with_different_types(self) -> None:

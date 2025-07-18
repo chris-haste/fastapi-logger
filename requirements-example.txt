@@ -1,0 +1,26 @@
+# FastAPI Logger - Example Requirements
+# 
+# Choose one of the following installation patterns:
+
+# Basic installation (minimal dependencies)
+fapilog~=0.1.0
+
+# With Loki support for centralized logging
+fapilog[loki]~=0.1.0
+
+# With FastAPI integration helpers
+fapilog[fastapi]~=0.1.0
+
+# With system metrics support
+fapilog[metrics]~=0.1.0
+
+# For development and testing
+fapilog[dev]~=0.1.0
+
+# Strict version pinning (for exact reproducibility)
+# fapilog==0.1.0
+
+# Additional common dependencies for FastAPI projects
+fastapi>=0.100.0
+uvicorn[standard]>=0.20.0
+pydantic>=2.0.0 

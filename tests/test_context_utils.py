@@ -15,6 +15,7 @@ from fapilog._internal.context import (
     get_trace_id,
 )
 from fapilog.bootstrap import configure_logging
+from fapilog.exceptions import ContextError
 
 
 def test_get_context_returns_expected_keys():
@@ -164,8 +165,8 @@ def test_bind_context_partial_update():
 
 
 def test_bind_context_invalid_key():
-    """Test that bind_context() raises ValueError for invalid keys."""
-    with pytest.raises(ValueError, match="Invalid context key: invalid_key"):
+    """Test that bind_context() raises ContextError for invalid keys."""
+    with pytest.raises(ContextError, match="Invalid context key: invalid_key"):
         bind_context(invalid_key="value")
 
 
