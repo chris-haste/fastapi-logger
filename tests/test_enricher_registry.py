@@ -3,7 +3,6 @@
 from unittest.mock import Mock
 
 import pytest
-
 from fapilog.enrichers import (
     clear_enrichers,
     register_enricher,

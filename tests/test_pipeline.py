@@ -4,7 +4,6 @@ from io import StringIO
 
 import pytest
 import structlog
-
 from fapilog.pipeline import build_processor_chain
 from fapilog.settings import LoggingSettings
 

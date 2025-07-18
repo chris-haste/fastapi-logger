@@ -1,7 +1,6 @@
 """Tests for user context enrichment functionality."""
 
 import pytest
-
 from fapilog._internal.context import (
     bind_user_context,
     clear_context,

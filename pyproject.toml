@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fapilog"
-version = "0.1.0"
+version = "0.1.1"
 description = "FastAPI logging middleware with structured logging and multiple sinks"
 readme = "README.md"
 license = {text = "MIT"}

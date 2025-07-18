@@ -1,11 +1,10 @@
 """Tests for trace middleware."""
 
 import pytest
-from fastapi import FastAPI
-from starlette.testclient import TestClient
-
 from fapilog.bootstrap import configure_logging
 from fapilog.middleware import TraceIDMiddleware, add_trace_exception_handler
+from fastapi import FastAPI
+from starlette.testclient import TestClient
 
 
 @pytest.mark.asyncio

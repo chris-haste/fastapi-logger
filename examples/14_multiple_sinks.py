@@ -24,11 +24,10 @@ import time
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-
 from fapilog import configure_logging, log
 from fapilog.settings import LoggingSettings
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
 
 class OrderRequest(BaseModel):

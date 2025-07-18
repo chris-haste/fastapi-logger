@@ -20,6 +20,10 @@ and makes it available in all log events during the request lifecycle.
 import asyncio
 from typing import Any, Dict, List, Optional
 
+from fapilog import configure_logging, log
+from fapilog._internal.context import bind_user_context
+from fapilog.enrichers import create_user_dependency
+from fapilog.settings import LoggingSettings
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import (
     HTTPAuthorizationCredentials,
@@ -27,11 +31,6 @@ from fastapi.security import (
     OAuth2PasswordBearer,
 )
 from pydantic import BaseModel
-
-from fapilog import configure_logging, log
-from fapilog._internal.context import bind_user_context
-from fapilog.enrichers import create_user_dependency
-from fapilog.settings import LoggingSettings
 
 
 # Pydantic models for different user representations
