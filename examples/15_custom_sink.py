@@ -286,7 +286,9 @@ def demonstrate_audit_logging():
 
     # Configure logging with standard sinks
     settings = LoggingSettings(
-        level="INFO", sinks=["stdout"], queue_enabled=True  # Standard sinks
+        level="INFO",
+        sinks=["stdout"],
+        queue_enabled=True,  # Standard sinks
     )
 
     logger = configure_logging(settings=settings)

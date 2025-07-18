@@ -1,6 +1,5 @@
 """Tests for field redaction functionality."""
 
-
 from fapilog.redactors import (
     _get_nested_value,
     _redact_nested_fields,

@@ -32,7 +32,7 @@ def main():
         log.info("Performance test event", event_number=i)
     duration = time.perf_counter() - start
     print(f"Enqueued {num_events} events in {duration:.3f} seconds")
-    print(f"Throughput: {num_events/duration:.1f} events/sec")
+    print(f"Throughput: {num_events / duration:.1f} events/sec")
 
     print("Waiting for queue to flush...")
     time.sleep(2)

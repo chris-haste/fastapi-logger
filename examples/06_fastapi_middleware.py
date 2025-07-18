@@ -189,7 +189,9 @@ async def correlation_example():
     for i in range(3):
         await asyncio.sleep(0.1)
         log.info(
-            f"Operation {i+1} completed", request_id=request_id, step=f"operation_{i+1}"
+            f"Operation {i + 1} completed",
+            request_id=request_id,
+            step=f"operation_{i + 1}",
         )
 
     log.info("Correlation example completed", request_id=request_id, step="complete")

@@ -43,6 +43,8 @@ dev = [
     "hatch>=1.0.0",
     "fastapi>=0.100.0",
     "httpx>=0.27.0",
+    "pre-commit>=3.0.0",
+    "vulture>=2.10.0",
 ]
 loki = [
     "httpx>=0.27.0",
@@ -164,4 +166,35 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
     "asyncio: marks tests as asyncio tests",
+]
+
+[tool.vulture]
+paths = ["src/", "tests/"]
+exclude = [
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/migrations/*",
+    "*/venv/*",
+    "*/env/*",
+    "*/build/*",
+    "*/dist/*",
+    "*/htmlcov/*",
+    "*/coverage/*",
+    "*/examples/*",  # Exclude examples as they may have unused code for demonstration
+]
+ignore_names = [
+    "unused_*",
+    "test_*",
+    "Test*",
+    "__*",
+    "main",
+    "app",
+    "logger",
+    "settings",
+    "config",
+]
+ignore_decorators = [
+    "pytest.fixture",
+    "pytest.mark.asyncio",
+    "asyncio.coroutine",
 ]

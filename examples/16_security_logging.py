@@ -31,9 +31,9 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
-from fapilog import bootstrap_logger
+from fapilog import configure_logging
 from fapilog.enrichers import create_user_dependency
-from fapilog.settings import LogSettings
+from fapilog.settings import LoggingSettings
 from fapilog.sinks.stdout import StdoutSink
 
 
@@ -63,9 +63,9 @@ class SecurityEvent(BaseModel):
 
 
 # Configure security-focused logger
-sink = StdoutSink(format="json")
-logger = bootstrap_logger(
-    settings=LogSettings(level="INFO", enable_resource_metrics=True), sinks=[sink]
+sink = StdoutSink(mode="json")
+logger = configure_logging(
+    settings=LoggingSettings(level="INFO", enable_resource_metrics=True), sinks=[sink]
 )
 
 security = HTTPBearer()

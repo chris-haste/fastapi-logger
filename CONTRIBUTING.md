@@ -146,15 +146,26 @@ tox -e py311
 
 ### Pre-commit Hooks
 
-```bash
-# Install pre-commit
-pip install pre-commit
+This project uses pre-commit hooks to ensure code quality. The hooks include:
 
-# Install hooks
+- **Ruff** - Linting and code formatting
+- **MyPy** - Type checking
+- **Vulture** - Dead code detection
+
+```bash
+# Install development dependencies (includes pre-commit)
+pip install -e ".[dev]"
+
+# Install the git hooks
 pre-commit install
 
-# Run manually
+# Run manually on all files
 pre-commit run --all-files
+
+# Run specific hooks
+pre-commit run ruff --all-files
+pre-commit run mypy --all-files
+pre-commit run vulture --all-files
 ```
 
 ### Local Validation
@@ -165,6 +176,9 @@ hatch run lint:lint
 
 # Type check
 hatch run typecheck:typecheck
+
+# Dead code detection
+vulture src/ tests/
 
 # Security scan
 bandit -r src/

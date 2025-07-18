@@ -1,0 +1,65 @@
+# Vulture whitelist for fapilog
+# Functions and variables that are legitimate despite appearing unused
+
+# Public API functions that are used by consumers
+context_copy
+get_span_id
+get_user_id
+get_user_roles
+get_auth_scheme
+set_trace_context
+reset_trace_context
+set_request_metadata
+set_response_metadata
+reset_request_metadata
+reset_response_metadata
+
+# Queue-related functions used by the async system
+stop
+queue_sink_async
+
+# Bootstrap functions for library configuration
+reset_logging
+
+# Enricher functions used by the pipeline system
+create_user_dependency
+register_enricher
+clear_enrichers
+
+# HTTPX patch functions for trace propagation
+disable_httpx_trace_propagation
+is_httpx_trace_propagation_enabled
+
+# Middleware functions used by FastAPI
+add_trace_exception_handler
+trace_exception_handler
+dispatch
+
+# Pydantic model configuration and validation methods
+model_config
+parse_sinks
+parse_redact_patterns
+parse_redact_fields
+parse_custom_pii_patterns
+validate_redact_level
+validate_level
+validate_json_console
+validate_sampling_rate
+validate_queue_maxsize
+validate_queue_batch_size
+validate_queue_batch_timeout
+validate_queue_retry_delay
+validate_queue_max_retries
+validate_queue_overflow
+
+# Loki sink attributes used internally
+_last_flush
+_flush_task
+
+# Import and variable declarations for conditional imports
+Response
+FASTAPI_AVAILABLE
+exc
+
+# Pydantic validator parameters (required by decorator)
+cls 

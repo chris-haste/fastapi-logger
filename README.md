@@ -74,6 +74,29 @@ hatch run test
 - `hatch run test-cov` - Run tests with coverage report
 - `hatch run test-queue-load` - Run load testing for logging queue
 
+### Pre-commit Hooks
+
+This project uses pre-commit hooks to ensure code quality. The hooks run automatically on staged files and include:
+
+- **Ruff** - Linting and code formatting
+- **MyPy** - Type checking
+- **Vulture** - Dead code detection
+
+**Setup:**
+
+```bash
+# Install pre-commit (included in dev dependencies)
+pip install -e ".[dev]"
+
+# Install the git hooks
+pre-commit install
+
+# Run manually on all files
+pre-commit run --all-files
+```
+
+**Note:** The pre-commit hooks will run automatically on staged files when you commit. You can also run them manually using the commands above.
+
 ---
 
 ## 🛠 How It Works
