@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Story 9.2**: Pre-commit Hooks for Linting and Type-checking
+
+  - Added `.pre-commit-config.yaml` with Ruff for linting and formatting, MyPy for type checking, and Vulture for dead code detection
+  - Pre-commit hooks run automatically on staged files to catch issues before commit
+  - Added `pre-commit>=3.0.0` and `vulture>=2.10.0` to dev dependencies in `pyproject.toml`
+  - Updated README with pre-commit setup instructions and usage examples
+  - Hooks configured to use project's existing Ruff and MyPy settings from `pyproject.toml`
+  - Added comprehensive Vulture configuration with whitelist for legitimate unused code
+  - Fixed example file `examples/16_security_logging.py` to use correct API imports
+  - All hooks pass successfully on clean repository with no linting, type, or dead code errors
+  - Developers can run `pre-commit install` to set up local git hooks
+  - Manual execution available via `pre-commit run --all-files` for full codebase validation
+
 - **Story 9.1**: CI Setup with GitHub Actions
 
   - Added comprehensive GitHub Actions workflow (`.github/workflows/ci.yml`) for automated testing and quality checks

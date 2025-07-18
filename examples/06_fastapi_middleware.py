@@ -10,10 +10,9 @@ propagated through the logging system.
 import asyncio
 import time
 
-from fastapi import FastAPI, HTTPException, Request
-
 from fapilog import configure_logging, log
 from fapilog.settings import LoggingSettings
+from fastapi import FastAPI, HTTPException, Request
 
 
 def create_app() -> FastAPI:
