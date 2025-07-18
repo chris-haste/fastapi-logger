@@ -490,7 +490,8 @@ class TestQueueSink:
             with pytest.raises(structlog.DropEvent):
                 queue_sink(None, "info", event)
 
-    def test_queue_sink_overflow_sample_mode(self) -> None:
+    @pytest.mark.asyncio
+    async def test_queue_sink_overflow_sample_mode(self) -> None:
         """Test queue_sink with sample overflow strategy."""
         worker = QueueWorker(
             sinks=[MockSink()],
@@ -500,16 +501,23 @@ class TestQueueSink:
         )
         set_queue_worker(worker)
 
-        # Fill the queue
-        event1 = {"level": "info", "event": "event_1"}
-        with pytest.raises(structlog.DropEvent):
-            queue_sink(None, "info", event1)
+        # Start the worker
+        await worker.start()
 
-        # Try to enqueue more events with sampling
-        for i in range(10):
-            event = {"level": "info", "event": f"sample_{i}"}
+        try:
+            # Fill the queue
+            event1 = {"level": "info", "event": "event_1"}
             with pytest.raises(structlog.DropEvent):
-                queue_sink(None, "info", event)
+                queue_sink(None, "info", event1)
+
+            # Try to enqueue more events with sampling
+            for i in range(10):
+                event = {"level": "info", "event": f"sample_{i}"}
+                with pytest.raises(structlog.DropEvent):
+                    queue_sink(None, "info", event)
+        finally:
+            # Properly shut down the worker
+            await worker.shutdown()
 
 
 class TestQueueIntegration:
