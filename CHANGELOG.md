@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.0] - 2024-12-19
 
 ### Changed
 
@@ -68,8 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Story 11.1**: Public Package Metadata
 
   - Enhanced `pyproject.toml` with comprehensive package metadata for PyPI discovery and distribution
-  - Updated project description to "Structured, enriched logging for FastAPI and ASGI apps" for better clarity
-  - Added keywords array: `["fastapi", "logging", "structured", "asyncio", "middleware", "observability", "json", "loki"]` for improved PyPI searchability
+  - Updated project description to "Production-ready structured logging for FastAPI with trace IDs, async queues, and observability integration" for better clarity
+  - Added keywords array: `["fastapi", "logging", "structured", "asyncio", "middleware", "observability", "json", "loki", "tracing", "monitoring", "microservices", "production", "context", "correlation", "distributed", "cloud-native", "opentelemetry"]` for improved PyPI searchability
   - Added metadata badges to README.md: License (MIT), Python version support (3.8+), and PyPI version (0.1.0)
   - Verified build artifacts pass `python -m build` and `twine check dist/*` validation
   - All required metadata fields present: name, version, description, readme, license, authors, dependencies, classifiers
@@ -198,9 +198,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive unit tests (14 tests) in `tests/test_user_context.py` covering authentication scenarios, type conversions, edge cases, and FastAPI integration
   - Updated README with "User Context Enrichment" section documenting FastAPI integration, configuration, and usage examples
   - New example `examples/18_user_context_enrichment.py` demonstrating real-world authentication scenarios
-  - Updated security logging example `examples/16_security_logging.py` to use user context enrichment
-  - Zero-configuration setup: wrap existing auth dependencies with `create_user_dependency()` for automatic user context
-  - Perfect for security auditing, user behavior analysis, and troubleshooting user-specific issues
+
+## [Unreleased]
+
+- Updated security logging example `examples/16_security_logging.py` to use user context enrichment
+- Zero-configuration setup: wrap existing auth dependencies with `create_user_dependency()` for automatic user context
+- Perfect for security auditing, user behavior analysis, and troubleshooting user-specific issues
 
 - **Story 6.1**: Context Enricher: Request Metadata
 
