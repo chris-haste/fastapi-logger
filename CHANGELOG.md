@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Story 13.3**: Standardize Error Handling Patterns Across Codebase
+
+  - Implemented comprehensive error handling system with 7 custom exception classes for different error types
+  - Added `FapilogError` base class with context support and sensitive data filtering
+  - Created specialized exceptions: `ConfigurationError`, `SinkError`, `QueueError`, `MiddlewareError`, `RedactionError`, `ContextError`
+  - Built error handling utilities in `src/fapilog/_internal/error_handling.py` with context preservation and logging
+  - Added advanced error recovery mechanisms: graceful degradation, retry with exponential backoff, safe execution
+  - Updated all modules to use standardized error handling: bootstrap, queue, loki sink, middleware, redactors, enrichers
+  - Implemented user-friendly error messages with rich context information and automatic sensitive data filtering
+  - Added comprehensive error tests (55 test cases) covering all error scenarios with 96% test coverage
+  - Enhanced error logging with `log_error_with_context()` for better debugging and troubleshooting
+  - All error handling follows FastAPI and Pydantic V2 best practices with full async support
+  - Maintains backward compatibility while providing robust error recovery and graceful degradation
+  - Perfect for production environments requiring reliable error handling and user-friendly error messages
+
 ### Added
 
 - **Story 11.3**: Install Instructions & Version Pinning
