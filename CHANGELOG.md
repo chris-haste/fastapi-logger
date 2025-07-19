@@ -26,6 +26,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Story 11.4**: Trusted Publishing with GitHub Actions
+
+  - Implemented automated PyPI publishing using GitHub Actions with Trusted Publishing (OIDC) for secure, token-free releases
+  - Created `.github/workflows/publish.yml` workflow that triggers on version tags (`v*`) and automatically publishes to PyPI
+  - Added version consistency validation ensuring tag version matches `pyproject.toml` version before publishing
+  - Integrated build artifact verification checking both wheel (`.whl`) and source distribution (`.tar.gz`) are created
+  - Enhanced security by eliminating need for API tokens through PyPI's Trusted Publishing feature
+  - Updated `RELEASING.md` with simplified automated release process documentation removing manual upload steps
+  - Workflow includes comprehensive error handling and validation steps with clear logging for troubleshooting
+  - Publishing process now requires only: version bump, changelog update, commit, tag creation, and tag push
+  - GitHub Actions automatically handles building, verification, and PyPI upload with full audit trail
+  - Maintains backward compatibility with manual publishing process for testing purposes
+
 - **Story 11.3**: Install Instructions & Version Pinning
 
   - Enhanced README.md Installation section with comprehensive version pinning guidance for production deployments

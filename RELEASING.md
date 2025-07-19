@@ -1,6 +1,10 @@
 # Releasing fapilog
 
-This document outlines the manual release process for fapilog following [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+This document outlines the automated release process for fapilog following [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## Automated PyPI Publishing
+
+Starting with the implementation of Trusted Publishing, fapilog now uses GitHub Actions to automatically publish releases to PyPI when version tags are pushed. This eliminates the need for manual uploads and API token management.
 
 ## Prerequisites
 
@@ -8,25 +12,27 @@ This document outlines the manual release process for fapilog following [Semanti
 - Verify all tests pass: `hatch run test:test`
 - Ensure linting passes: `hatch run lint:lint`
 - Verify type checking passes: `hatch run typecheck:typecheck`
-- Install build tools: `pip install build twine`
 
-## Helper Script
+## How Automated Publishing Works
 
-For guided PyPI publishing, use the helper script:
+The automated publishing process uses:
+
+- **Trusted Publishing (OIDC)**: No API tokens required - PyPI trusts GitHub Actions directly
+- **Version Validation**: Ensures tag version matches `pyproject.toml` version
+- **Artifact Verification**: Builds and validates both wheel and source distributions
+- **Automatic Triggers**: Publishes when a valid version tag is pushed
+
+## Legacy Helper Script
+
+For manual publishing or testing purposes, you can still use the helper script:
 
 ```bash
 python scripts/publish_to_pypi.py
 ```
 
-This script will:
+**Note**: This manual approach is no longer recommended for production releases.
 
-- Check prerequisites (build, twine)
-- Build the package
-- Validate build artifacts
-- Check credentials
-- Provide step-by-step guidance
-
-## Release Process
+## Automated Release Process
 
 ### 1. Prepare the Release
 
@@ -64,9 +70,10 @@ This script will:
    ```bash
    git add pyproject.toml CHANGELOG.md
    git commit -m "chore(release): vX.Y.Z"
+   git push origin main
    ```
 
-### 2. Create and Push the Tag
+### 2. Create and Push the Release Tag
 
 1. **Create a signed tag**
 
@@ -85,32 +92,38 @@ This script will:
    ```
 
 2. **Push the tag to GitHub**
+
    ```bash
    git push origin main --tags
    ```
 
-### 3. Build Release Artifacts
+   **🚀 That's it!** The GitHub Actions workflow will automatically:
 
-1. **Build the package**
+   - Verify the tag version matches `pyproject.toml`
+   - Build the package (both wheel and source distribution)
+   - Publish to PyPI using Trusted Publishing
+   - Provide build verification and upload confirmation
 
-   ```bash
-   python -m build
-   ```
+### 3. Verify the Release
 
-   This creates both wheel (`.whl`) and source distribution (`.tar.gz`) files in the `dist/` directory.
+After pushing the tag, you can:
 
-2. **Verify the build artifacts**
+1. **Monitor the GitHub Actions workflow**
 
-   ```bash
-   # List the created artifacts
-   ls -la dist/
+   - Go to the Actions tab in the GitHub repository
+   - Watch the "Publish to PyPI" workflow run
+   - Verify it completes successfully
 
-   # Test installation (optional)
-   pip install dist/fapilog-X.Y.Z-py3-none-any.whl
-   python -c "import fapilog; print('Installation successful')"
-   ```
+2. **Confirm PyPI publication**
+   - Visit [PyPI fapilog page](https://pypi.org/project/fapilog/)
+   - Verify the new version is available
+   - Test installation: `pip install fapilog=={new_version}`
 
-### 4. Manual PyPI Publishing
+## Package Name
+
+The package is published to PyPI as **`fapilog`**
+
+## Manual PyPI Publishing (Legacy)
 
 This section covers the complete manual PyPI publishing process for fapilog.
 
@@ -280,25 +293,26 @@ Before creating a release tag, perform a dry-run:
 
 ## Release Checklist
 
-- [ ] All tests pass
-- [ ] Linting passes
-- [ ] Type checking passes
+- [ ] All tests pass (`hatch run test:test`)
+- [ ] Linting passes (`hatch run lint:lint`)
+- [ ] Type checking passes (`hatch run typecheck:typecheck`)
 - [ ] Version bumped in `pyproject.toml`
 - [ ] CHANGELOG.md updated with new version section
-- [ ] Changes committed with proper message
+- [ ] Changes committed and pushed to main
 - [ ] Tag created and pushed
-- [ ] Build artifacts created successfully
-- [ ] Build artifacts verified (optional installation test)
+- [ ] GitHub Actions workflow completed successfully
+- [ ] New version visible on PyPI
+- [ ] Installation test successful (`pip install fapilog=={new_version}`)
 
-## Future Automation
+## Future Enhancements
 
-This manual process will be enhanced with:
+The automated publishing process could be further enhanced with:
 
-- GitHub Releases integration
-- Automated PyPI uploads
+- Automated GitHub Releases creation
 - Automated version bumping (e.g., with `bump2version` or `hatch`)
 - Automated changelog generation
 - Release notes generation from PRs
+- Automated pre-release publishing to TestPyPI
 
 ## Troubleshooting
 
