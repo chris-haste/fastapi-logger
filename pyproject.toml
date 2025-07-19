@@ -4,10 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fapilog"
-version = "0.1.1"
+version = "0.1.2"
 description = "Production-ready structured logging for FastAPI with trace IDs, async queues, and observability integration"
 readme = "README.md"
-license = {text = "MIT"}
+license = {text = "Apache-2.0"}
 authors = [
     {name = "FastAPI Logger Contributors", email = "contributors@fapilog.dev"}
 ]
@@ -19,7 +19,7 @@ keywords = [
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",

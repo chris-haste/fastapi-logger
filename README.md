@@ -1,7 +1,7 @@
 # FastAPI-Logger (`fapilog`)
 
 ![CI](https://github.com/chris-haste/fastapi-logger/actions/workflows/ci.yml/badge.svg)
-![License](https://img.shields.io/badge/License-MIT-blue.svg)
+![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![PyPI](https://img.shields.io/pypi/v/fapilog)
 

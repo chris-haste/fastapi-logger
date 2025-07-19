@@ -220,6 +220,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated README with "User Context Enrichment" section documenting FastAPI integration, configuration, and usage examples
   - New example `examples/18_user_context_enrichment.py` demonstrating real-world authentication scenarios
 
+## [0.1.2] - 2024-12-19
+
+### Fixed
+
+- Corrected license metadata from MIT to Apache-2.0 to match actual LICENSE file
+- Updated PyPI classifiers to show correct Apache Software License
+- Fixed README license badge to display Apache 2.0
+
 ## [Unreleased]
 
 - Updated security logging example `examples/16_security_logging.py` to use user context enrichment
