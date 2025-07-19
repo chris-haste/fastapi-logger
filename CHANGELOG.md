@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Story 12.4**: Configuration Guide & Examples
+
+  - Created comprehensive `docs/config.md` with complete reference for all configuration options
+  - Documented all 22 configuration fields with types, defaults, environment variables, and usage examples
+  - Organized settings into logical sections: Core Logging, Redaction, Queue, and Advanced settings
+  - Added sink-specific configuration documentation for File and Loki sinks with URI parameters
+  - Included practical configuration examples for Development, Production, High-Volume, and Security-focused environments
+  - Added validation section explaining error handling and common validation errors
+  - All settings support both environment variable and programmatic configuration with clear examples
+  - Perfect for developers integrating fapilog to understand available options and customization capabilities
+
 - Enhanced PyPI package discoverability with improved keywords and description
 - Competitive feature comparison in README showcasing advantages over alternatives
 - Version-agnostic test suite that adapts to current project version
