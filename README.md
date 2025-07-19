@@ -9,6 +9,8 @@
 
 `fapilog` delivers opinionated defaults—JSON logs, trace IDs, async-safe sinks—while remaining fully extensible, so every micro-service in your stack emits consistent, query-friendly events from day one.
 
+> **Package Info**: This project is published to PyPI as `fapilog` and developed in the `fastapi-logger` repository.
+
 ---
 
 ## ✨ Key Goals
@@ -107,12 +109,14 @@ Local console shows colourised logs; in production the same call emits compact J
 ## 🛠 Development Setup
 
 ```bash
-git clone <repo>
+git clone https://github.com/chris-haste/fastapi-logger.git
 cd fastapi-logger
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 hatch run test
 ```
+
+> **Repository vs Package Name**: This project is developed in the `fastapi-logger` repository but published to PyPI as `fapilog`. The repository name is descriptive of the project's purpose, while the package name is concise and memorable.
 
 > **Note:** The test suite enforces a minimum coverage threshold of 85% using `pytest-cov`. If coverage falls below this threshold, the test run will fail locally and in CI. To see a detailed coverage report, use `hatch run test-cov` or inspect the HTML report in `htmlcov/` after running tests.
 

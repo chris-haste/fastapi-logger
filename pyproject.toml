@@ -64,6 +64,7 @@ Homepage = "https://github.com/chris-haste/fastapi-logger"
 Repository = "https://github.com/chris-haste/fastapi-logger"
 Documentation = "https://github.com/chris-haste/fastapi-logger#readme"
 Bug-Tracker = "https://github.com/chris-haste/fastapi-logger/issues"
+"PyPI Package" = "https://pypi.org/project/fapilog/"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fapilog"]

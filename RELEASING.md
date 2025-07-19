@@ -121,7 +121,12 @@ After pushing the tag, you can:
 
 ## Package Name
 
-The package is published to PyPI as **`fapilog`**
+The package is published to PyPI as **`fapilog`** and is developed in the `fastapi-logger` repository.
+
+- **PyPI Package**: `fapilog`
+- **GitHub Repository**: `fastapi-logger`
+- **Installation**: `pip install fapilog`
+- **Source Code**: `github.com/chris-haste/fastapi-logger`
 
 ## Manual PyPI Publishing (Legacy)
 
