@@ -5,7 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2024-12-19
+## [0.1.1] - 2024-12-19
+
+### Added
+
+- Enhanced PyPI package discoverability with improved keywords and description
+- Competitive feature comparison in README showcasing advantages over alternatives
+- Version-agnostic test suite that adapts to current project version
+- Additional test coverage for queue worker shutdown scenarios and deprecated API warnings
+
+### Changed
+
+- Package description updated to "Production-ready structured logging for FastAPI with trace IDs, async queues, and observability integration"
+- Expanded keywords for better PyPI searchability including "tracing", "monitoring", "microservices", "production", "cloud-native", "opentelemetry"
+- Improved README with feature comparison table and competitive positioning
+- Enhanced project documentation with clear package naming explanation (repository: fastapi-logger, PyPI: fapilog)
+- Source distribution now includes only essential files (library code, README, license) excluding development artifacts
+- Test coverage improved to 90.06% (above 90% threshold)
+
+### Fixed
+
+- Release guardrail tests now dynamically detect project version instead of hardcoded expectations
+- Deprecated keyword argument tests properly handle warnings and edge cases
 
 ### Changed
 

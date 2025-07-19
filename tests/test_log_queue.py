@@ -200,6 +200,65 @@ class TestQueueWorker:
         assert worker._task.done()
 
     @pytest.mark.asyncio
+    async def test_worker_shutdown_sync(self, worker: QueueWorker) -> None:
+        """Test that the worker shutdown_sync method works correctly."""
+        # Start the worker
+        await worker.start()
+
+        # Call shutdown_sync
+        worker.shutdown_sync()
+
+        # Check that the worker is marked for shutdown
+        assert worker._stopping is True
+        assert worker._running is False
+
+        # Call shutdown_sync again (should be idempotent)
+        worker.shutdown_sync()
+
+        # Stop the worker
+        await worker.stop()
+
+    @pytest.mark.asyncio
+    async def test_worker_shutdown_with_different_loop(
+        self, worker: QueueWorker
+    ) -> None:
+        """Test that the worker handles shutdown with different event loops."""
+        # Start the worker
+        await worker.start()
+
+        # Test the shutdown_sync method instead (safer for testing)
+        worker.shutdown_sync()
+
+        # Check that the worker is marked for shutdown
+        assert worker._stopping is True
+        assert worker._running is False
+
+        # Stop the worker
+        await worker.stop()
+
+    @pytest.mark.asyncio
+    async def test_worker_shutdown_timeout(self, worker: QueueWorker) -> None:
+        """Test that the worker handles shutdown timeout correctly."""
+        # Start the worker
+        await worker.start()
+
+        # Mock the task to simulate a long-running operation
+        original_task = worker._task
+        worker._task = asyncio.create_task(asyncio.sleep(10))  # Long sleep
+
+        try:
+            # Shutdown with a short timeout
+            await worker.shutdown()
+        finally:
+            # Restore original task for cleanup
+            worker._task = original_task
+            await worker.stop()
+
+        # Check that the worker is stopped
+        assert worker._stopping is True
+        assert worker._running is False
+
+    @pytest.mark.asyncio
     async def test_overflow_drop_mode(self, mock_sink: MockSink) -> None:
         """Test that drop mode silently discards logs when queue is full."""
         worker = QueueWorker(

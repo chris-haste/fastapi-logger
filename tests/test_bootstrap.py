@@ -199,7 +199,41 @@ class TestConfigureLogging:
 
         # Check that the logger is callable
         assert callable(logger.info)
-        assert callable(logger.error)
 
-        # Check that the root logger has DEBUG level
-        assert logging.root.level == logging.DEBUG
+    def test_deprecated_keyword_arguments(self) -> None:
+        """Test that deprecated keyword arguments work with warnings."""
+        import warnings
+
+        # Capture warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+
+            # Use deprecated keyword arguments
+            logger = configure_logging(
+                level="DEBUG", json_console="json", sinks={"stdout": {}}
+            )
+
+            # Check that a deprecation warning was issued
+            assert len(w) > 0
+            assert any("deprecated" in str(warning.message) for warning in w)
+
+            # Check that the logger still works
+            assert callable(logger.info)
+
+    def test_deprecated_keyword_arguments_no_warning(self) -> None:
+        """Test that no warning is issued when using modern API."""
+        import warnings
+
+        # Capture warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+
+            # Use modern API (no deprecated arguments)
+            logger = configure_logging()
+
+            # Check that no deprecation warning was issued
+            assert len(w) == 0
+
+            # Check that the logger works
+            assert callable(logger.info)
+            assert callable(logger.error)

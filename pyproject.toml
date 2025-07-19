@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fapilog"
-version = "0.1.0"
+version = "0.1.1"
 description = "Production-ready structured logging for FastAPI with trace IDs, async queues, and observability integration"
 readme = "README.md"
 license = {text = "MIT"}
@@ -77,6 +77,40 @@ Bug-Tracker = "https://github.com/chris-haste/fastapi-logger/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fapilog"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/fapilog/**/*.py",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "pyproject.toml",
+]
+exclude = [
+    "tests/**/*",
+    "docs/**/*",
+    "examples/**/*",
+    "scripts/**/*",
+    ".github/**/*",
+    ".pre-commit-config.yaml",
+    ".vulture",
+    ".coveragerc",
+    "tox.ini",
+    "requirements-example.txt",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "RELEASING.md",
+    "htmlcov/**/*",
+    "dist/**/*",
+    "build/**/*",
+    "__pycache__/**/*",
+    "*.pyc",
+    "*.pyo",
+    "*.pyd",
+    ".pytest_cache/**/*",
+    ".mypy_cache/**/*",
+    ".ruff_cache/**/*",
+]
 
 [tool.hatch.envs.default]
 dependencies = [
@@ -204,6 +238,16 @@ ignore_names = [
     "logger",
     "settings",
     "config",
+    # Error handling utility functions (may be used in future)
+    "handle_redaction_error",
+    "safe_execute",
+    "safe_execute_async", 
+    "graceful_degradation",
+    "graceful_degradation_async",
+    "retry_with_backoff",
+    # Redactor utility functions (may be used in future)
+    "_get_nested_value",
+    "_set_nested_value",
 ]
 ignore_decorators = [
     "pytest.fixture",

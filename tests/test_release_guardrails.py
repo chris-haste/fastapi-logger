@@ -69,8 +69,9 @@ class TestReleaseGuardrails:
 
     def test_check_changelog_version(self):
         """Test checking version in CHANGELOG.md."""
-        # Test with current version (should not exist since only Unreleased exists)
-        assert check_changelog_version("0.1.0") is False
+        # Test with current version from pyproject.toml
+        current_version = get_pyproject_version()
+        assert check_changelog_version(current_version) is True
 
         # Test with non-existent version
         assert check_changelog_version("999.999.999") is False
@@ -92,11 +93,12 @@ class TestReleaseGuardrails:
 
     def test_check_release_guardrails_release_commit_success(self):
         """Test guardrails check with valid release commit."""
-        # This test assumes the current version in pyproject.toml is 0.1.0
-        # but that version doesn't exist in CHANGELOG.md (only Unreleased exists)
-        success, message = check_release_guardrails("chore(release): v0.1.0")
-        assert success is False
-        assert "not found in CHANGELOG.md" in message
+        # Test with current version from pyproject.toml
+        current_version = get_pyproject_version()
+        commit_msg = f"chore(release): v{current_version}"
+        success, message = check_release_guardrails(commit_msg)
+        assert success is True
+        assert f"All checks passed for version {current_version}" in message
 
     def test_check_release_guardrails_version_mismatch(self):
         """Test guardrails check with version mismatch."""
@@ -123,18 +125,22 @@ class TestReleaseGuardrails:
 
     def test_check_release_guardrails_with_commit_msg_param(self):
         """Test guardrails check with explicit commit message parameter."""
-        success, message = check_release_guardrails("chore(release): v0.1.0")
-        assert success is False
-        assert "not found in CHANGELOG.md" in message
+        current_version = get_pyproject_version()
+        commit_msg = f"chore(release): v{current_version}"
+        success, message = check_release_guardrails(commit_msg)
+        assert success is True
+        assert f"All checks passed for version {current_version}" in message
 
     def test_check_release_guardrails_without_commit_msg_param(self, monkeypatch):
         """Test guardrails check without commit message parameter."""
 
         # Mock git command to return a valid release commit
         def mock_git_log(*args, **kwargs):
+            current_version = get_pyproject_version()
+
             class MockResult:
                 def __init__(self):
-                    self.stdout = "chore(release): v0.1.0\n"
+                    self.stdout = f"chore(release): v{current_version}\n"
                     self.returncode = 0
 
                 def check(self):
@@ -146,9 +152,10 @@ class TestReleaseGuardrails:
 
         monkeypatch.setattr(subprocess, "run", mock_git_log)
 
+        current_version = get_pyproject_version()
         success, message = check_release_guardrails()
-        assert success is False
-        assert "not found in CHANGELOG.md" in message
+        assert success is True
+        assert f"All checks passed for version {current_version}" in message
 
     def test_check_release_guardrails_git_failure(self, monkeypatch):
         """Test guardrails check when git command fails."""
