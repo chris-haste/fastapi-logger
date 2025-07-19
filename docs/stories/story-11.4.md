@@ -24,7 +24,7 @@ Tasks / Technical Checklist
 
 1.  Enable Trusted Publishing in PyPI project settings
 
-    - Link GitHub repo under PyPI project settings → “Trusted Publishers”
+    - Link GitHub repo under PyPI project settings → "Trusted Publishers"
     - Select `workflow` and verify org/repo access
 
 2.  Create `.github/workflows/publish.yml`:  
@@ -71,8 +71,9 @@ Tasks / Technical Checklist
 Dependencies / Notes
 
 - Depends on Story 11.2 (manual PyPI publish)
-- PyPI’s Trusted Publishing must be enabled manually through the UI
-- Avoids token leakage risks by using GitHub’s OIDC integration
+- PyPI's Trusted Publishing must be enabled manually through the UI
+- Avoids token leakage risks by using GitHub's OIDC integration
+- **Package Name**: The project publishes as `fapilog` on PyPI (not `fastapi-logger` which is already taken)
 
 ───────────────────────────────────  
 Definition of Done  

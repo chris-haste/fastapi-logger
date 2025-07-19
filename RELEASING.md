@@ -119,6 +119,10 @@ After pushing the tag, you can:
    - Verify the new version is available
    - Test installation: `pip install fapilog=={new_version}`
 
+## Package Name
+
+The package is published to PyPI as **`fapilog`**
+
 ## Manual PyPI Publishing (Legacy)
 
 This section covers the complete manual PyPI publishing process for fapilog.
