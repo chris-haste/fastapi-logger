@@ -5,13 +5,17 @@ build-backend = "hatchling.build"
 [project]
 name = "fapilog"
 version = "0.1.0"
-description = "Structured, enriched logging for FastAPI and ASGI apps"
+description = "Production-ready structured logging for FastAPI with trace IDs, async queues, and observability integration"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
     {name = "FastAPI Logger Contributors", email = "contributors@fapilog.dev"}
 ]
-keywords = ["fastapi", "logging", "structured", "asyncio", "middleware", "observability", "json", "loki"]
+keywords = [
+    "fastapi", "logging", "structured", "asyncio", "middleware", "observability", 
+    "json", "loki", "tracing", "monitoring", "microservices", "production", 
+    "context", "correlation", "distributed", "cloud-native", "opentelemetry"
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -25,6 +29,11 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: System :: Logging",
+    "Topic :: System :: Monitoring",
+    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Framework :: FastAPI",
+    "Framework :: AsyncIO",
 ]
 requires-python = ">=3.8"
 dependencies = [
@@ -64,6 +73,7 @@ Homepage = "https://github.com/chris-haste/fastapi-logger"
 Repository = "https://github.com/chris-haste/fastapi-logger"
 Documentation = "https://github.com/chris-haste/fastapi-logger#readme"
 Bug-Tracker = "https://github.com/chris-haste/fastapi-logger/issues"
+"PyPI Package" = "https://pypi.org/project/fapilog/"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fapilog"]

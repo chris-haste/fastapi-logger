@@ -5,24 +5,41 @@
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![PyPI](https://img.shields.io/pypi/v/fapilog)
 
-**Structured, context-aware, production-ready logging for FastAPI and other ASGI apps.**
+**Production-ready structured logging for FastAPI with trace IDs, async queues, and observability integration.**
 
-`fapilog` delivers opinionated defaults—JSON logs, trace IDs, async-safe sinks—while remaining fully extensible, so every micro-service in your stack emits consistent, query-friendly events from day one.
+`fapilog` delivers enterprise-grade logging with zero friction—JSON logs, distributed tracing, async-safe queues, and observability hooks—so every microservice in your stack emits consistent, query-friendly events from day one.
+
+> **Package Info**: This project is published to PyPI as `fapilog` and developed in the `fastapi-logger` repository.
 
 ---
 
-## ✨ Key Goals
+## ✨ Why Choose fapilog?
 
-| Goal                          | Practical impact                                                                                                             |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| **Zero-friction setup**       | One-liner `configure_logging()`—no YAML gymnastics or copy-pasted boilerplate.                                               |
-| **Structured by default**     | Logs are JSON objects (Docker & cloud-native friendly). A pretty console renderer toggles on automatically during local dev. |
-| **Context propagation**       | Trace ID, span ID, request path, status, user ID, and other metadata flow through `contextvars` without polluting your code. |
-| **Async & non-blocking**      | A background queue + worker ensures log writing never blocks the event loop, even under high RPS.                            |
-| **Pluggable sinks**           | Ship logs to stdout, files, Loki, or any HTTP endpoint. Custom sinks take just a few lines.                                  |
-| **Security & compliance**     | Built-in PII redaction, field-level allow/deny lists, GDPR-friendly opt-outs.                                                |
-| **Observability integration** | Hooks for OpenTelemetry spans and Prometheus/OTLP metrics so logs, traces, and metrics share the same IDs.                   |
-| **Testability**               | Pytest fixtures capture structured logs so you can assert on their content with ease.                                        |
+| Feature                       | fapilog Advantage                                                                                           |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **Zero-friction setup**       | One-liner `configure_logging()`—no YAML gymnastics or copy-pasted boilerplate.                              |
+| **Production-ready**          | Built for high-traffic microservices with async queues, distributed tracing, and observability integration. |
+| **Structured by default**     | JSON logs (Docker & cloud-native friendly) with pretty console rendering for local development.             |
+| **Context propagation**       | Trace ID, span ID, request path, status, user ID flow through `contextvars` without polluting your code.    |
+| **Async & non-blocking**      | Background queue + worker ensures log writing never blocks the event loop, even under high RPS.             |
+| **Enterprise security**       | Built-in PII redaction, field-level allow/deny lists, GDPR-friendly opt-outs, and audit trails.             |
+| **Observability integration** | Native OpenTelemetry spans, Prometheus/OTLP metrics, and correlation IDs across logs, traces, and metrics.  |
+| **Extensible architecture**   | Pluggable sinks (stdout, files, Loki, HTTP) and custom enrichers with just a few lines of code.             |
+| **Developer experience**      | Pytest fixtures, comprehensive examples, and detailed documentation for rapid adoption.                     |
+
+---
+
+## 📊 Comparison with Alternatives
+
+| Feature                 | fapilog                | fastapi-logger  | structlog       | Basic logging   |
+| ----------------------- | ---------------------- | --------------- | --------------- | --------------- |
+| **Zero-config setup**   | ✅ One-liner           | ❌ Manual setup | ❌ Manual setup | ❌ Manual setup |
+| **Async-safe**          | ✅ Background queue    | ❌ Blocking     | ❌ Blocking     | ❌ Blocking     |
+| **Distributed tracing** | ✅ Native support      | ❌ Manual       | ❌ Manual       | ❌ Manual       |
+| **PII redaction**       | ✅ Built-in            | ❌ Manual       | ❌ Manual       | ❌ Manual       |
+| **Observability hooks** | ✅ OpenTelemetry       | ❌ None         | ❌ None         | ❌ None         |
+| **Production-ready**    | ✅ Enterprise features | ⚠️ Basic        | ⚠️ Basic        | ❌ Basic        |
+| **FastAPI integration** | ✅ Native middleware   | ✅ Native       | ❌ Manual       | ❌ Manual       |
 
 ---
 
@@ -107,12 +124,14 @@ Local console shows colourised logs; in production the same call emits compact J
 ## 🛠 Development Setup
 
 ```bash
-git clone <repo>
+git clone https://github.com/chris-haste/fastapi-logger.git
 cd fastapi-logger
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 hatch run test
 ```
+
+> **Repository vs Package Name**: This project is developed in the `fastapi-logger` repository but published to PyPI as `fapilog`. The repository name is descriptive of the project's purpose, while the package name is concise and memorable.
 
 > **Note:** The test suite enforces a minimum coverage threshold of 85% using `pytest-cov`. If coverage falls below this threshold, the test run will fail locally and in CI. To see a detailed coverage report, use `hatch run test-cov` or inspect the HTML report in `htmlcov/` after running tests.
 
