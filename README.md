@@ -83,7 +83,7 @@ pip install fapilog==0.1.0
 
 `fapilog` requires Python 3.8 or higher and is compatible with Python 3.8, 3.9, 3.10, 3.11, and 3.12.
 
-#### Quick Start
+### Basic Usage
 
 After installation, you can start logging immediately:
 
@@ -94,7 +94,7 @@ configure_logging()
 log.info("Hello from fapilog!")
 ```
 
-### Basic Usage
+### FastAPI Integration
 
 ```python
 # main.py
@@ -118,6 +118,72 @@ uvicorn app.main:app --reload
 ```
 
 Local console shows colourised logs; in production the same call emits compact JSON suitable for Loki, Cloud Logging, or ELK.
+
+### Configuration
+
+`fapilog` is designed for zero-configuration setup but offers extensive customization options. All settings can be configured via environment variables or programmatically.
+
+**Quick Configuration Examples:**
+
+```bash
+# Basic configuration
+export FAPILOG_LEVEL=INFO
+export FAPILOG_SINKS=stdout
+export FAPILOG_JSON_CONSOLE=auto
+
+# Production configuration
+export FAPILOG_LEVEL=INFO
+export FAPILOG_SINKS=stdout,file:///var/log/app.log,loki://loki:3100
+export FAPILOG_JSON_CONSOLE=json
+export FAPILOG_REDACT_PATTERNS=password,token,secret
+```
+
+**Programmatic Configuration:**
+
+```python
+from fapilog.settings import LoggingSettings
+from fapilog import configure_logging
+
+settings = LoggingSettings(
+    level="DEBUG",
+    sinks=["stdout", "file:///var/log/app.log"],
+    redact_patterns=["password", "token"],
+    queue_enabled=True
+)
+logger = configure_logging(settings=settings)
+```
+
+📖 **For complete configuration reference, see [Configuration Guide](docs/config.md)**
+
+---
+
+## 📋 Table of Contents
+
+- [✨ Why Choose fapilog?](#-why-choose-fapilog)
+- [📊 Comparison with Alternatives](#-comparison-with-alternatives)
+- [🚀 Quick Start](#-quick-start)
+- [📖 Documentation](#-documentation)
+  - [Quick Configuration Reference](#quick-configuration-reference)
+  - [Configuration Guide](docs/config.md)
+  - [API Reference](docs/api-reference.md)
+  - [User Guide](docs/user-guide.md)
+  - [Examples](#examples)
+- [🛠 Development Setup](#-development-setup)
+- [🛠 How It Works](#-how-it-works)
+- [🔄 Async Logging Queue](#-async-logging-queue)
+- [🚀 Benchmarking Logging Queue](#-benchmarking-logging-queue)
+- [🔄 Shutdown Behavior and Log Flushing](#-shutdown-behavior-and-log-flushing)
+- [📦 Project Layout](#-project-layout)
+- [📊 Log Fields](#-log-fields)
+- [🧪 Testing](#-testing)
+- [🏷️ Request Context Enrichment](#️-request-context-enrichment)
+- [🔄 Using Context in Background Tasks](#-using-context-in-background-tasks)
+- [Multiple Sink Support](#multiple-sink-support)
+- [🗺️ Roadmap](#️-roadmap)
+- [🤝 License](#-license)
+- [📋 Changelog](#-changelog)
+- [🔒 Automatic PII Redaction](#-automatic-pii-redaction)
+- [Error Handling and Troubleshooting](#error-handling-and-troubleshooting)
 
 ---
 
@@ -218,10 +284,14 @@ Request ─► TraceIDMiddleware ─► structlog pipeline ─► Async Queue �
                                               stdout, file, Loki…
 ```
 
+**Core Components:**
+
 - **`middleware.py`** — injects trace/context and measures request duration
 - **`enrichers.py`** — attaches hostname, memory usage, SQL timings, etc.
 - **`_internal/queue.py`** — decouples log generation from I/O
-- **`sinks/`** — pluggable writers (start with `stdout` and `loki`; add more)
+- **`sinks/`** — pluggable writers (stdout, file, Loki, custom)
+
+**Configuration:** All behavior is configurable via environment variables or programmatic settings. See [Configuration Guide](docs/config.md) for complete reference.
 
 ## 🔄 Async Logging Queue
 
@@ -503,7 +573,7 @@ if __name__ == "__main__":
 
 ### Configuration
 
-All knobs are environment-driven (perfect for 12-factor apps):
+All settings are environment-driven (perfect for 12-factor apps). Here are the most commonly used configuration options:
 
 | Env var                      | Default    | Description                                                                       |
 | ---------------------------- | ---------- | --------------------------------------------------------------------------------- |
@@ -527,6 +597,74 @@ configure_logging(
     redact_level="INFO",
 )
 ```
+
+📖 **For complete configuration reference with all 22 settings, see [Configuration Guide](docs/config.md)**
+
+### Quick Configuration Reference
+
+**Common Environment Variables:**
+
+```bash
+# Basic setup
+export FAPILOG_LEVEL=INFO
+export FAPILOG_SINKS=stdout
+export FAPILOG_JSON_CONSOLE=auto
+
+# Production setup
+export FAPILOG_SINKS=stdout,file:///var/log/app.log,loki://loki:3100
+export FAPILOG_JSON_CONSOLE=json
+export FAPILOG_REDACT_PATTERNS=password,token,secret
+export FAPILOG_QUEUE_ENABLED=true
+
+# Development setup
+export FAPILOG_LEVEL=DEBUG
+export FAPILOG_JSON_CONSOLE=pretty
+export FAPILOG_REDACT_LEVEL=DEBUG
+```
+
+**Common Settings:**
+
+| Setting         | Development | Production         | High-Volume   |
+| --------------- | ----------- | ------------------ | ------------- |
+| `level`         | `DEBUG`     | `INFO`             | `WARNING`     |
+| `sinks`         | `stdout`    | `stdout,file,loki` | `stdout,file` |
+| `json_console`  | `pretty`    | `json`             | `json`        |
+| `sampling_rate` | `1.0`       | `1.0`              | `0.1`         |
+| `queue_maxsize` | `1000`      | `1000`             | `5000`        |
+
+## 📖 Documentation
+
+### Configuration Guide
+
+For complete configuration reference, see the [Configuration Guide](docs/config.md) which includes:
+
+- **All 22 configuration settings** with types, defaults, and environment variables
+- **Sink-specific configuration** for File and Loki sinks with URI parameters
+- **Practical examples** for Development, Production, High-Volume, and Security-focused environments
+- **Validation and error handling** guidance
+- **Environment variable and programmatic configuration** examples
+
+> **💡 Tip:** Start with the [Quick Configuration Reference](#quick-configuration-reference) above for common patterns, then refer to the full guide for advanced customization.
+
+### API Reference
+
+For detailed API documentation, see [API Reference](docs/api-reference.md).
+
+### User Guide
+
+For comprehensive usage examples and best practices, see [User Guide](docs/user-guide.md).
+
+### Examples
+
+Check out the `examples/` directory for practical usage examples:
+
+- `01_basic_setup.py` - Basic logging setup
+- `05_fastapi_basic.py` - FastAPI integration
+- `13_loki_sink.py` - Loki sink configuration
+- `16_security_logging.py` - Security and redaction features
+- `20_automatic_pii_redaction.py` - PII redaction examples
+
+> **📚 Documentation:** For complete configuration reference, see [Configuration Guide](docs/config.md). For API details, see [API Reference](docs/api-reference.md).
 
 ### Data Redaction
 
