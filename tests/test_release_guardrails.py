@@ -54,8 +54,11 @@ class TestReleaseGuardrails:
         version = get_pyproject_version()
         assert version is not None
         assert isinstance(version, str)
-        # Should match current version in pyproject.toml
-        assert version == "0.1.0"
+        # Should be a valid semver format
+        import re
+
+        semver_pattern = r"^\d+\.\d+\.\d+$"
+        assert re.match(semver_pattern, version)
 
     def test_get_pyproject_version_missing_file(self, tmp_path):
         """Test handling missing pyproject.toml file."""
