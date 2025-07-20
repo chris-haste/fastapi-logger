@@ -148,12 +148,13 @@ class TestLoggingContainer:
         assert not container.is_configured
         assert container.queue_worker is None
 
-    def test_container_deprecated_overrides(self) -> None:
-        """Test deprecated parameter overrides with warnings."""
-        container = LoggingContainer()
+    def test_container_with_settings(self) -> None:
+        """Test container configuration with LoggingSettings."""
+        settings = LoggingSettings(level="WARNING", json_console="json")
+        container = LoggingContainer(settings)
 
-        # Since we removed deprecated overrides, this should work without warnings
-        container.configure(level="WARNING", json_console="json")
+        # Configure the container
+        container.configure()
 
         # Verify the container is configured
         assert container.is_configured
@@ -167,10 +168,9 @@ class TestLoggingContainer:
 
     def test_container_invalid_log_level(self) -> None:
         """Test container with invalid log level."""
-        container = LoggingContainer()
-
         with pytest.raises(ConfigurationError):
-            container.configure(level="INVALID")
+            settings = LoggingSettings(level="INVALID")
+            LoggingContainer(settings)
 
     @pytest.mark.asyncio
     async def test_container_async_shutdown(self) -> None:

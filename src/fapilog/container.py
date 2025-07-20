@@ -4,11 +4,14 @@ import atexit
 import logging
 import threading
 import weakref
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, List, Optional, Set
 
 import structlog
 
-from ._internal.error_handling import handle_configuration_error, handle_sink_error
+from ._internal.error_handling import (
+    handle_configuration_error,
+    handle_sink_error,
+)
 from ._internal.queue import QueueWorker
 from .httpx_patch import HttpxTracePropagation
 from .middleware import TraceIDMiddleware
@@ -52,28 +55,26 @@ class LoggingContainer:
             _container_registry.add(weakref.ref(self, self._cleanup_registry_ref))
 
     @staticmethod
-    def _cleanup_registry_ref(ref: weakref.ReferenceType["LoggingContainer"]) -> None:
+    def _cleanup_registry_ref(
+        ref: weakref.ReferenceType["LoggingContainer"],
+    ) -> None:
         """Clean up a dead reference from the registry."""
         with _registry_lock:
             _container_registry.discard(ref)
 
     def configure(
         self,
-        level: Optional[str] = None,
-        json_console: Optional[str] = None,
-        sinks: Optional[Dict[str, Any]] = None,
         settings: Optional[LoggingSettings] = None,
         app: Optional[Any] = None,
     ) -> structlog.BoundLogger:
         """Configure logging with the container.
 
-        This method is idempotent - subsequent calls will not duplicate configuration.
+        This method is idempotent - subsequent calls will not duplicate
+        configuration.
 
         Args:
-            level: Logging level override
-            json_console: Console output format override
-            sinks: Dictionary of sink configurations (reserved for future use)
-            settings: Optional LoggingSettings instance to override container settings
+            settings: Optional LoggingSettings instance to override container
+                     settings
             app: Optional FastAPI app instance for middleware registration
 
         Returns:
@@ -93,11 +94,9 @@ class LoggingContainer:
                     self._register_middleware(app)
                 return structlog.get_logger()  # type: ignore[no-any-return]
 
-            # Determine final configuration values
-            log_level = level or self._settings.level
-            console_format = self._determine_console_format(
-                json_console or self._settings.json_console
-            )
+            # Determine final configuration values from settings
+            log_level = self._settings.level
+            console_format = self._determine_console_format(self._settings.json_console)
 
             # Configure standard library logging
             self._configure_standard_logging(log_level)
