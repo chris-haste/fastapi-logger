@@ -76,7 +76,7 @@ prometheus = [
 [project.urls]
 Homepage = "https://github.com/chris-haste/fastapi-logger"
 Repository = "https://github.com/chris-haste/fastapi-logger"
-Documentation = "https://github.com/chris-haste/fastapi-logger#readme"
+Documentation = "https://fapilog.readthedocs.io/"
 Bug-Tracker = "https://github.com/chris-haste/fastapi-logger/issues"
 "PyPI Package" = "https://pypi.org/project/fapilog/"
 
