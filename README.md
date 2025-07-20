@@ -2156,4 +2156,4 @@ For backward compatibility, some operations may still raise standard exceptions:
 
 ## 🚨 Disclaimer
 
-This software is provided **"as-is"**, without warranty of any kind. Use at your own risk. The authors and contributors are not liable for any damages arising from the use of this software.
+This software is provided **"as-is"**, without warranty of any kind. Use at your own risk. The author and contributors are not liable for any damages arising from the use of this software.
