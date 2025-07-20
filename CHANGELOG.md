@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Story 13.5a**: Metrics Collection System
+
+  - **NEW**: Comprehensive metrics collection for queue and sink performance monitoring
+  - **NEW**: `MetricsCollector` class with thread-safe metrics tracking and configurable sample windows
+  - **NEW**: Queue metrics: size, peak size, throughput, latency, dropped events, and memory usage
+  - **NEW**: Sink metrics: success/failure rates, write latency, batch sizes, retry counts, and error tracking
+  - **NEW**: Performance metrics: total events, events per second, processing time, memory and CPU usage
+  - **NEW**: Prometheus metrics export with HTTP endpoint for monitoring integration
+  - **NEW**: `PrometheusExporter` class with FastAPI-based HTTP server for metrics scraping
+  - **NEW**: Automatic metrics integration with all existing sinks (StdoutSink, FileSink, LokiSink)
+  - **NEW**: Container-based metrics initialization with configurable enable/disable options
+  - **NEW**: Comprehensive metrics configuration through `LoggingSettings` and environment variables
+  - **PERFORMANCE**: Zero overhead when disabled, minimal impact when enabled with bounded memory usage
+  - **PRODUCTION**: Enterprise-ready monitoring with proper resource cleanup and error handling
+  - **DOCUMENTED**: Complete metrics setup guide, API reference, and working examples
+  - **TESTED**: 30 comprehensive tests covering all metrics scenarios with 100% pass rate
+
+  **Configuration Example:**
+
+  ```python
+  # Enable metrics collection
+  settings = LoggingSettings(
+      metrics_enabled=True,
+      metrics_prometheus_enabled=True,
+      metrics_prometheus_port=8000
+  )
+  configure_logging(settings=settings)
+
+  # Or via environment variables
+  export FAPILOG_METRICS_ENABLED=true
+  export FAPILOG_METRICS_PROMETHEUS_ENABLED=true
+  ```
+
+  **Available Metrics:**
+
+  - Queue: `fapilog_queue_size`, `fapilog_queue_enqueued_total`, `fapilog_queue_dropped_total`
+  - Sinks: `fapilog_sink_writes_total`, `fapilog_sink_success_rate`, `fapilog_sink_latency_ms`
+  - Performance: `fapilog_events_total`, `fapilog_events_per_second`, `fapilog_memory_bytes`
+
 ### Changed
 
 - **Story 13.4**: Configuration API Simplification

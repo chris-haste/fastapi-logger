@@ -1227,7 +1227,7 @@ Each batch is sent as:
 
 - If you use the Loki sink, ensure your Loki endpoint is reachable from your app.
 - Batching reduces HTTP load and aligns with Loki best practices.
-- If `httpx` is not installed, you’ll get a clear `ConfigurationError` with install instructions.
+- If `httpx` is not installed, you'll get a clear `ConfigurationError` with install instructions.
 
 #### Installation Recap
 
@@ -1298,6 +1298,107 @@ When enabled, every log entry will include:
 - The `psutil` library is imported lazily and only when metrics are enabled
 - If `psutil` is not available, the enricher is silently skipped
 - Resource metrics are added near the end of the pipeline (after context, before rendering)
+
+### Performance Metrics Collection
+
+`fapilog` includes a comprehensive metrics collection system that tracks queue performance, sink reliability, and overall logging health. This system is separate from resource metrics and focuses on operational monitoring.
+
+#### Enabling Metrics Collection
+
+**Environment variables:**
+
+```bash
+# Enable comprehensive metrics collection
+export FAPILOG_METRICS_ENABLED=true
+
+# Enable Prometheus HTTP endpoint
+export FAPILOG_METRICS_PROMETHEUS_ENABLED=true
+export FAPILOG_METRICS_PROMETHEUS_PORT=8000
+```
+
+**Programmatic configuration:**
+
+```python
+from fapilog.settings import LoggingSettings
+
+settings = LoggingSettings(
+    metrics_enabled=True,
+    metrics_prometheus_enabled=True,
+    metrics_prometheus_port=8000
+)
+configure_logging(settings=settings)
+```
+
+#### What Gets Tracked
+
+The metrics system provides comprehensive monitoring across multiple areas:
+
+**Queue Performance:**
+
+- Queue size and peak usage
+- Enqueue/dequeue latency
+- Drop rates and sampling
+- Batch processing times
+
+**Sink Reliability:**
+
+- Success/failure rates per sink
+- Write latency per sink
+- Retry counts and error tracking
+- Batch size optimization
+
+**Overall Performance:**
+
+- Events per second throughput
+- Memory and CPU usage
+- Processing time averages
+- System health indicators
+
+#### Accessing Metrics
+
+**Prometheus Format (for scraping):**
+
+```bash
+# Metrics available at HTTP endpoint
+curl http://localhost:8000/metrics
+```
+
+**Programmatic Access:**
+
+```python
+from fapilog.monitoring import get_metrics_dict, get_metrics_text
+
+# Get metrics as structured data
+metrics = get_metrics_dict()
+print(f"Queue size: {metrics['queue']['size']}")
+print(f"Events/sec: {metrics['performance']['events_per_second']}")
+
+# Get Prometheus-formatted text
+prometheus_metrics = get_metrics_text()
+```
+
+#### Zero-Impact Design
+
+- **Disabled by default** - no performance impact until explicitly enabled
+- **Thread-safe** - concurrent access with minimal locking
+- **Memory efficient** - sliding windows prevent unbounded growth
+- **Optional dependencies** - graceful degradation when Prometheus tools unavailable
+
+#### Dependencies
+
+Metrics collection requires the `psutil` library for system metrics:
+
+```bash
+pip install fapilog[metrics]
+```
+
+The Prometheus HTTP endpoint requires FastAPI and uvicorn:
+
+```bash
+pip install fapilog[prometheus]
+# or
+pip install fastapi uvicorn
+```
 
 ### Custom Enrichers
 
@@ -2050,3 +2151,9 @@ For backward compatibility, some operations may still raise standard exceptions:
 - `RuntimeError`: Async context issues
 - `ValueError`: Invalid parameter values
 - `ImportError`: Missing optional dependencies
+
+---
+
+## 🚨 Disclaimer
+
+This software is provided **"as-is"**, without warranty of any kind. Use at your own risk. The author and contributors are not liable for any damages arising from the use of this software.

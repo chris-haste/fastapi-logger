@@ -470,6 +470,11 @@ class TestQueueSink:
         # Ensure no worker is set
         set_queue_worker(None)
 
+        # Also clear container context to ensure no worker from it
+        from fapilog._internal.queue import set_current_container
+
+        set_current_container(None)
+
         event_dict = {"level": "info", "event": "test_event"}
 
         # Call queue_sink without a worker

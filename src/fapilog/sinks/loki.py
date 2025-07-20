@@ -13,6 +13,7 @@ except ImportError:
     httpx = None
 
 from .._internal.error_handling import handle_sink_error, retry_with_backoff_async
+from .._internal.metrics import get_metrics_collector
 from .._internal.queue import Sink
 from ..exceptions import ConfigurationError
 
@@ -73,17 +74,37 @@ class LokiSink(Sink):
         Args:
             event_dict: The structured log event dictionary
         """
-        async with self._lock:
-            self._batch.append(event_dict)
-            batch_was_empty = len(self._batch) == 1
+        start_time = time.time()
+        metrics = get_metrics_collector()
+        success = False
+        error_msg = None
 
-            should_flush = len(self._batch) >= self.batch_size
+        try:
+            async with self._lock:
+                self._batch.append(event_dict)
+                batch_was_empty = len(self._batch) == 1
 
-            if should_flush:
-                await self._flush_batch()
-            elif batch_was_empty:
-                # Start interval flush timer if this is the first log in batch
-                self._start_flush_timer()
+                should_flush = len(self._batch) >= self.batch_size
+
+                if should_flush:
+                    await self._flush_batch()
+                elif batch_was_empty:
+                    # Start interval flush timer if this is the first log in batch
+                    self._start_flush_timer()
+            success = True
+        except Exception as e:
+            error_msg = str(e)
+            raise
+        finally:
+            if metrics:
+                latency_ms = (time.time() - start_time) * 1000
+                metrics.record_sink_write(
+                    sink_name="LokiSink",
+                    latency_ms=latency_ms,
+                    success=success,
+                    batch_size=1,
+                    error=error_msg,
+                )
 
     def _start_flush_timer(self) -> None:
         if self._flush_timer and not self._flush_timer.done():
@@ -128,14 +149,19 @@ class LokiSink(Sink):
         if not batch:
             return
 
-        # Format batch for Loki
-        payload = self._format_loki_payload(batch)
-
-        async def send_request_with_retry() -> None:
-            """Send request to Loki with proper error handling."""
-            await self._send_request(payload)
+        start_time = time.time()
+        metrics = get_metrics_collector()
+        success = False
+        error_msg = None
 
         try:
+            # Format batch for Loki
+            payload = self._format_loki_payload(batch)
+
+            async def send_request_with_retry() -> None:
+                """Send request to Loki with proper error handling."""
+                await self._send_request(payload)
+
             await retry_with_backoff_async(
                 send_request_with_retry,
                 max_retries=self.max_retries,
@@ -144,7 +170,9 @@ class LokiSink(Sink):
                     e, "loki", {"url": self.url, "batch_size": len(batch)}, "send"
                 ),
             )
+            success = True
         except Exception as e:
+            error_msg = str(e)
             # Final failure after all retries
             sink_config = {
                 "url": self.url,
@@ -153,6 +181,17 @@ class LokiSink(Sink):
                 "retry_delay": self.retry_delay,
             }
             raise handle_sink_error(e, "loki", sink_config, "send") from e
+        finally:
+            if metrics:
+                latency_ms = (time.time() - start_time) * 1000
+                # Record batch operation
+                metrics.record_sink_write(
+                    sink_name="LokiSink_batch",
+                    latency_ms=latency_ms,
+                    success=success,
+                    batch_size=len(batch),
+                    error=error_msg,
+                )
 
     async def _send_request(self, payload: Dict[str, Any]) -> None:
         """Send HTTP request to Loki.
