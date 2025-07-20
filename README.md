@@ -156,7 +156,7 @@ settings = LoggingSettings(
 logger = configure_logging(settings=settings)
 ```
 
-📖 **For complete configuration reference, see [Configuration Guide](docs/config.md)**
+📖 **For complete configuration reference, see [Configuration Guide](https://fapilog.readthedocs.io/en/latest/config.html) or [docs/config.md](docs/config.md)**
 
 ---
 
@@ -167,6 +167,7 @@ logger = configure_logging(settings=settings)
 - [🚀 Quick Start](#-quick-start)
 - [📖 Documentation](#-documentation)
   - [Quick Configuration Reference](#quick-configuration-reference)
+  - [📚 ReadTheDocs](https://fapilog.readthedocs.io/) - Complete documentation with search
   - [Configuration Guide](docs/config.md)
   - [API Reference](docs/api-reference.md)
   - [User Guide](docs/user-guide.md)
