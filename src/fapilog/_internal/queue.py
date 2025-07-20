@@ -4,6 +4,7 @@ import asyncio
 import logging
 import random as rnd
 import threading
+import time
 from typing import Any, Dict, List, Literal, Optional
 
 import structlog
@@ -13,6 +14,7 @@ from .error_handling import (
     log_error_with_context,
     retry_with_backoff_async,
 )
+from .metrics import get_metrics_collector
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +58,10 @@ def get_current_queue_worker() -> Optional["QueueWorker"]:
 class Sink:
     """Base class for log sinks."""
 
+    def __init__(self):
+        """Initialize the sink."""
+        self._sink_name = self.__class__.__name__
+
     async def write(self, event_dict: Dict[str, Any]) -> None:
         """Write a log event to the sink.
 
@@ -63,6 +69,30 @@ class Sink:
             event_dict: The structured log event dictionary
         """
         raise NotImplementedError
+
+    async def _write_with_metrics(self, event_dict: Dict[str, Any]) -> None:
+        """Write with metrics collection wrapper."""
+        start_time = time.time()
+        metrics = get_metrics_collector()
+        success = False
+        error_msg = None
+
+        try:
+            await self.write(event_dict)
+            success = True
+        except Exception as e:
+            error_msg = str(e)
+            raise
+        finally:
+            if metrics:
+                latency_ms = (time.time() - start_time) * 1000
+                metrics.record_sink_write(
+                    sink_name=self._sink_name,
+                    latency_ms=latency_ms,
+                    success=success,
+                    batch_size=1,
+                    error=error_msg,
+                )
 
 
 class QueueWorker:
@@ -136,7 +166,10 @@ class QueueWorker:
 
     async def shutdown(self) -> None:
         """Shutdown the worker gracefully."""
-        logger.debug("QueueWorker shutdown initiated")
+        try:
+            logger.debug("QueueWorker shutdown initiated")
+        except Exception:
+            pass  # Ignore logging errors during shutdown
         self._stopping = True
         self._running = False
 
@@ -151,7 +184,11 @@ class QueueWorker:
                     await asyncio.wait_for(self._task, timeout=5.0)
                 else:
                     # Different loop, just let it cancel naturally
-                    logger.debug("Different loop, allowing natural cancellation")
+                    try:
+                        logger.debug("Different loop, allowing natural cancellation")
+                    except Exception:
+                        # Ignore logging errors during shutdown
+                        pass
             except asyncio.TimeoutError:
                 logger.warning("Worker task shutdown timed out")
             except asyncio.CancelledError:
@@ -162,7 +199,10 @@ class QueueWorker:
         # Drain any remaining events in the queue
         await self._drain_queue()
 
-        logger.debug("QueueWorker shutdown completed")
+        try:
+            logger.debug("QueueWorker shutdown completed")
+        except Exception:
+            pass  # Ignore logging errors during shutdown
 
     def shutdown_sync(self, timeout: float = 5.0) -> None:
         """Shutdown the worker from a sync context.
@@ -174,7 +214,10 @@ class QueueWorker:
         if self._stopping:
             return  # Already shutting down
 
-        logger.debug("QueueWorker sync shutdown initiated")
+        try:
+            logger.debug("QueueWorker sync shutdown initiated")
+        except Exception:
+            pass  # Ignore logging errors during shutdown
         self._stopping = True
         self._running = False
 
@@ -184,11 +227,20 @@ class QueueWorker:
                 # Only cancel if we can - don't wait for completion to avoid
                 # event loop conflicts
                 self._task.cancel()
-                logger.debug("QueueWorker task cancelled")
+                try:
+                    logger.debug("QueueWorker task cancelled")
+                except Exception:
+                    pass  # Ignore logging errors during shutdown
             except Exception as e:
-                logger.debug(f"Could not cancel queue worker task: {e}")
+                try:
+                    logger.debug(f"Could not cancel queue worker task: {e}")
+                except Exception:
+                    pass  # Ignore logging errors during shutdown
 
-        logger.debug("QueueWorker marked for shutdown")
+        try:
+            logger.debug("QueueWorker marked for shutdown")
+        except Exception:
+            pass  # Ignore logging errors during shutdown
 
     async def _drain_queue(self) -> None:
         """Drain all remaining events from the queue and process them."""
@@ -229,6 +281,8 @@ class QueueWorker:
 
     async def _collect_batch(self) -> List[Dict[str, Any]]:
         """Collect a batch of events from the queue."""
+        start_time = time.time()
+        metrics = get_metrics_collector()
         batch = []
 
         # Get the first event (blocking)
@@ -237,14 +291,21 @@ class QueueWorker:
                 self.queue.get(), timeout=self.batch_timeout
             )
             batch.append(first_event)
+            if metrics:
+                dequeue_latency_ms = (time.time() - start_time) * 1000
+                metrics.record_dequeue(dequeue_latency_ms)
         except asyncio.TimeoutError:
             return batch
 
         # Try to get more events (non-blocking)
         while len(batch) < self.batch_size:
             try:
+                dequeue_start = time.time()
                 event = self.queue.get_nowait()
                 batch.append(event)
+                if metrics:
+                    dequeue_latency_ms = (time.time() - dequeue_start) * 1000
+                    metrics.record_dequeue(dequeue_latency_ms)
             except asyncio.QueueEmpty:
                 break
 
@@ -252,11 +313,20 @@ class QueueWorker:
 
     async def _process_batch(self, batch: List[Dict[str, Any]]) -> None:
         """Process a batch of events."""
+        start_time = time.time()
+        metrics = get_metrics_collector()
+
         for event in batch:
             await self._process_event(event)
 
+        if metrics:
+            processing_time_ms = (time.time() - start_time) * 1000
+            metrics.record_batch_processing(processing_time_ms)
+
     async def _process_event(self, event: Dict[str, Any]) -> None:
         """Process a single event with retry logic."""
+        start_time = time.time()
+        metrics = get_metrics_collector()
 
         async def process_event_with_sinks() -> None:
             """Process event by writing to all sinks."""
@@ -299,6 +369,10 @@ class QueueWorker:
                     e, "process_event", {"event_keys": list(event.keys())}
                 ),
             )
+            # Record successful event processing
+            if metrics:
+                processing_time_ms = (time.time() - start_time) * 1000
+                metrics.record_log_event(processing_time_ms)
         except Exception as e:
             # Final failure after all retries
             queue_state = {
@@ -322,11 +396,16 @@ class QueueWorker:
         Raises:
             QueueError: If enqueue operation fails unexpectedly
         """
+        start_time = time.time()
+        metrics = get_metrics_collector()
+
         if self._stopping:
             return False
 
         # Apply sampling if enabled
         if self.sampling_rate < 1.0 and rnd.random() > self.sampling_rate:
+            if metrics:
+                metrics.record_sampled_event()
             return False
 
         try:
@@ -334,13 +413,23 @@ class QueueWorker:
                 # Drop strategy: try to enqueue, drop if full
                 try:
                     self.queue.put_nowait(event_dict)
+                    if metrics:
+                        latency_ms = (time.time() - start_time) * 1000
+                        metrics.record_enqueue(latency_ms)
+                        metrics.record_queue_size(self.queue.qsize())
                     return True
                 except asyncio.QueueFull:
+                    if metrics:
+                        metrics.record_dropped_event()
                     return False
             elif self.overflow_strategy == "block":
                 # Block strategy: wait until space is available
                 try:
                     await self.queue.put(event_dict)
+                    if metrics:
+                        latency_ms = (time.time() - start_time) * 1000
+                        metrics.record_enqueue(latency_ms)
+                        metrics.record_queue_size(self.queue.qsize())
                     return True
                 except asyncio.CancelledError:
                     return False
@@ -348,8 +437,14 @@ class QueueWorker:
                 # Sample strategy: use sampling rate for overflow
                 try:
                     self.queue.put_nowait(event_dict)
+                    if metrics:
+                        latency_ms = (time.time() - start_time) * 1000
+                        metrics.record_enqueue(latency_ms)
+                        metrics.record_queue_size(self.queue.qsize())
                     return True
                 except asyncio.QueueFull:
+                    if metrics:
+                        metrics.record_dropped_event()
                     return False
         except Exception as e:
             # Unexpected error during enqueue

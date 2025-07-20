@@ -13,6 +13,7 @@ This document provides a complete reference for all public APIs in `fapilog`. Th
 - [Trace Propagation](#trace-propagation)
 - [Enrichers](#enrichers)
 - [Sinks](#sinks)
+- [Metrics and Monitoring](#metrics-and-monitoring)
 - [Context Management](#context-management)
 - [Types and Models](#types-and-models)
 
@@ -159,6 +160,11 @@ settings = LoggingSettings(
 | `queue_retry_delay`              | float     | `1.0`            | Retry delay in seconds                                                  |
 | `queue_max_retries`              | int       | `3`              | Maximum retries per event                                               |
 | `enable_resource_metrics`        | bool      | `False`          | Enable memory/CPU metrics in logs                                       |
+| `metrics_enabled`                | bool      | `False`          | Enable comprehensive metrics collection                                 |
+| `metrics_sample_window`          | int       | `100`            | Number of samples for averaging metrics                                 |
+| `metrics_prometheus_enabled`     | bool      | `False`          | Enable Prometheus HTTP endpoint                                         |
+| `metrics_prometheus_port`        | int       | `8000`           | Port for Prometheus metrics endpoint                                    |
+| `metrics_prometheus_host`        | str       | `"0.0.0.0"`      | Host for Prometheus metrics endpoint                                    |
 | `trace_id_header`                | str       | `"X-Request-ID"` | HTTP header name for incoming trace ID                                  |
 | `enable_httpx_trace_propagation` | bool      | `False`          | Enable automatic trace ID propagation in httpx                          |
 | `user_context_enabled`           | bool      | `True`           | Enable user context enrichment (user_id, roles, auth_scheme)            |
@@ -605,6 +611,167 @@ class CustomSink(Sink):
 
 ---
 
+## Metrics and Monitoring
+
+The metrics and monitoring system provides comprehensive performance tracking for queue operations, sink performance, and overall logging health.
+
+### `fapilog.monitoring`
+
+Main module for Prometheus metrics export and monitoring functionality.
+
+#### `start_metrics_server()`
+
+Start a Prometheus metrics HTTP server for scraping.
+
+```python
+from fapilog.monitoring import start_metrics_server
+
+# Start metrics server on default port 8000
+exporter = await start_metrics_server()
+
+# Start on custom host/port
+exporter = await start_metrics_server(
+    host="127.0.0.1",
+    port=9090,
+    path="/custom-metrics"
+)
+```
+
+**Parameters:**
+
+- `host` (str, optional): Host to bind to. Default: `"0.0.0.0"`
+- `port` (int, optional): Port to bind to. Default: `8000`
+- `path` (str, optional): HTTP path for metrics endpoint. Default: `"/metrics"`
+
+**Returns:**
+
+- `PrometheusExporter`: The metrics exporter instance, or `None` if failed
+
+#### `get_metrics_text()`
+
+Get current metrics in Prometheus text format.
+
+```python
+from fapilog.monitoring import get_metrics_text
+
+# Get Prometheus-formatted metrics
+metrics_text = get_metrics_text()
+print(metrics_text)
+```
+
+**Returns:**
+
+- `str`: Metrics in Prometheus format
+
+#### `get_metrics_dict()`
+
+Get current metrics as a structured dictionary.
+
+```python
+from fapilog.monitoring import get_metrics_dict
+
+# Get metrics as dictionary
+metrics = get_metrics_dict()
+print(f"Queue size: {metrics['queue']['size']}")
+print(f"Total events: {metrics['performance']['total_log_events']}")
+```
+
+**Returns:**
+
+- `dict`: Structured metrics data with queue, sinks, and performance sections
+
+### `fapilog._internal.metrics`
+
+Internal metrics collection system (advanced usage).
+
+#### `create_metrics_collector()`
+
+Create and configure a global metrics collector.
+
+```python
+from fapilog._internal.metrics import create_metrics_collector
+
+# Create with defaults
+collector = create_metrics_collector(enabled=True)
+
+# Create with custom sample window
+collector = create_metrics_collector(
+    enabled=True,
+    sample_window=200
+)
+```
+
+**Parameters:**
+
+- `enabled` (bool): Whether to enable metrics collection
+- `sample_window` (int): Number of samples for moving averages
+
+**Returns:**
+
+- `MetricsCollector`: The metrics collector instance
+
+### Available Metrics
+
+The metrics system provides comprehensive tracking across multiple categories:
+
+#### Queue Metrics
+
+- `fapilog_queue_size`: Current queue size (gauge)
+- `fapilog_queue_peak_size`: Peak queue size (gauge)
+- `fapilog_queue_enqueued_total`: Total events enqueued (counter)
+- `fapilog_queue_dequeued_total`: Total events dequeued (counter)
+- `fapilog_queue_dropped_total`: Total events dropped (counter)
+- `fapilog_queue_enqueue_latency_ms`: Average enqueue latency (gauge)
+- `fapilog_queue_memory_bytes`: Queue memory usage (gauge)
+
+#### Sink Metrics
+
+Per-sink metrics with `sink` label:
+
+- `fapilog_sink_writes_total{sink="..."}`: Total writes per sink (counter)
+- `fapilog_sink_successes_total{sink="..."}`: Total successful writes (counter)
+- `fapilog_sink_failures_total{sink="..."}`: Total failed writes (counter)
+- `fapilog_sink_success_rate{sink="..."}`: Success rate ratio (gauge)
+- `fapilog_sink_latency_ms{sink="..."}`: Average write latency (gauge)
+
+#### Performance Metrics
+
+- `fapilog_events_total`: Total log events processed (counter)
+- `fapilog_events_per_second`: Current throughput (gauge)
+- `fapilog_memory_bytes`: Process memory usage (gauge)
+- `fapilog_cpu_percent`: Process CPU usage (gauge)
+
+### Configuration
+
+Enable metrics through settings:
+
+```python
+from fapilog.settings import LoggingSettings
+
+settings = LoggingSettings(
+    # Enable metrics collection
+    metrics_enabled=True,
+
+    # Enable Prometheus HTTP endpoint
+    metrics_prometheus_enabled=True,
+    metrics_prometheus_port=8000,
+    metrics_prometheus_host="0.0.0.0",
+
+    # Configure sampling window
+    metrics_sample_window=100
+)
+```
+
+Or via environment variables:
+
+```bash
+export FAPILOG_METRICS_ENABLED=true
+export FAPILOG_METRICS_PROMETHEUS_ENABLED=true
+export FAPILOG_METRICS_PROMETHEUS_PORT=8000
+```
+
+---
+
 ## Context Management
 
 Context management allows you to add request-scoped metadata to all log events.
@@ -727,6 +894,11 @@ All configuration can be set via environment variables:
 | `FAPILOG_QUEUE_MAX_RETRIES`              | `3`            | Maximum retries                       |
 | `FAPILOG_SAMPLING_RATE`                  | `1.0`          | Log sampling rate                     |
 | `FAPILOG_ENABLE_RESOURCE_METRICS`        | `false`        | Enable resource metrics               |
+| `FAPILOG_METRICS_ENABLED`                | `false`        | Enable comprehensive metrics          |
+| `FAPILOG_METRICS_SAMPLE_WINDOW`          | `100`          | Metrics sample window size            |
+| `FAPILOG_METRICS_PROMETHEUS_ENABLED`     | `false`        | Enable Prometheus endpoint            |
+| `FAPILOG_METRICS_PROMETHEUS_PORT`        | `8000`         | Prometheus endpoint port              |
+| `FAPILOG_METRICS_PROMETHEUS_HOST`        | `0.0.0.0`      | Prometheus endpoint host              |
 | `FAPILOG_TRACE_ID_HEADER`                | `X-Request-ID` | HTTP header for trace ID              |
 | `FAPILOG_ENABLE_HTTPX_TRACE_PROPAGATION` | `false`        | Enable httpx propagation              |
 | `FAPILOG_REDACT_PATTERNS`                | ``             | Comma-separated regex patterns        |

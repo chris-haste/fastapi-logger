@@ -50,6 +50,10 @@ class LoggingContainer:
         self._httpx_propagation: Optional[HttpxTracePropagation] = None
         self._shutdown_registered = False
 
+        # Metrics components
+        self._metrics_collector: Optional[Any] = None
+        self._prometheus_exporter: Optional[Any] = None
+
         # Register this container for cleanup
         with _registry_lock:
             _container_registry.add(weakref.ref(self, self._cleanup_registry_ref))
@@ -104,6 +108,9 @@ class LoggingContainer:
             # Initialize queue worker if enabled
             if self._settings.queue_enabled:
                 self._queue_worker = self._setup_queue_worker(console_format)
+
+            # Initialize metrics if enabled
+            self._configure_metrics()
 
             # Configure structlog
             self._configure_structlog(console_format, log_level)
@@ -294,6 +301,28 @@ class LoggingContainer:
                 cache_logger_on_first_use=True,
             )
 
+    def _configure_metrics(self) -> None:
+        """Configure metrics collection and Prometheus exporter."""
+        # Initialize metrics collector if enabled
+        if self._settings.metrics_enabled:
+            from ._internal.metrics import create_metrics_collector
+
+            self._metrics_collector = create_metrics_collector(
+                enabled=True,
+                sample_window=self._settings.metrics_sample_window,
+            )
+
+        # Initialize Prometheus exporter if enabled
+        if self._settings.metrics_prometheus_enabled:
+            from .monitoring import create_prometheus_exporter
+
+            self._prometheus_exporter = create_prometheus_exporter(
+                host=self._settings.metrics_prometheus_host,
+                port=self._settings.metrics_prometheus_port,
+                path="/metrics",
+                enabled=True,
+            )
+
     def _configure_httpx_trace_propagation(self) -> None:
         """Configure httpx trace propagation."""
         if self._settings.enable_httpx_trace_propagation:
@@ -312,6 +341,15 @@ class LoggingContainer:
     async def shutdown(self) -> None:
         """Shutdown the container gracefully (async version)."""
         with self._lock:
+            # Shutdown Prometheus exporter
+            if self._prometheus_exporter is not None:
+                try:
+                    await self._prometheus_exporter.stop()
+                except Exception as e:
+                    logger.warning(f"Error during Prometheus exporter shutdown: {e}")
+                finally:
+                    self._prometheus_exporter = None
+
             if self._queue_worker is not None:
                 try:
                     await self._queue_worker.shutdown()
@@ -328,11 +366,18 @@ class LoggingContainer:
                 finally:
                     self._httpx_propagation = None
 
+            # Reset metrics components
+            self._metrics_collector = None
+
             self._sinks.clear()
 
     def shutdown_sync(self) -> None:
         """Shutdown the container gracefully (sync version)."""
         with self._lock:
+            # Reset metrics components (sync version doesn't need to stop Prometheus)
+            self._prometheus_exporter = None
+            self._metrics_collector = None
+
             if self._queue_worker is not None:
                 try:
                     self._queue_worker.shutdown_sync()
@@ -357,6 +402,10 @@ class LoggingContainer:
             self.shutdown_sync()
             self._configured = False
 
+            # Reset metrics components
+            self._metrics_collector = None
+            self._prometheus_exporter = None
+
             # Reset structlog configuration
             structlog.reset_defaults()
 
@@ -379,6 +428,30 @@ class LoggingContainer:
     def queue_worker(self) -> Optional[QueueWorker]:
         """Get the queue worker instance."""
         return self._queue_worker
+
+    async def setup(self) -> None:
+        """Async setup for container components (e.g., start Prometheus exporter).
+
+        This should be called after configure() if using async components.
+        """
+        with self._lock:
+            # Start Prometheus exporter if configured
+            if self._prometheus_exporter is not None:
+                try:
+                    await self._prometheus_exporter.start()
+                except Exception as e:
+                    logger.warning(f"Failed to start Prometheus exporter: {e}")
+
+    def get_logger(self, name: str = "") -> structlog.BoundLogger:
+        """Get a configured logger from this container.
+
+        Args:
+            name: Optional logger name
+
+        Returns:
+            A configured structlog.BoundLogger instance
+        """
+        return structlog.get_logger(name)
 
 
 def cleanup_all_containers() -> None:

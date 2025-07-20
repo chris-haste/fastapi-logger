@@ -4,10 +4,12 @@ import json
 import logging
 import logging.handlers
 import threading
+import time
 from pathlib import Path
 from typing import Any, Dict
 from urllib.parse import parse_qs, urlparse
 
+from .._internal.metrics import get_metrics_collector
 from .._internal.queue import Sink
 from ..exceptions import ConfigurationError
 
@@ -58,24 +60,44 @@ class FileSink(Sink):
         Args:
             event_dict: The structured log event dictionary
         """
-        # Convert to JSON string
-        log_line = json.dumps(event_dict) + "\n"
+        start_time = time.time()
+        metrics = get_metrics_collector()
+        success = False
+        error_msg = None
 
-        # Create a log record
-        record = logging.LogRecord(
-            name=self._logger.name,
-            level=logging.INFO,
-            pathname="",
-            lineno=0,
-            msg=log_line,
-            args=(),
-            exc_info=None,
-        )
+        try:
+            # Convert to JSON string
+            log_line = json.dumps(event_dict) + "\n"
 
-        # Thread-safe writing with immediate flush
-        with self._lock:
-            self._logger.handle(record)
-            self._handler.flush()
+            # Create a log record
+            record = logging.LogRecord(
+                name=self._logger.name,
+                level=logging.INFO,
+                pathname="",
+                lineno=0,
+                msg=log_line,
+                args=(),
+                exc_info=None,
+            )
+
+            # Thread-safe writing with immediate flush
+            with self._lock:
+                self._logger.handle(record)
+                self._handler.flush()
+            success = True
+        except Exception as e:
+            error_msg = str(e)
+            raise
+        finally:
+            if metrics:
+                latency_ms = (time.time() - start_time) * 1000
+                metrics.record_sink_write(
+                    sink_name="FileSink",
+                    latency_ms=latency_ms,
+                    success=success,
+                    batch_size=1,
+                    error=error_msg,
+                )
 
     def close(self) -> None:
         """Close the file handler."""

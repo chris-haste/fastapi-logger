@@ -395,6 +395,88 @@ export FAPILOG_USER_CONTEXT_ENABLED=true
 export FAPILOG_USER_CONTEXT_ENABLED=false
 ```
 
+### Metrics Collection Settings
+
+#### `metrics_enabled` {#metrics_enabled}
+
+**Type:** `bool`  
+**Default:** `False`  
+**Environment Variable:** `FAPILOG_METRICS_ENABLED`
+
+Enables comprehensive metrics collection for queue and sink performance monitoring.
+
+```bash
+# Enable metrics collection
+export FAPILOG_METRICS_ENABLED=true
+
+# Disable metrics collection (default)
+export FAPILOG_METRICS_ENABLED=false
+```
+
+#### `metrics_sample_window` {#metrics_sample_window}
+
+**Type:** `int`  
+**Default:** `100`  
+**Environment Variable:** `FAPILOG_METRICS_SAMPLE_WINDOW`
+
+Number of recent samples to keep for calculating average metrics.
+
+```bash
+# Larger window for more stable averages
+export FAPILOG_METRICS_SAMPLE_WINDOW=200
+
+# Smaller window for more responsive metrics
+export FAPILOG_METRICS_SAMPLE_WINDOW=50
+```
+
+#### `metrics_prometheus_enabled` {#metrics_prometheus_enabled}
+
+**Type:** `bool`  
+**Default:** `False`  
+**Environment Variable:** `FAPILOG_METRICS_PROMETHEUS_ENABLED`
+
+Enables Prometheus metrics HTTP endpoint for scraping.
+
+```bash
+# Enable Prometheus exporter
+export FAPILOG_METRICS_PROMETHEUS_ENABLED=true
+
+# Disable Prometheus exporter (default)
+export FAPILOG_METRICS_PROMETHEUS_ENABLED=false
+```
+
+#### `metrics_prometheus_port` {#metrics_prometheus_port}
+
+**Type:** `int`  
+**Default:** `8000`  
+**Environment Variable:** `FAPILOG_METRICS_PROMETHEUS_PORT`
+
+Port for the Prometheus metrics HTTP endpoint.
+
+```bash
+# Custom port
+export FAPILOG_METRICS_PROMETHEUS_PORT=9090
+
+# Default port
+export FAPILOG_METRICS_PROMETHEUS_PORT=8000
+```
+
+#### `metrics_prometheus_host` {#metrics_prometheus_host}
+
+**Type:** `str`  
+**Default:** `"0.0.0.0"`  
+**Environment Variable:** `FAPILOG_METRICS_PROMETHEUS_HOST`
+
+Host address for the Prometheus metrics HTTP endpoint.
+
+```bash
+# Bind to localhost only
+export FAPILOG_METRICS_PROMETHEUS_HOST=127.0.0.1
+
+# Bind to all interfaces (default)
+export FAPILOG_METRICS_PROMETHEUS_HOST=0.0.0.0
+```
+
 ## Overriding Configuration
 
 ### Environment Variables

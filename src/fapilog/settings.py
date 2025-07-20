@@ -106,6 +106,28 @@ class LoggingSettings(BaseSettings):
         description="List of custom regex patterns for PII detection "
         "(comma-separated or list)",
     )
+    # Metrics settings
+    metrics_enabled: bool = Field(
+        default=False,
+        description="Enable metrics collection system (default: False)",
+    )
+    metrics_sample_window: int = Field(
+        default=100,
+        description="Number of recent samples to keep for averaging "
+        "metrics (default: 100)",
+    )
+    metrics_prometheus_enabled: bool = Field(
+        default=False,
+        description="Enable Prometheus metrics exporter (default: False)",
+    )
+    metrics_prometheus_port: int = Field(
+        default=8000,
+        description="Port for Prometheus metrics HTTP endpoint (default: 8000)",
+    )
+    metrics_prometheus_host: str = Field(
+        default="0.0.0.0",
+        description="Host for Prometheus metrics HTTP endpoint (default: 0.0.0.0)",
+    )
 
     model_config = SettingsConfigDict(
         env_prefix="FAPILOG_",

@@ -1,15 +1,23 @@
 """FastAPI logging middleware with structured logging and multiple sinks."""
 
-from typing import Any
+from typing import Any, Optional
 
 import structlog
 
 from ._internal.context import get_trace_id as get_current_trace_id
 from .bootstrap import configure_logging
+from .container import LoggingContainer
+from .settings import LoggingSettings
 
 __version__ = "0.1.0"
 
-__all__ = ["configure_logging", "get_logger", "get_current_trace_id", "__version__"]
+__all__ = [
+    "configure_logging",
+    "create_logging_container",
+    "get_logger",
+    "get_current_trace_id",
+    "__version__",
+]
 
 
 def get_logger(name: str = "") -> structlog.BoundLogger:
@@ -22,6 +30,20 @@ def get_logger(name: str = "") -> structlog.BoundLogger:
         A configured structlog.BoundLogger instance
     """
     return structlog.get_logger(name)
+
+
+def create_logging_container(
+    settings: Optional[LoggingSettings] = None,
+) -> LoggingContainer:
+    """Create a new logging container instance.
+
+    Args:
+        settings: Optional LoggingSettings instance. If None, created from env.
+
+    Returns:
+        A new LoggingContainer instance
+    """
+    return LoggingContainer(settings)
 
 
 # For backward compatibility, expose log as a function
