@@ -959,3 +959,415 @@ async def add_trace_id(request, call_next):
 from fapilog import configure_logging
 configure_logging(app=app)  # Automatic trace ID handling
 ```
+
+## Container Architecture
+
+### LoggingContainer
+
+The `LoggingContainer` class provides advanced dependency injection and multiple configuration support.
+
+```python
+class LoggingContainer:
+    def __init__(self, settings: Optional[LoggingSettings] = None) -> None
+    def configure(
+        self,
+        level: Optional[str] = None,
+        json_console: Optional[str] = None,
+        sinks: Optional[Dict[str, Any]] = None,
+        settings: Optional[LoggingSettings] = None,
+        app: Optional[Any] = None,
+    ) -> structlog.BoundLogger
+    async def shutdown(self) -> None
+    def shutdown_sync(self) -> None
+    def reset(self) -> None
+
+    @property
+    def settings(self) -> LoggingSettings
+    @property
+    def is_configured(self) -> bool
+    @property
+    def queue_worker(self) -> Optional[QueueWorker]
+```
+
+**Key Methods:**
+
+#### **init**(settings)
+
+Initialize a new logging container.
+
+**Parameters:**
+
+- `settings`: Optional LoggingSettings instance
+
+#### configure(...)
+
+Configure the container. Parameters same as `configure_logging()`.
+
+**Returns:** Configured structlog.BoundLogger
+
+#### shutdown() / shutdown_sync()
+
+Gracefully shutdown the container and clean up resources.
+
+#### reset()
+
+Reset the container configuration for testing.
+
+**Example:**
+
+```python
+from fapilog.container import LoggingContainer
+from fapilog.settings import LoggingSettings
+
+# Create container with custom settings
+settings = LoggingSettings(
+    level="INFO",
+    sinks=["stdout", "file:///var/log/app.log"],
+    queue_enabled=True
+)
+container = LoggingContainer(settings)
+logger = container.configure()
+
+# Use logger
+logger.info("Application started")
+
+# Clean shutdown
+container.shutdown_sync()
+```
+
+### Container Management Functions
+
+#### cleanup_all_containers()
+
+```python
+def cleanup_all_containers() -> None
+```
+
+Clean up all container instances. Automatically called on process exit.
+
+**Example:**
+
+```python
+from fapilog.container import cleanup_all_containers
+
+# Manual cleanup (usually not needed)
+cleanup_all_containers()
+```
+
+## Settings
+
+### LoggingSettings
+
+Comprehensive configuration class using Pydantic v2.
+
+```python
+class LoggingSettings(BaseSettings):
+    # Basic Configuration
+    level: str = "INFO"
+    json_console: str = "auto"
+
+    # Queue Configuration
+    queue_enabled: bool = False
+    queue_maxsize: int = 1000
+    queue_batch_size: int = 10
+    queue_batch_timeout: float = 1.0
+    queue_overflow: Literal["drop", "block", "sample"] = "drop"
+    queue_retry_delay: float = 1.0
+    queue_max_retries: int = 3
+
+    # Sink Configuration
+    sinks: List[str] = ["stdout"]
+
+    # Security Configuration
+    redact_fields: List[str] = []
+    redact_patterns: List[str] = []
+    redact_level: str = "INFO"
+    enable_auto_pii_redaction: bool = False
+
+    # Trace Configuration
+    enable_httpx_trace_propagation: bool = False
+    trace_id_header: str = "X-Request-ID"
+
+    # Performance Configuration
+    sampling_rate: float = 1.0
+    enable_resource_metrics: bool = False
+```
+
+**Environment Variables:**
+All settings can be configured via environment variables with `FAPILOG_` prefix:
+
+```bash
+export FAPILOG_LEVEL=DEBUG
+export FAPILOG_SINKS="stdout,file:///var/log/app.log"
+export FAPILOG_QUEUE_ENABLED=true
+```
+
+## Context Utilities
+
+### get_context()
+
+```python
+def get_context() -> Dict[str, Any]
+```
+
+Get current request context variables.
+
+**Returns:** Dictionary containing trace_id, span_id, user_id, etc.
+
+### bind_context()
+
+```python
+def bind_context(
+    trace_id: Optional[str] = None,
+    span_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    **kwargs
+) -> None
+```
+
+Bind values to the current request context.
+
+### clear_context()
+
+```python
+def clear_context() -> None
+```
+
+Clear all context variables.
+
+### context_copy()
+
+```python
+def context_copy() -> contextvars.Context
+```
+
+Create a copy of current context for background tasks.
+
+**Example:**
+
+```python
+import asyncio
+from fapilog import get_context, context_copy
+
+async def background_task():
+    # Context is preserved from parent task
+    context = get_context()
+    print(f"Background task trace_id: {context['trace_id']}")
+
+# In request handler
+context = context_copy()
+asyncio.create_task(context.run(background_task))
+```
+
+## Enrichers
+
+### register_enricher()
+
+```python
+def register_enricher(enricher_func: Callable) -> None
+```
+
+Register a custom enricher function.
+
+**Parameters:**
+
+- `enricher_func`: Function with signature `(logger, method_name, event_dict) -> event_dict`
+
+### clear_enrichers()
+
+```python
+def clear_enrichers() -> None
+```
+
+Clear all registered enrichers.
+
+**Example:**
+
+```python
+from fapilog.enrichers import register_enricher
+
+def tenant_enricher(logger, method_name, event_dict):
+    event_dict["tenant_id"] = get_current_tenant_id()
+    return event_dict
+
+register_enricher(tenant_enricher)
+```
+
+## User Context
+
+### create_user_dependency()
+
+```python
+def create_user_dependency(get_user_func: Callable) -> Callable
+```
+
+Create a FastAPI dependency for user context enrichment.
+
+**Example:**
+
+```python
+from fastapi import Depends
+from fapilog.enrichers import create_user_dependency
+
+async def get_current_user():
+    return {"id": "user123", "roles": ["admin"]}
+
+UserDep = create_user_dependency(get_current_user)
+
+@app.get("/protected")
+async def protected_route(user=Depends(UserDep)):
+    # User context automatically added to logs
+    logger.info("Protected route accessed")
+```
+
+## Trace Propagation
+
+### get_current_trace_id()
+
+```python
+def get_current_trace_id() -> Optional[str]
+```
+
+Get the current trace ID from context.
+
+**Returns:** Current trace ID or None if not in request context
+
+## Exception Classes
+
+### FapilogError
+
+Base exception class for all fapilog errors.
+
+### ConfigurationError
+
+Raised when configuration is invalid.
+
+### SinkError
+
+Raised when sink operations fail.
+
+### QueueError
+
+Raised when queue operations fail.
+
+### MiddlewareError
+
+Raised when middleware operations fail.
+
+**Example:**
+
+```python
+from fapilog.exceptions import ConfigurationError
+from fapilog.settings import LoggingSettings
+
+try:
+    settings = LoggingSettings(level="INVALID")
+except ConfigurationError as e:
+    print(f"Configuration error: {e}")
+```
+
+## Sinks
+
+### Built-in Sinks
+
+#### Stdout Sink
+
+```
+stdout
+```
+
+#### File Sink
+
+```
+file:///path/to/logfile.log
+file:///path/to/logfile.log?rotation=1MB&retention=7
+```
+
+#### Loki Sink
+
+```
+loki://localhost:3100/loki/api/v1/push
+loki://localhost:3100/loki/api/v1/push?labels=app:myapp,env:prod
+```
+
+### Custom Sinks
+
+Implement the sink interface:
+
+```python
+class CustomSink:
+    async def write(self, event_dict: Dict[str, Any]) -> None:
+        # Process the log event
+        pass
+```
+
+## Advanced Usage
+
+### Multiple Containers
+
+```python
+from fapilog.container import LoggingContainer
+from fapilog.settings import LoggingSettings
+
+# Service A container
+service_a_settings = LoggingSettings(
+    level="DEBUG",
+    sinks=["stdout", "file:///var/log/service-a.log"]
+)
+service_a_container = LoggingContainer(service_a_settings)
+service_a_logger = service_a_container.configure()
+
+# Service B container
+service_b_settings = LoggingSettings(
+    level="INFO",
+    sinks=["stdout", "loki://localhost:3100"]
+)
+service_b_container = LoggingContainer(service_b_settings)
+service_b_logger = service_b_container.configure()
+
+# Independent logging
+service_a_logger.debug("Service A debug message")
+service_b_logger.info("Service B info message")
+```
+
+### Testing with Containers
+
+```python
+import pytest
+from fapilog.container import LoggingContainer
+
+@pytest.fixture
+def isolated_logging():
+    container = LoggingContainer()
+    logger = container.configure()
+    yield container, logger
+    container.reset()
+
+def test_my_feature(isolated_logging):
+    container, logger = isolated_logging
+    # Test with isolated logging instance
+    logger.info("Test message")
+    assert container.is_configured
+```
+
+## Migration from Global State
+
+For more detailed migration examples, see [Container Architecture Documentation](container-architecture.md).
+
+### Before (Deprecated)
+
+```python
+from fapilog.bootstrap import _configure_standard_logging
+_configure_standard_logging("INFO")  # Deprecated
+```
+
+### After (Recommended)
+
+```python
+from fapilog.container import LoggingContainer
+from fapilog.settings import LoggingSettings
+
+settings = LoggingSettings(level="INFO")
+container = LoggingContainer(settings)
+container.configure()
+```

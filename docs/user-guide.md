@@ -12,6 +12,7 @@ This guide provides step-by-step tutorials for using `fapilog` in your applicati
 - [User Context Enrichment](#user-context-enrichment)
 - [Advanced Configuration](#advanced-configuration)
 - [Custom Enrichers](#custom-enrichers)
+- [Container Architecture](#container-architecture)
 - [Custom Sinks](#custom-sinks)
 - [Performance Tuning](#performance-tuning)
 - [Production Deployment](#production-deployment)
@@ -789,6 +790,264 @@ def conditional_enricher(logger, method_name, event_dict):
 
     return event_dict
 ```
+
+---
+
+## Container Architecture
+
+`fapilog` uses a modern container-based dependency injection architecture that provides excellent testability, thread safety, and supports multiple logging configurations within the same process.
+
+### When to Use Containers
+
+**Simple Applications (Default Approach):**
+
+```python
+from fapilog import configure_logging
+
+# This works great for most applications
+logger = configure_logging()
+logger.info("Application started")
+```
+
+**Advanced Applications (Container Approach):**
+
+```python
+from fapilog.container import LoggingContainer
+from fapilog.settings import LoggingSettings
+
+# Use containers when you need:
+# - Multiple logging configurations
+# - Better test isolation
+# - Thread-safe concurrent logging
+# - Explicit resource management
+```
+
+### Multiple Configuration Example
+
+Create isolated logging configurations for different parts of your application:
+
+```python
+from fapilog.container import LoggingContainer
+from fapilog.settings import LoggingSettings
+
+# Admin service: verbose logging to file
+admin_settings = LoggingSettings(
+    level="DEBUG",
+    sinks=["stdout", "file:///var/log/admin.log"],
+    redact_fields=["password", "token"]
+)
+admin_container = LoggingContainer(admin_settings)
+admin_logger = admin_container.configure()
+
+# API service: JSON logging to Loki
+api_settings = LoggingSettings(
+    level="INFO",
+    sinks=["stdout", "loki://loki:3100"],
+    json_console="json",
+    queue_enabled=True
+)
+api_container = LoggingContainer(api_settings)
+api_logger = api_container.configure()
+
+# Background worker: minimal logging
+worker_settings = LoggingSettings(
+    level="WARNING",
+    sinks=["stdout"],
+    sampling_rate=0.1  # Only 10% of logs
+)
+worker_container = LoggingContainer(worker_settings)
+worker_logger = worker_container.configure()
+
+# Each logger operates completely independently
+admin_logger.debug("Admin debug message")
+api_logger.info("API request processed")
+worker_logger.warning("Worker task failed")
+```
+
+### Testing with Container Isolation
+
+Containers prevent test interference and provide clean test isolation:
+
+```python
+import pytest
+from fapilog.container import LoggingContainer
+from fapilog.settings import LoggingSettings
+
+class TestMyService:
+    @pytest.fixture
+    def logging_container(self):
+        """Create isolated logging for tests."""
+        settings = LoggingSettings(
+            level="DEBUG",
+            sinks=["stdout"],
+            queue_enabled=False,  # Synchronous for testing
+            json_console="json"   # Consistent output format
+        )
+        container = LoggingContainer(settings)
+        logger = container.configure()
+
+        yield container, logger
+
+        # Automatic cleanup after test
+        container.reset()
+
+    def test_user_creation(self, logging_container):
+        container, logger = logging_container
+
+        # Test your service with isolated logging
+        logger.info("Creating user", user_id="123")
+
+        # Verify container state
+        assert container.is_configured
+        assert container.settings.level == "DEBUG"
+
+    def test_error_handling(self, logging_container):
+        container, logger = logging_container
+
+        # Each test gets a fresh container
+        logger.error("Service error", error_code="E001")
+
+        # No interference from other tests
+        assert container.queue_worker is None  # Queue disabled
+```
+
+### Thread-Safe Concurrent Logging
+
+Containers are fully thread-safe for concurrent applications:
+
+```python
+import threading
+import time
+from fapilog.container import LoggingContainer
+
+def service_worker(service_name: str, message_count: int):
+    """Worker function that creates its own logging container."""
+    # Each thread gets its own container
+    container = LoggingContainer()
+    logger = container.configure()
+
+    for i in range(message_count):
+        logger.info(
+            f"{service_name} processing",
+            message_id=i,
+            service=service_name,
+            thread_id=threading.current_thread().ident
+        )
+        time.sleep(0.01)  # Simulate work
+
+    # Clean shutdown
+    container.shutdown_sync()
+    logger.info(f"{service_name} completed", total_messages=message_count)
+
+# Start multiple concurrent services
+threads = []
+for service_id in range(5):
+    thread = threading.Thread(
+        target=service_worker,
+        args=(f"service-{service_id}", 100)
+    )
+    threads.append(thread)
+    thread.start()
+
+# Wait for all services to complete
+for thread in threads:
+    thread.join()
+
+print("All services completed successfully")
+```
+
+### Container Lifecycle Management
+
+Containers provide explicit resource management:
+
+```python
+from fapilog.container import LoggingContainer, cleanup_all_containers
+
+# Manual lifecycle management
+container = LoggingContainer()
+try:
+    logger = container.configure()
+
+    # Application logic
+    logger.info("Application running")
+
+finally:
+    # Explicit cleanup (recommended for long-running processes)
+    container.shutdown_sync()
+
+# Global cleanup (automatic on process exit)
+cleanup_all_containers()
+```
+
+### FastAPI Integration with Containers
+
+Containers integrate seamlessly with FastAPI for dependency injection:
+
+```python
+from fastapi import FastAPI, Depends
+from fapilog.container import LoggingContainer
+from fapilog.settings import LoggingSettings
+
+app = FastAPI()
+
+# Create application-level container
+app_container = LoggingContainer(
+    LoggingSettings(
+        level="INFO",
+        sinks=["stdout", "file:///var/log/api.log"],
+        trace_id_header="X-Request-ID"
+    )
+)
+
+# Configure with automatic middleware registration
+app_logger = app_container.configure(app=app)
+
+def get_logger():
+    """Dependency to inject logger into routes."""
+    return app_logger
+
+@app.get("/users/{user_id}")
+async def get_user(user_id: str, logger=Depends(get_logger)):
+    logger.info("Fetching user", user_id=user_id)
+    return {"user_id": user_id, "name": "John Doe"}
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean shutdown of logging resources."""
+    await app_container.shutdown()
+```
+
+### Container Best Practices
+
+1. **Use Default API for Simple Cases**: `configure_logging()` is perfect for most applications
+2. **Use Containers for Complex Scenarios**: Multiple configs, testing, or thread safety requirements
+3. **Always Clean Up**: Call `shutdown_sync()` or `shutdown()` in long-running applications
+4. **Test Isolation**: Use separate containers in tests to prevent interference
+5. **Thread Safety**: Create thread-local containers when needed
+6. **Resource Monitoring**: Monitor container memory usage in production
+
+### Container Properties and Debugging
+
+Containers provide introspection capabilities for debugging:
+
+```python
+container = LoggingContainer()
+logger = container.configure()
+
+# Check container state
+print(f"Configured: {container.is_configured}")
+print(f"Settings: {container.settings}")
+print(f"Queue Worker: {container.queue_worker}")
+
+# Access queue statistics (if queue enabled)
+if container.queue_worker:
+    queue = container.queue_worker.queue
+    print(f"Queue size: {queue.qsize()}")
+    print(f"Queue maxsize: {queue.maxsize}")
+    print(f"Worker running: {container.queue_worker._running}")
+```
+
+📖 **For complete container documentation, see [Container Architecture Guide](docs/container-architecture.md)**
 
 ---
 
