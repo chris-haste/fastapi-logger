@@ -7,7 +7,14 @@ from collections import defaultdict, deque
 from dataclasses import dataclass
 from typing import Any, DefaultDict, Dict, Optional
 
-import psutil
+# Optional dependency for resource monitoring
+try:
+    import psutil
+
+    HAS_PSUTIL = True
+except ImportError:
+    psutil = None
+    HAS_PSUTIL = False
 
 logger = logging.getLogger(__name__)
 
@@ -268,7 +275,7 @@ class MetricsCollector:
 
     def update_memory_metrics(self) -> None:
         """Update memory usage metrics."""
-        if not self.enabled:
+        if not self.enabled or not HAS_PSUTIL:
             return
 
         try:
