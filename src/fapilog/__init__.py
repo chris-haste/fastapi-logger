@@ -1,5 +1,7 @@
 """FastAPI logging middleware with structured logging and multiple sinks."""
 
+import importlib.metadata
+from pathlib import Path
 from typing import Any, Optional
 
 import structlog
@@ -9,7 +11,41 @@ from .bootstrap import configure_logging
 from .container import LoggingContainer
 from .settings import LoggingSettings
 
-__version__ = "0.1.0"
+
+def _get_version() -> str:
+    """Get version from package metadata or pyproject.toml."""
+    # First, try to get version from installed package metadata
+    try:
+        return importlib.metadata.version("fapilog")
+    except (importlib.metadata.PackageNotFoundError, AttributeError, ImportError):
+        pass
+
+    # If not found in metadata (development/editable install),
+    # try pyproject.toml
+    try:
+        # Try tomllib first (Python 3.11+)
+        import tomllib
+    except ImportError:
+        # Fallback to tomli for older Python versions
+        try:
+            import tomli as tomllib
+        except ImportError:
+            return "0.1.2"  # Fallback version
+
+    # Find pyproject.toml relative to this file
+    current_file = Path(__file__)
+    pyproject_path = current_file.parent.parent.parent / "pyproject.toml"
+
+    try:
+        with open(pyproject_path, "rb") as f:
+            data = tomllib.load(f)
+            return data["project"]["version"]
+    except (KeyError, FileNotFoundError, OSError):
+        return "0.1.2"  # Fallback version
+
+
+# Get version from package metadata or pyproject.toml
+__version__ = _get_version()
 
 __all__ = [
     "configure_logging",
