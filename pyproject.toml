@@ -9,7 +9,7 @@ description = "Production-ready structured logging for FastAPI with trace IDs, a
 readme = "README.md"
 license = {text = "Apache-2.0"}
 authors = [
-    {name = "FastAPI Logger Contributors", email = "contributors@fapilog.dev"}
+    {name = "Chris Haste", email = ""}
 ]
 keywords = [
     "fastapi", "logging", "structured", "asyncio", "middleware", "observability", 
@@ -255,6 +255,8 @@ ignore_names = [
     # Redactor utility functions (may be used in future)
     "_get_nested_value",
     "_set_nested_value",
+    # Backward compatibility functions
+    "_get_log",
 ]
 ignore_decorators = [
     "pytest.fixture",
