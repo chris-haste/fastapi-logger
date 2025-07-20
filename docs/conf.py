@@ -9,13 +9,26 @@
 import os
 import sys
 
+import tomllib
+
 sys.path.insert(0, os.path.abspath("../src"))
+
+
+# Read version from pyproject.toml
+def get_version():
+    try:
+        with open("../pyproject.toml", "rb") as f:
+            data = tomllib.load(f)
+            return data["project"]["version"]
+    except Exception:
+        return "0.1.2"  # fallback
+
 
 project = "fapilog"
 copyright = "2024, Chris Haste"
 author = "Chris Haste"
-release = "0.1.2"
-version = "0.1.2"
+release = get_version()
+version = get_version()
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
