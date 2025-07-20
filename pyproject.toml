@@ -57,6 +57,12 @@ dev = [
     "vulture>=2.10.0",
     "build>=1.0.0",
 ]
+docs = [
+    "sphinx>=5.0.0",
+    "sphinx-rtd-theme>=1.0.0",
+    "myst-parser>=0.18.0",
+    "sphinx-autodoc-typehints>=1.19.0",
+]
 loki = [
     "httpx>=0.27.0",
 ]

@@ -32,4 +32,19 @@ search:
   ranking:
     api-reference.html: 1
   ignore:
-    - 404.html 
+    - 404.html
+
+# Version control settings
+# This enables version-specific documentation
+# Users can switch between "latest" and specific versions
+# 
+# ReadTheDocs automatically:
+# - Builds "latest" from main branch (updates on every push)
+# - Builds version-specific docs from release tags (v0.1.0, v0.1.1, etc.)
+# - Provides version switcher in the documentation
+# 
+# URLs:
+# - Latest: https://fapilog.readthedocs.io/
+# - Version-specific: https://fapilog.readthedocs.io/en/v0.1.0/
+# - Version-specific: https://fapilog.readthedocs.io/en/v0.1.1/
+# etc. 

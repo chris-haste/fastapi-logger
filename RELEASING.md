@@ -66,9 +66,22 @@ python scripts/publish_to_pypi.py
      - Bug fix in A
      ```
 
-3. **Commit the changes**
+3. **Update Documentation** (if needed)
+
+   - Review and update API documentation
+   - Update examples and tutorials
+   - Ensure all new features are documented
+   - Test documentation builds locally:
+
+     ```bash
+     pip install -e ".[docs]"
+     cd docs
+     sphinx-build -b html . _build/html
+     ```
+
+4. **Commit the changes**
    ```bash
-   git add pyproject.toml CHANGELOG.md
+   git add pyproject.toml CHANGELOG.md docs/
    git commit -m "chore(release): vX.Y.Z"
    git push origin main
    ```
