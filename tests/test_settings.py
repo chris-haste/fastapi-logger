@@ -159,8 +159,15 @@ class TestLoggingSettings:
 
 def test_configure_logging_function():
     """Test the configure_logging function from bootstrap module."""
+    from fapilog.settings import LoggingSettings
+
     # Test the actual configure_logging function
     configure_logging()
-    configure_logging(level="INFO", json_console="json")
-    sinks_config = {"stdout": {}}
-    configure_logging(level="DEBUG", json_console="pretty", sinks=sinks_config)
+
+    # Test with specific settings
+    settings = LoggingSettings(level="INFO", json_console="json")
+    configure_logging(settings=settings)
+
+    # Test with different settings
+    settings2 = LoggingSettings(level="DEBUG", json_console="pretty")
+    configure_logging(settings=settings2)

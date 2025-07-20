@@ -192,26 +192,19 @@ class TestConfigureLogging:
         configure_logging()
         assert len(logging.root.handlers) > 0
 
-    def test_configure_with_settings_object(self) -> None:
-        """Test that configure_logging works with a LoggingSettings object."""
-        settings = LoggingSettings(level="DEBUG", json_console="json")
-        logger = configure_logging(settings=settings)
-
-        # Check that the logger is callable
-        assert callable(logger.info)
-
-    def test_deprecated_keyword_arguments(self) -> None:
-        """Test that deprecated keyword arguments work without warnings."""
-        # Since we removed deprecated warnings, this should work without warnings
-        logger = configure_logging(
-            level="DEBUG", json_console="json", sinks={"stdout": {}}
+    def test_settings_based_configuration(self) -> None:
+        """Test configuration using LoggingSettings."""
+        settings = LoggingSettings(
+            level="DEBUG",
+            json_console="json",
         )
+        logger = configure_logging(settings=settings)
 
         # Verify the logger is functional
         assert callable(logger.info)
         assert callable(logger.error)
 
-    def test_deprecated_keyword_arguments_no_warning(self) -> None:
+    def test_no_warnings_with_modern_api(self) -> None:
         """Test that no warning is issued when using modern API."""
         import warnings
 
@@ -219,8 +212,9 @@ class TestConfigureLogging:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
 
-            # Use modern API (no deprecated arguments)
-            logger = configure_logging()
+            # Use modern API with LoggingSettings
+            settings = LoggingSettings(level="INFO")
+            logger = configure_logging(settings=settings)
 
             # Check that no deprecation warning was issued
             assert len(w) == 0

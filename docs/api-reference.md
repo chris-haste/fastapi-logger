@@ -43,9 +43,6 @@ configure_logging(settings=settings)
 
 **Parameters:**
 
-- `level` (str, optional): Logging level override. Defaults to `None` (uses settings).
-- `sinks` (Dict[str, Any], optional): Sink configurations. **Deprecated** - use `LoggingSettings` instead.
-- `json_console` (str, optional): Console output format override. **Deprecated** - use `LoggingSettings` instead.
 - `settings` (LoggingSettings, optional): Complete configuration object. If `None`, created from environment variables.
 - `app` (Any, optional): FastAPI app instance. If provided, `TraceIDMiddleware` is automatically registered.
 

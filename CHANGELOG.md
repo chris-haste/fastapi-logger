@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Story 13.4**: Configuration API Simplification
+
+  - **BREAKING**: Removed deprecated keyword arguments from `configure_logging()` function
+  - **SIMPLIFIED**: Function signature now only accepts `settings` and `app` parameters
+  - **REMOVED**: Deprecated parameters: `level`, `sinks`, `json_console`
+  - **STANDARDIZED**: All configuration must now use `LoggingSettings` object
+  - **IMPROVED**: Cleaner, more consistent API surface
+  - **ENHANCED**: Better type safety and IDE support
+  - **MAINTAINED**: All functionality preserved through `LoggingSettings`
+
+  **Migration Example:**
+
+  ```python
+  # Before (deprecated)
+  configure_logging(level="DEBUG", json_console="json")
+
+  # After (recommended)
+  settings = LoggingSettings(level="DEBUG", json_console="json")
+  configure_logging(settings=settings)
+  ```
+
 - **Story 13.1**: Container-Based Architecture & Dependency Injection
 
   - **BREAKING INTERNAL**: Eliminated global state variables (`_configured`, `_queue_worker`) in favor of container-based dependency injection
