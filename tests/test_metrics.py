@@ -332,34 +332,17 @@ class TestPrometheusExporter:
 
     def test_prometheus_exporter_initialization(self):
         """Test Prometheus exporter initialization."""
-        # Mock FastAPI being available for this test
-        from unittest.mock import Mock, patch
+        exporter = PrometheusExporter(
+            host="localhost",
+            port=9090,
+            path="/custom-metrics",
+            enabled=True,
+        )
 
-        mock_fastapi = Mock()
-        mock_response = Mock()
-        mock_plain_text_response = Mock()
-        mock_uvicorn = Mock()
-
-        with patch.dict(
-            "sys.modules", {"fastapi": mock_fastapi, "uvicorn": mock_uvicorn}
-        ):
-            with patch("fapilog.monitoring.FastAPI", mock_fastapi):
-                with patch("fapilog.monitoring.Response", mock_response):
-                    with patch(
-                        "fapilog.monitoring.PlainTextResponse", mock_plain_text_response
-                    ):
-                        with patch("fapilog.monitoring.uvicorn", mock_uvicorn):
-                            exporter = PrometheusExporter(
-                                host="localhost",
-                                port=9090,
-                                path="/custom-metrics",
-                                enabled=True,
-                            )
-
-                            assert exporter.host == "localhost"
-                            assert exporter.port == 9090
-                            assert exporter.path == "/custom-metrics"
-                            assert exporter.enabled
+        assert exporter.host == "localhost"
+        assert exporter.port == 9090
+        assert exporter.path == "/custom-metrics"
+        assert exporter.enabled
 
         # Test with FastAPI not available
         with patch("fapilog.monitoring.FastAPI", None):

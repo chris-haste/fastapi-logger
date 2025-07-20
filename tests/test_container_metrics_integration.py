@@ -41,75 +41,41 @@ class TestContainerMetricsIntegration:
 
     def test_bootstrap_configure_logging_with_prometheus(self):
         """Test that configure_logging works with Prometheus enabled."""
-        # Mock FastAPI being available for this test
-        from unittest.mock import Mock, patch
+        settings = LoggingSettings(
+            level="INFO",
+            sinks=["stdout://"],
+            metrics_enabled=True,
+            metrics_prometheus_enabled=True,
+            metrics_prometheus_port=8123,
+        )
 
-        mock_fastapi = Mock()
-        mock_response = Mock()
-        mock_plain_text_response = Mock()
-        mock_uvicorn = Mock()
+        # Should not raise any exceptions
+        configure_logging(settings)
 
-        with patch.dict(
-            "sys.modules", {"fastapi": mock_fastapi, "uvicorn": mock_uvicorn}
-        ):
-            with patch("fapilog.monitoring.FastAPI", mock_fastapi):
-                with patch("fapilog.monitoring.Response", mock_response):
-                    with patch(
-                        "fapilog.monitoring.PlainTextResponse", mock_plain_text_response
-                    ):
-                        with patch("fapilog.monitoring.uvicorn", mock_uvicorn):
-                            settings = LoggingSettings(
-                                level="INFO",
-                                sinks=["stdout://"],
-                                metrics_enabled=True,
-                                metrics_prometheus_enabled=True,
-                                metrics_prometheus_port=8123,
-                            )
-
-                            # Should not raise any exceptions
-                            configure_logging(settings)
-
-                            # Verify Prometheus exporter was created
-                            prometheus_exporter = get_prometheus_exporter()
-                            assert prometheus_exporter is not None
-                            assert prometheus_exporter.port == 8123
+        # Verify Prometheus exporter was created
+        prometheus_exporter = get_prometheus_exporter()
+        assert prometheus_exporter is not None
+        assert prometheus_exporter.port == 8123
 
     def test_prometheus_exporter_initialization_enabled(self):
         """Test Prometheus exporter auto-initialization when enabled."""
-        # Mock FastAPI being available for this test
-        from unittest.mock import Mock, patch
+        settings = LoggingSettings(
+            level="INFO",
+            metrics_enabled=True,
+            metrics_prometheus_enabled=True,
+            metrics_prometheus_port=8123,
+            metrics_prometheus_host="127.0.0.1",
+        )
 
-        mock_fastapi = Mock()
-        mock_response = Mock()
-        mock_plain_text_response = Mock()
-        mock_uvicorn = Mock()
+        container = LoggingContainer(settings)
+        container.configure()
 
-        with patch.dict(
-            "sys.modules", {"fastapi": mock_fastapi, "uvicorn": mock_uvicorn}
-        ):
-            with patch("fapilog.monitoring.FastAPI", mock_fastapi):
-                with patch("fapilog.monitoring.Response", mock_response):
-                    with patch(
-                        "fapilog.monitoring.PlainTextResponse", mock_plain_text_response
-                    ):
-                        with patch("fapilog.monitoring.uvicorn", mock_uvicorn):
-                            settings = LoggingSettings(
-                                level="INFO",
-                                metrics_enabled=True,
-                                metrics_prometheus_enabled=True,
-                                metrics_prometheus_port=8123,
-                                metrics_prometheus_host="127.0.0.1",
-                            )
-
-                            container = LoggingContainer(settings)
-                            container.configure()
-
-                            # Verify Prometheus exporter was created
-                            prometheus_exporter = get_prometheus_exporter()
-                            assert prometheus_exporter is not None
-                            assert prometheus_exporter.port == 8123
-                            assert prometheus_exporter.host == "127.0.0.1"
-                            assert prometheus_exporter.enabled
+        # Verify Prometheus exporter was created
+        prometheus_exporter = get_prometheus_exporter()
+        assert prometheus_exporter is not None
+        assert prometheus_exporter.port == 8123
+        assert prometheus_exporter.host == "127.0.0.1"
+        assert prometheus_exporter.enabled
 
     def test_prometheus_exporter_initialization_disabled(self):
         """Test Prometheus exporter not created when disabled."""
