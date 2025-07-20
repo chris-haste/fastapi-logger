@@ -25,7 +25,7 @@ class TestContainerMetricsIntegration:
         """Test that configure_logging works with metrics enabled."""
         settings = LoggingSettings(
             level="INFO",
-            sinks=["stdout://"],
+            sinks=["stdout"],
             metrics_enabled=True,
         )
 
@@ -43,7 +43,7 @@ class TestContainerMetricsIntegration:
         """Test that configure_logging works with Prometheus enabled."""
         settings = LoggingSettings(
             level="INFO",
-            sinks=["stdout://"],
+            sinks=["stdout"],
             metrics_enabled=True,
             metrics_prometheus_enabled=True,
             metrics_prometheus_port=8123,
