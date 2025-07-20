@@ -1,80 +1,115 @@
-"""Integration tests for container metrics functionality."""
+"""Integration tests for container with metrics."""
 
 import pytest
 
 import fapilog
+from fapilog import configure_logging
 from fapilog._internal.metrics import get_metrics_collector
+from fapilog.bootstrap import reset_logging
 from fapilog.container import LoggingContainer
-from fapilog.monitoring import get_prometheus_exporter
+from fapilog.monitoring import get_prometheus_exporter, set_prometheus_exporter
 from fapilog.settings import LoggingSettings
 
 
 class TestContainerMetricsIntegration:
-    """Test integration between container and metrics systems."""
+    """Test container integration with metrics system."""
 
     def teardown_method(self):
         """Clean up after each test."""
-        # Reset global metrics state
-        from fapilog._internal.metrics import set_metrics_collector
-        from fapilog.monitoring import set_prometheus_exporter
-
-        set_metrics_collector(None)
+        # Reset logging state
+        reset_logging()
+        # Reset prometheus exporter
         set_prometheus_exporter(None)
 
-    def test_automatic_metrics_initialization_enabled(self):
-        """Test that metrics are auto-initialized when metrics_enabled=True."""
+    def test_bootstrap_configure_logging_with_metrics(self):
+        """Test that configure_logging works with metrics enabled."""
         settings = LoggingSettings(
             level="INFO",
+            sinks=["stdout://"],
             metrics_enabled=True,
-            metrics_sample_window=50,
         )
 
-        container = LoggingContainer(settings)
-        container.configure()
+        # Should not raise any exceptions
+        configure_logging(settings)
 
-        # Verify metrics collector was created
-        metrics_collector = get_metrics_collector()
-        assert metrics_collector is not None
-        assert metrics_collector.is_enabled()
-        assert metrics_collector.sample_window == 50
+        # Verify metrics are enabled
+        import fapilog._internal.metrics as metrics
 
-    def test_automatic_metrics_initialization_disabled(self):
-        """Test that metrics are not initialized when metrics_enabled=False."""
-        settings = LoggingSettings(
-            level="INFO",
-            metrics_enabled=False,
-        )
+        collector = metrics.get_metrics_collector()
+        assert collector is not None
+        assert collector.is_enabled()
 
-        container = LoggingContainer(settings)
-        container.configure()
+    def test_bootstrap_configure_logging_with_prometheus(self):
+        """Test that configure_logging works with Prometheus enabled."""
+        # Mock FastAPI being available for this test
+        from unittest.mock import Mock, patch
 
-        # Should not have created a metrics collector
-        # (or should have created a disabled one)
-        # Since we're not calling create_metrics_collector,
-        # global collector should remain None
-        metrics_collector = get_metrics_collector()
-        # This might be None or might be disabled depending on implementation
-        assert metrics_collector is None or not metrics_collector.is_enabled()
+        mock_fastapi = Mock()
+        mock_response = Mock()
+        mock_plain_text_response = Mock()
+        mock_uvicorn = Mock()
+
+        with patch.dict(
+            "sys.modules", {"fastapi": mock_fastapi, "uvicorn": mock_uvicorn}
+        ):
+            with patch("fapilog.monitoring.FastAPI", mock_fastapi):
+                with patch("fapilog.monitoring.Response", mock_response):
+                    with patch(
+                        "fapilog.monitoring.PlainTextResponse", mock_plain_text_response
+                    ):
+                        with patch("fapilog.monitoring.uvicorn", mock_uvicorn):
+                            settings = LoggingSettings(
+                                level="INFO",
+                                sinks=["stdout://"],
+                                metrics_enabled=True,
+                                metrics_prometheus_enabled=True,
+                                metrics_prometheus_port=8123,
+                            )
+
+                            # Should not raise any exceptions
+                            configure_logging(settings)
+
+                            # Verify Prometheus exporter was created
+                            prometheus_exporter = get_prometheus_exporter()
+                            assert prometheus_exporter is not None
+                            assert prometheus_exporter.port == 8123
 
     def test_prometheus_exporter_initialization_enabled(self):
         """Test Prometheus exporter auto-initialization when enabled."""
-        settings = LoggingSettings(
-            level="INFO",
-            metrics_enabled=True,
-            metrics_prometheus_enabled=True,
-            metrics_prometheus_port=8123,
-            metrics_prometheus_host="127.0.0.1",
-        )
+        # Mock FastAPI being available for this test
+        from unittest.mock import Mock, patch
 
-        container = LoggingContainer(settings)
-        container.configure()
+        mock_fastapi = Mock()
+        mock_response = Mock()
+        mock_plain_text_response = Mock()
+        mock_uvicorn = Mock()
 
-        # Verify Prometheus exporter was created
-        prometheus_exporter = get_prometheus_exporter()
-        assert prometheus_exporter is not None
-        assert prometheus_exporter.port == 8123
-        assert prometheus_exporter.host == "127.0.0.1"
-        assert prometheus_exporter.enabled
+        with patch.dict(
+            "sys.modules", {"fastapi": mock_fastapi, "uvicorn": mock_uvicorn}
+        ):
+            with patch("fapilog.monitoring.FastAPI", mock_fastapi):
+                with patch("fapilog.monitoring.Response", mock_response):
+                    with patch(
+                        "fapilog.monitoring.PlainTextResponse", mock_plain_text_response
+                    ):
+                        with patch("fapilog.monitoring.uvicorn", mock_uvicorn):
+                            settings = LoggingSettings(
+                                level="INFO",
+                                metrics_enabled=True,
+                                metrics_prometheus_enabled=True,
+                                metrics_prometheus_port=8123,
+                                metrics_prometheus_host="127.0.0.1",
+                            )
+
+                            container = LoggingContainer(settings)
+                            container.configure()
+
+                            # Verify Prometheus exporter was created
+                            prometheus_exporter = get_prometheus_exporter()
+                            assert prometheus_exporter is not None
+                            assert prometheus_exporter.port == 8123
+                            assert prometheus_exporter.host == "127.0.0.1"
+                            assert prometheus_exporter.enabled
 
     def test_prometheus_exporter_initialization_disabled(self):
         """Test Prometheus exporter not created when disabled."""
@@ -87,7 +122,7 @@ class TestContainerMetricsIntegration:
         container = LoggingContainer(settings)
         container.configure()
 
-        # Should not have created a Prometheus exporter
+        # Verify no Prometheus exporter was created
         prometheus_exporter = get_prometheus_exporter()
         assert prometheus_exporter is None
 

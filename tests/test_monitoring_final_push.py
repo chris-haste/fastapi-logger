@@ -26,42 +26,94 @@ class TestMetricsEndpointErrors:
 
     def test_metrics_endpoint_when_collector_disabled(self):
         """Test metrics endpoint when metrics collector is disabled."""
-        exporter = PrometheusExporter(port=9090, enabled=True)
+        # Mock FastAPI being available
+        mock_fastapi = Mock()
+        mock_response = Mock()
+        mock_plain_text_response = Mock()
+        mock_uvicorn = Mock()
 
-        # Mock disabled metrics collector (lines 76-80)
-        with patch("fapilog.monitoring.get_metrics_collector") as mock_get_collector:
-            mock_collector = Mock()
-            mock_collector.is_enabled.return_value = False
-            mock_get_collector.return_value = mock_collector
+        with patch.dict(
+            "sys.modules", {"fastapi": mock_fastapi, "uvicorn": mock_uvicorn}
+        ):
+            with patch("fapilog.monitoring.FastAPI", mock_fastapi):
+                with patch("fapilog.monitoring.Response", mock_response):
+                    with patch(
+                        "fapilog.monitoring.PlainTextResponse", mock_plain_text_response
+                    ):
+                        with patch("fapilog.monitoring.uvicorn", mock_uvicorn):
+                            exporter = PrometheusExporter(port=9090, enabled=True)
 
-            # This should return 503 status
-            exporter._setup_app()
-            assert exporter._app is not None
+                            # Mock disabled metrics collector (lines 76-80)
+                            with patch(
+                                "fapilog.monitoring.get_metrics_collector"
+                            ) as mock_get_collector:
+                                mock_collector = Mock()
+                                mock_collector.is_enabled.return_value = False
+                                mock_get_collector.return_value = mock_collector
+
+                                # This should return 503 status
+                                exporter._setup_app()
+                                assert exporter._app is not None
 
     def test_metrics_endpoint_when_collector_missing(self):
         """Test metrics endpoint when metrics collector is None."""
-        exporter = PrometheusExporter(port=9090, enabled=True)
+        # Mock FastAPI being available
+        mock_fastapi = Mock()
+        mock_response = Mock()
+        mock_plain_text_response = Mock()
+        mock_uvicorn = Mock()
 
-        # Mock missing metrics collector (lines 76-80)
-        with patch("fapilog.monitoring.get_metrics_collector", return_value=None):
-            exporter._setup_app()
-            assert exporter._app is not None
+        with patch.dict(
+            "sys.modules", {"fastapi": mock_fastapi, "uvicorn": mock_uvicorn}
+        ):
+            with patch("fapilog.monitoring.FastAPI", mock_fastapi):
+                with patch("fapilog.monitoring.Response", mock_response):
+                    with patch(
+                        "fapilog.monitoring.PlainTextResponse", mock_plain_text_response
+                    ):
+                        with patch("fapilog.monitoring.uvicorn", mock_uvicorn):
+                            exporter = PrometheusExporter(port=9090, enabled=True)
+
+                            # Mock missing metrics collector (lines 76-80)
+                            with patch(
+                                "fapilog.monitoring.get_metrics_collector",
+                                return_value=None,
+                            ):
+                                exporter._setup_app()
+                                assert exporter._app is not None
 
     def test_metrics_endpoint_generation_error(self):
         """Test metrics endpoint when prometheus metrics generation fails."""
-        exporter = PrometheusExporter(port=9090, enabled=True)
+        # Mock FastAPI being available
+        mock_fastapi = Mock()
+        mock_response = Mock()
+        mock_plain_text_response = Mock()
+        mock_uvicorn = Mock()
 
-        # Mock metrics collector that raises an exception (lines 85-87)
-        with patch("fapilog.monitoring.get_metrics_collector") as mock_get_collector:
-            mock_collector = Mock()
-            mock_collector.is_enabled.return_value = True
-            mock_collector.get_prometheus_metrics.side_effect = Exception(
-                "Metrics error"
-            )
-            mock_get_collector.return_value = mock_collector
+        with patch.dict(
+            "sys.modules", {"fastapi": mock_fastapi, "uvicorn": mock_uvicorn}
+        ):
+            with patch("fapilog.monitoring.FastAPI", mock_fastapi):
+                with patch("fapilog.monitoring.Response", mock_response):
+                    with patch(
+                        "fapilog.monitoring.PlainTextResponse", mock_plain_text_response
+                    ):
+                        with patch("fapilog.monitoring.uvicorn", mock_uvicorn):
+                            exporter = PrometheusExporter(port=9090, enabled=True)
 
-            exporter._setup_app()
-            assert exporter._app is not None
+                            # Mock metrics collector that raises an exception (lines 85-87)
+                            with patch(
+                                "fapilog.monitoring.get_metrics_collector"
+                            ) as mock_get_collector:
+                                mock_collector = Mock()
+                                mock_collector.is_enabled.return_value = True
+                                mock_collector.get_prometheus_metrics.side_effect = (
+                                    Exception("Metrics error")
+                                )
+                                mock_get_collector.return_value = mock_collector
+
+                                exporter._setup_app()
+                                assert exporter._app is not None
 
 
 class TestHealthEndpoint:
@@ -69,12 +121,27 @@ class TestHealthEndpoint:
 
     def test_health_endpoint_setup(self):
         """Test that health endpoint is properly set up."""
-        exporter = PrometheusExporter(port=9090, enabled=True)
+        # Mock FastAPI being available
+        mock_fastapi = Mock()
+        mock_response = Mock()
+        mock_plain_text_response = Mock()
+        mock_uvicorn = Mock()
 
-        exporter._setup_app()
+        with patch.dict(
+            "sys.modules", {"fastapi": mock_fastapi, "uvicorn": mock_uvicorn}
+        ):
+            with patch("fapilog.monitoring.FastAPI", mock_fastapi):
+                with patch("fapilog.monitoring.Response", mock_response):
+                    with patch(
+                        "fapilog.monitoring.PlainTextResponse", mock_plain_text_response
+                    ):
+                        with patch("fapilog.monitoring.uvicorn", mock_uvicorn):
+                            exporter = PrometheusExporter(port=9090, enabled=True)
 
-        # Should have created an app with health endpoint
-        assert exporter._app is not None
+                            exporter._setup_app()
+
+                            # Should have created an app with health endpoint
+                            assert exporter._app is not None
 
 
 class TestMonitoringDisabledState:
