@@ -151,6 +151,15 @@ class HttpxTracePropagation:
                     "installed. Install httpx to enable this feature."
                 )
 
+    def cleanup(self) -> None:
+        """Clean up httpx trace propagation.
+
+        This is an alias for disable() that provides a consistent cleanup
+        interface.
+        """
+        if self._patching_enabled:
+            self.disable()
+
 
 # Global instance for backward compatibility
 _global_propagation = HttpxTracePropagation()
@@ -193,10 +202,10 @@ def is_httpx_trace_propagation_enabled() -> bool:
     return _global_propagation.is_enabled()
 
 
-def configure_httpx_trace_propagation(settings: LoggingSettings) -> None:
+def configure_httpx_trace_propagation(settings: "LoggingSettings") -> None:
     """Configure httpx trace propagation based on settings.
 
-    This is called automatically during bootstrap if the setting is enabled.
+    This function is provided for test compatibility.
 
     Args:
         settings: The LoggingSettings instance to use for configuration

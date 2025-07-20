@@ -24,6 +24,7 @@
 | **Async & non-blocking**      | Background queue + worker ensures log writing never blocks the event loop, even under high RPS.             |
 | **Enterprise security**       | Built-in PII redaction, field-level allow/deny lists, GDPR-friendly opt-outs, and audit trails.             |
 | **Observability integration** | Native OpenTelemetry spans, Prometheus/OTLP metrics, and correlation IDs across logs, traces, and metrics.  |
+| **Container architecture**    | Clean dependency injection with multiple configurations, thread safety, and excellent testability.          |
 | **Extensible architecture**   | Pluggable sinks (stdout, files, Loki, HTTP) and custom enrichers with just a few lines of code.             |
 | **Developer experience**      | Pytest fixtures, comprehensive examples, and detailed documentation for rapid adoption.                     |
 
@@ -31,15 +32,17 @@
 
 ## 📊 Comparison with Alternatives
 
-| Feature                 | fapilog                | fastapi-logger  | structlog       | Basic logging   |
-| ----------------------- | ---------------------- | --------------- | --------------- | --------------- |
-| **Zero-config setup**   | ✅ One-liner           | ❌ Manual setup | ❌ Manual setup | ❌ Manual setup |
-| **Async-safe**          | ✅ Background queue    | ❌ Blocking     | ❌ Blocking     | ❌ Blocking     |
-| **Distributed tracing** | ✅ Native support      | ❌ Manual       | ❌ Manual       | ❌ Manual       |
-| **PII redaction**       | ✅ Built-in            | ❌ Manual       | ❌ Manual       | ❌ Manual       |
-| **Observability hooks** | ✅ OpenTelemetry       | ❌ None         | ❌ None         | ❌ None         |
-| **Production-ready**    | ✅ Enterprise features | ⚠️ Basic        | ⚠️ Basic        | ❌ Basic        |
-| **FastAPI integration** | ✅ Native middleware   | ✅ Native       | ❌ Manual       | ❌ Manual       |
+| Feature                    | fapilog                 | fastapi-logger   | structlog        | Basic logging    |
+| -------------------------- | ----------------------- | ---------------- | ---------------- | ---------------- |
+| **Zero-config setup**      | ✅ One-liner            | ❌ Manual setup  | ❌ Manual setup  | ❌ Manual setup  |
+| **Async-safe**             | ✅ Background queue     | ❌ Blocking      | ❌ Blocking      | ❌ Blocking      |
+| **Distributed tracing**    | ✅ Native support       | ❌ Manual        | ❌ Manual        | ❌ Manual        |
+| **PII redaction**          | ✅ Built-in             | ❌ Manual        | ❌ Manual        | ❌ Manual        |
+| **Observability hooks**    | ✅ OpenTelemetry        | ❌ None          | ❌ None          | ❌ None          |
+| **Container architecture** | ✅ Dependency injection | ❌ Global state  | ❌ Global state  | ❌ Global state  |
+| **Multiple configs**       | ✅ Isolated containers  | ❌ Single config | ❌ Single config | ❌ Single config |
+| **Production-ready**       | ✅ Enterprise features  | ⚠️ Basic         | ⚠️ Basic         | ❌ Basic         |
+| **FastAPI integration**    | ✅ Native middleware    | ✅ Native        | ❌ Manual        | ❌ Manual        |
 
 ---
 
@@ -170,6 +173,7 @@ logger = configure_logging(settings=settings)
   - [Examples](#examples)
 - [🛠 Development Setup](#-development-setup)
 - [🛠 How It Works](#-how-it-works)
+- [🏗️ Container Architecture](#️-container-architecture)
 - [🔄 Async Logging Queue](#-async-logging-queue)
 - [🚀 Benchmarking Logging Queue](#-benchmarking-logging-queue)
 - [🔄 Shutdown Behavior and Log Flushing](#-shutdown-behavior-and-log-flushing)
@@ -292,6 +296,131 @@ Request ─► TraceIDMiddleware ─► structlog pipeline ─► Async Queue �
 - **`sinks/`** — pluggable writers (stdout, file, Loki, custom)
 
 **Configuration:** All behavior is configurable via environment variables or programmatic settings. See [Configuration Guide](docs/config.md) for complete reference.
+
+## 🏗️ Container Architecture
+
+`fapilog` uses a modern container-based dependency injection architecture that eliminates global state while maintaining backward compatibility. This provides excellent testability, thread safety, and support for multiple logging configurations within the same process.
+
+### Key Benefits
+
+- **🧪 Better Testability**: Isolated container instances prevent test interference
+- **🔒 Thread Safety**: Proper locking and thread-local context management
+- **⚙️ Multiple Configurations**: Different containers can coexist safely
+- **🧹 Memory Management**: Automatic cleanup prevents memory leaks
+- **🔄 Backward Compatibility**: Existing code works unchanged
+
+### Advanced Usage with Multiple Containers
+
+For complex applications, you can create multiple isolated logging configurations:
+
+```python
+from fapilog.container import LoggingContainer
+from fapilog.settings import LoggingSettings
+
+# Service A: Debug logging to file
+admin_settings = LoggingSettings(
+    level="DEBUG",
+    sinks=["stdout", "file:///var/log/admin.log"]
+)
+admin_container = LoggingContainer(admin_settings)
+admin_logger = admin_container.configure()
+
+# Service B: Production logging to Loki
+api_settings = LoggingSettings(
+    level="INFO",
+    sinks=["stdout", "loki://localhost:3100"]
+)
+api_container = LoggingContainer(api_settings)
+api_logger = api_container.configure()
+
+# Each logger operates independently
+admin_logger.debug("Admin debug message")  # Goes to stdout + file
+api_logger.info("API request processed")   # Goes to stdout + Loki
+```
+
+### Testing with Containers
+
+Containers make testing much easier by providing complete isolation:
+
+```python
+import pytest
+from fapilog.container import LoggingContainer
+from fapilog.settings import LoggingSettings
+
+@pytest.fixture
+def isolated_logging():
+    """Create an isolated logging container for tests."""
+    settings = LoggingSettings(
+        level="DEBUG",
+        sinks=["stdout"],
+        queue_enabled=False  # Synchronous for predictable testing
+    )
+    container = LoggingContainer(settings)
+    logger = container.configure()
+
+    yield container, logger
+
+    # Automatic cleanup
+    container.reset()
+
+def test_my_feature(isolated_logging):
+    container, logger = isolated_logging
+
+    # Test logging without affecting other tests
+    logger.info("Test message", test_data="value")
+    assert container.is_configured
+```
+
+### Thread Safety
+
+The container architecture is fully thread-safe, allowing safe concurrent access:
+
+```python
+import threading
+from fapilog.container import LoggingContainer
+
+def worker_function(worker_id):
+    # Each thread can safely create its own container
+    container = LoggingContainer()
+    logger = container.configure()
+
+    for i in range(100):
+        logger.info(f"Worker {worker_id}, message {i}")
+
+    container.shutdown_sync()
+
+# Start multiple threads safely
+threads = [
+    threading.Thread(target=worker_function, args=(i,))
+    for i in range(5)
+]
+
+for thread in threads:
+    thread.start()
+for thread in threads:
+    thread.join()
+```
+
+### Container Lifecycle Management
+
+Containers provide proper resource management with automatic cleanup:
+
+```python
+from fapilog.container import LoggingContainer
+
+# Manual lifecycle management
+container = LoggingContainer()
+try:
+    logger = container.configure()
+    # ... use logger ...
+finally:
+    container.shutdown_sync()  # Clean shutdown
+
+# Automatic cleanup on process exit
+# No manual cleanup needed for most use cases
+```
+
+📖 **For complete container documentation, see [Container Architecture Guide](docs/container-architecture.md)**
 
 ## 🔄 Async Logging Queue
 

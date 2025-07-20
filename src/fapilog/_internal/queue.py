@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import random as rnd
+import threading
 from typing import Any, Dict, List, Literal, Optional
 
 import structlog
@@ -14,6 +15,42 @@ from .error_handling import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Thread-local storage for current container context
+_thread_local = threading.local()
+
+
+# Removed _is_internal_call as it's no longer needed
+
+
+def set_current_container(container: Any) -> None:
+    """Set the current container for this thread.
+
+    Args:
+        container: The LoggingContainer instance to use for queue operations
+    """
+    _thread_local.container = container
+
+
+def get_current_container() -> Optional[Any]:
+    """Get the current container for this thread.
+
+    Returns:
+        The LoggingContainer instance or None if not set
+    """
+    return getattr(_thread_local, "container", None)
+
+
+def get_current_queue_worker() -> Optional["QueueWorker"]:
+    """Get the queue worker from the current container.
+
+    Returns:
+        The QueueWorker instance or None if no container/worker available
+    """
+    container = get_current_container()
+    if container is not None:
+        return getattr(container, "queue_worker", None)
+    return None
 
 
 class Sink:
@@ -141,8 +178,16 @@ class QueueWorker:
         self._stopping = True
         self._running = False
 
-        # Don't wait for completion - let it shut down naturally
-        # This avoids event loop conflicts entirely
+        # Try to cancel the task if it exists and we're not in an async context
+        if self._task is not None and not self._task.done():
+            try:
+                # Only cancel if we can - don't wait for completion to avoid
+                # event loop conflicts
+                self._task.cancel()
+                logger.debug("QueueWorker task cancelled")
+            except Exception as e:
+                logger.debug(f"Could not cancel queue worker task: {e}")
+
         logger.debug("QueueWorker marked for shutdown")
 
     async def _drain_queue(self) -> None:
@@ -316,19 +361,31 @@ class QueueWorker:
             raise handle_queue_error(e, "enqueue", queue_state) from e
 
 
-# Global queue worker instance
-_queue_worker: Optional[QueueWorker] = None
+# Legacy global queue worker functions for backward compatibility
+_global_queue_worker: Optional[QueueWorker] = None
 
 
 def get_queue_worker() -> Optional[QueueWorker]:
-    """Get the global queue worker instance."""
-    return _queue_worker
+    """Get the global queue worker instance.
+
+    Returns:
+        The global QueueWorker instance or None
+    """
+    # First try to get from current container, fall back to global
+    worker = get_current_queue_worker()
+    if worker is not None:
+        return worker
+    return _global_queue_worker
 
 
-def set_queue_worker(worker: QueueWorker) -> None:
-    """Set the global queue worker instance."""
-    global _queue_worker
-    _queue_worker = worker
+def set_queue_worker(worker: Optional[QueueWorker]) -> None:
+    """Set the global queue worker instance.
+
+    Args:
+        worker: The QueueWorker instance to set
+    """
+    global _global_queue_worker
+    _global_queue_worker = worker
 
 
 def queue_sink(
@@ -347,42 +404,45 @@ def queue_sink(
     Returns:
         None to prevent further processing, or the event_dict if queuing failed
     """
-    worker = get_queue_worker()
+    # Try to get worker from current container first, then fall back to global
+    worker = get_current_queue_worker()
     if worker is None:
-        # Fall back to synchronous processing if no queue worker
+        worker = _global_queue_worker
+
+    if worker is None:
+        # No queue worker available - this should only happen in non-queue mode
+        # Return event_dict for further processing (renderer)
         return event_dict
 
-    # Start the worker if it's not running
+    # When we have a queue worker, we should ALWAYS either queue or drop
+    # Never let structured data reach the logger when queues are intended
+
+    # Check if we're shutting down first
+    if worker._stopping:
+        # Drop events during shutdown
+        raise structlog.DropEvent
+
+    # Start the worker if it's not running (but be more careful)
     if not worker._running and not worker._stopping:
         try:
             # Try to start the worker in the current context
             try:
                 loop = asyncio.get_running_loop()
-                # Create task to start the worker
-                loop.create_task(worker.start())
+                # Only create task if we're in an async context
+                if not loop.is_closed():
+                    loop.create_task(worker.start())
+                else:
+                    # Event loop is closed, drop the event
+                    raise structlog.DropEvent
             except RuntimeError:
-                # No running loop, start it in a new thread
-                import threading
-
-                def start_worker() -> None:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    try:
-                        loop.run_until_complete(worker.start())
-                    finally:
-                        loop.close()
-
-                thread = threading.Thread(target=start_worker, daemon=True)
-                thread.start()
+                # No running loop - drop the event rather than fall back
+                # This prevents structured data from reaching the logger
+                raise structlog.DropEvent from None
         except Exception:
-            # If we can't start the worker, fall back to sync processing
-            return event_dict
+            # Any other exception during startup - drop the event
+            raise structlog.DropEvent from None
 
     # Handle different overflow strategies
-    if worker._stopping:
-        # Don't enqueue if shutting down
-        raise structlog.DropEvent
-
     if worker.overflow_strategy == "drop":
         # Drop strategy: try to enqueue, drop if full
         try:
@@ -391,7 +451,7 @@ def queue_sink(
         except asyncio.QueueFull:
             raise structlog.DropEvent from None
     elif worker.overflow_strategy == "block":
-        # Block strategy: not supported in sync context, fall back to drop
+        # Block strategy: not supported in sync context, drop instead
         try:
             worker.queue.put_nowait(event_dict)
             raise structlog.DropEvent
@@ -413,7 +473,11 @@ async def queue_sink_async(
     logger: Any, method_name: str, event_dict: Dict[str, Any]
 ) -> Optional[Dict[str, Any]]:
     """Async version of queue_sink for use in async contexts."""
-    worker = get_queue_worker()
+    # Try to get worker from current container first, then fall back to global
+    worker = get_current_queue_worker()
+    if worker is None:
+        worker = _global_queue_worker
+
     if worker is None:
         return event_dict
 
