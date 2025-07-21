@@ -35,12 +35,12 @@ version = get_version()
 
 extensions = [
     "sphinx.ext.autodoc",
-    "sphinx.ext.autosummary",
     "sphinx.ext.viewcode",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
     "sphinx.ext.todo",
     "myst_parser",  # For markdown support
+    "sphinx_autodoc_typehints",  # For better type hint handling
 ]
 
 templates_path = ["_templates"]
@@ -58,12 +58,15 @@ exclude_patterns = [
     "documentation-structure.md",
     "prd-phase-1-mvp.md",
     "sprint-planning-weeks-1-4.md",
+    "epic-docs-improvement.md",
+    "configuration.md",  # Placeholder file
+    "api-reference/index.md",  # Placeholder file
 ]
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "sphinx_material"
+html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
 
 # -- Extension configuration -------------------------------------------------
@@ -91,7 +94,13 @@ autodoc_default_options = {
     "special-members": "__init__",
     "undoc-members": True,
     "exclude-members": "__weakref__",
+    "show-inheritance": True,
 }
+
+# Autodoc type hints settings
+autodoc_typehints = "description"
+autodoc_typehints_description_target = "documented"
+autodoc_typehints_format = "short"
 
 # Intersphinx mapping
 intersphinx_mapping = {
@@ -113,20 +122,26 @@ myst_enable_extensions = [
 # TODO extension
 todo_include_todos = True
 
-# HTML theme options
+# HTML theme options for sphinx_rtd_theme
 html_theme_options = {
-    "nav_title": "fapilog Documentation",
-    "color_primary": "blue",
-    "color_accent": "light-blue",
-    "repo_url": "https://github.com/chris-haste/fastapi-logger/",
-    "repo_name": "fapilog",
-    "globaltoc_depth": 2,
-    "globaltoc_collapse": False,
-    "globaltoc_includehidden": True,
+    "navigation_depth": 4,
+    "collapse_navigation": False,
+    "sticky_navigation": True,
+    "includehidden": True,
+    "titles_only": False,
+    "prev_next_buttons_location": "bottom",
+    "style_external_links": True,
+    "style_nav_header_background": "#2980B9",
 }
 
-# Custom sidebar
-html_sidebars = {"**": ["globaltoc.html", "localtoc.html", "searchbox.html"]}
+# Custom sidebar for sphinx_rtd_theme
+html_sidebars = {
+    "**": [
+        "globaltoc.html",
+        "localtoc.html",
+        "searchbox.html",
+    ]
+}
 
 # Additional HTML context
 html_context = {

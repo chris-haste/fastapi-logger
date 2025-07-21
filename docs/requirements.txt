@@ -8,4 +8,8 @@ sphinx-autodoc-typehints>=1.19.0
 structlog
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
-anyio 
+anyio
+
+# Additional dependencies for MyST parser and Sphinx
+myst-nb>=0.17.0
+sphinx-copybutton>=0.5.0 
