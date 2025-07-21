@@ -1,8 +1,10 @@
 # API Reference
 
-This document provides a complete reference for all public APIs in `fapilog`. The API is designed to be simple for basic usage while remaining fully extensible for advanced scenarios.
+**Complete technical documentation for Fapilog's public APIs.**
 
-**See also:** [User Guide](user-guide.md), [Quickstart](quickstart.md), [Primer](primer.md), [Config](config.md)
+This reference provides comprehensive documentation for all public functions, classes, and configuration options in Fapilog. Each section includes practical examples, default values, and allowable options.
+
+**See also:** [User Guide](user-guide.md), [Quickstart](quickstart.md), [Configuration Guide](config.md)
 
 ---
 
@@ -12,11 +14,11 @@ This document provides a complete reference for all public APIs in `fapilog`. Th
 - [Configuration](#configuration)
 - [Logging Interface](#logging-interface)
 - [Middleware](#middleware)
-- [Trace Propagation](#trace-propagation)
+- [Context Management](#context-management)
 - [Enrichers](#enrichers)
 - [Sinks](#sinks)
-- [Metrics and Monitoring](#metrics-and-monitoring)
-- [Context Management](#context-management)
+- [Monitoring](#monitoring)
+- [Error Handling](#error-handling)
 - [Types and Models](#types-and-models)
 
 ---
@@ -25,7 +27,7 @@ This document provides a complete reference for all public APIs in `fapilog`. Th
 
 ### `configure_logging()`
 
-The primary function for setting up structured logging in your application.
+**Primary function for setting up structured logging in your application.**
 
 ```python
 from fapilog import configure_logging
@@ -46,8 +48,10 @@ configure_logging(settings=settings)
 
 **Parameters:**
 
-- `settings` (LoggingSettings, optional): Complete configuration object. If `None`, created from environment variables.
-- `app` (Any, optional): FastAPI app instance. If provided, `TraceIDMiddleware` is automatically registered.
+| Parameter  | Type              | Default | Description                                                                         |
+| ---------- | ----------------- | ------- | ----------------------------------------------------------------------------------- |
+| `settings` | `LoggingSettings` | `None`  | Complete configuration object. If `None`, created from environment variables.       |
+| `app`      | `Any`             | `None`  | FastAPI app instance. If provided, `TraceIDMiddleware` is automatically registered. |
 
 **Returns:**
 
@@ -55,17 +59,64 @@ configure_logging(settings=settings)
 
 **Raises:**
 
+- `ConfigurationError`: If settings are invalid
 - `RuntimeError`: If called from an async context without proper setup
 
-**Notes:**
+**Environment Variables:**
 
-- This function is idempotent - subsequent calls will not duplicate handlers
-- When `app` is provided, middleware is registered and shutdown handlers are configured
-- Environment variables with `FAPILOG_` prefix are automatically loaded
+All configuration can be set via environment variables with the `FAPILOG_` prefix:
+
+```bash
+export FAPILOG_LEVEL=INFO
+export FAPILOG_SINKS=stdout,file
+export FAPILOG_QUEUE_ENABLED=true
+```
+
+**Examples:**
+
+**Basic Setup:**
+
+```python
+from fapilog import configure_logging, log
+
+configure_logging()
+log.info("Application started", version="1.0.0")
+```
+
+**FastAPI Integration:**
+
+```python
+from fastapi import FastAPI
+from fapilog import configure_logging, log
+
+app = FastAPI()
+configure_logging(app=app)
+
+@app.get("/users/{user_id}")
+async def get_user(user_id: str):
+    log.info("User requested", user_id=user_id)
+    return {"user_id": user_id}
+```
+
+**Custom Configuration:**
+
+```python
+from fapilog.settings import LoggingSettings
+from fapilog import configure_logging
+
+settings = LoggingSettings(
+    level="DEBUG",
+    sinks=["stdout", "file"],
+    file_path="/var/log/app.log",
+    queue_enabled=True,
+    queue_size=1000
+)
+configure_logging(settings=settings)
+```
 
 ### `get_current_trace_id()`
 
-Access the current trace ID from within a request context (Story 6.2).
+**Access the current trace ID from within a request context.**
 
 ```python
 from fapilog import get_current_trace_id
@@ -102,7 +153,7 @@ async def get_status():
 
 ### `reset_logging()`
 
-Reset logging configuration for testing purposes.
+**Reset logging configuration for testing purposes.**
 
 ```python
 from fapilog import reset_logging
@@ -123,7 +174,7 @@ reset_logging()
 
 ### `LoggingSettings`
 
-Pydantic-based configuration model that maps environment variables to logging behavior.
+**Pydantic-based configuration model that maps environment variables to logging behavior.**
 
 ```python
 from fapilog.settings import LoggingSettings
@@ -135,55 +186,119 @@ settings = LoggingSettings()
 settings = LoggingSettings(
     level="DEBUG",
     sinks=["stdout", "loki"],
-    json_console="pretty",
+    format="json",
     queue_enabled=True,
-    queue_maxsize=2000,
+    queue_size=2000,
     sampling_rate=0.5
 )
 ```
 
-**Fields:**
+**Core Settings:**
 
-| Field                            | Type      | Default          | Description                                                             |
-| -------------------------------- | --------- | ---------------- | ----------------------------------------------------------------------- |
-| `level`                          | str       | `"INFO"`         | Logging level (DEBUG, INFO, WARN, ERROR, CRITICAL)                      |
-| `sinks`                          | List[str] | `["stdout"]`     | List of sink names for log output                                       |
-| `json_console`                   | str       | `"auto"`         | Console format (auto, json, pretty)                                     |
-| `redact_patterns`                | List[str] | `[]`             | Regex patterns to redact from logs                                      |
-| `redact_fields`                  | List[str] | `[]`             | Field names to redact (supports dot notation for nested fields)         |
-| `redact_replacement`             | str       | `"REDACTED"`     | Replacement value for redacted fields                                   |
-| `redact_level`                   | str       | `"INFO"`         | Minimum log level for redaction (DEBUG, INFO, WARNING, ERROR, CRITICAL) |
-| `sampling_rate`                  | float     | `1.0`            | Log sampling rate (0.0 to 1.0)                                          |
-| `queue_enabled`                  | bool      | `True`           | Enable async queue for non-blocking logging                             |
-| `queue_maxsize`                  | int       | `1000`           | Maximum size of async log queue                                         |
-| `queue_overflow`                 | str       | `"drop"`         | Queue overflow strategy (drop, block, sample)                           |
-| `queue_batch_size`               | int       | `10`             | Events per batch                                                        |
-| `queue_batch_timeout`            | float     | `1.0`            | Batch timeout in seconds                                                |
-| `queue_retry_delay`              | float     | `1.0`            | Retry delay in seconds                                                  |
-| `queue_max_retries`              | int       | `3`              | Maximum retries per event                                               |
-| `enable_resource_metrics`        | bool      | `False`          | Enable memory/CPU metrics in logs                                       |
-| `metrics_enabled`                | bool      | `False`          | Enable comprehensive metrics collection                                 |
-| `metrics_sample_window`          | int       | `100`            | Number of samples for averaging metrics                                 |
-| `metrics_prometheus_enabled`     | bool      | `False`          | Enable Prometheus HTTP endpoint                                         |
-| `metrics_prometheus_port`        | int       | `8000`           | Port for Prometheus metrics endpoint                                    |
-| `metrics_prometheus_host`        | str       | `"0.0.0.0"`      | Host for Prometheus metrics endpoint                                    |
-| `trace_id_header`                | str       | `"X-Request-ID"` | HTTP header name for incoming trace ID                                  |
-| `enable_httpx_trace_propagation` | bool      | `False`          | Enable automatic trace ID propagation in httpx                          |
-| `user_context_enabled`           | bool      | `True`           | Enable user context enrichment (user_id, roles, auth_scheme)            |
+| Field    | Type        | Default      | Environment Variable | Description               |
+| -------- | ----------- | ------------ | -------------------- | ------------------------- |
+| `level`  | `str`       | `"INFO"`     | `FAPILOG_LEVEL`      | Logging level             |
+| `format` | `str`       | `"auto"`     | `FAPILOG_FORMAT`     | Output format             |
+| `sinks`  | `List[str]` | `["stdout"]` | `FAPILOG_SINKS`      | List of sink destinations |
 
-**Environment Variables:**
+**Queue Settings:**
 
-All fields can be configured via environment variables with the `FAPILOG_` prefix:
+| Field               | Type    | Default  | Environment Variable        | Description             |
+| ------------------- | ------- | -------- | --------------------------- | ----------------------- |
+| `queue_enabled`     | `bool`  | `True`   | `FAPILOG_QUEUE_ENABLED`     | Enable async queue      |
+| `queue_size`        | `int`   | `1000`   | `FAPILOG_QUEUE_SIZE`        | Maximum queue size      |
+| `batch_size`        | `int`   | `100`    | `FAPILOG_BATCH_SIZE`        | Events per batch        |
+| `batch_timeout`     | `float` | `0.5`    | `FAPILOG_BATCH_TIMEOUT`     | Batch timeout (seconds) |
+| `overflow_strategy` | `str`   | `"drop"` | `FAPILOG_OVERFLOW_STRATEGY` | Queue overflow behavior |
 
-```bash
-export FAPILOG_LEVEL=DEBUG
-export FAPILOG_QUEUE_ENABLED=true
-export FAPILOG_QUEUE_MAXSIZE=2000
-export FAPILOG_SINKS=stdout,loki
-export FAPILOG_REDACT_LEVEL=INFO
-export FAPILOG_TRACE_ID_HEADER=X-Custom-Trace-ID
-export FAPILOG_ENABLE_HTTPX_TRACE_PROPAGATION=true
-export FAPILOG_USER_CONTEXT_ENABLED=true
+**Security Settings:**
+
+| Field                | Type        | Default      | Environment Variable         | Description                 |
+| -------------------- | ----------- | ------------ | ---------------------------- | --------------------------- |
+| `redact_patterns`    | `List[str]` | `[]`         | `FAPILOG_REDACT_PATTERNS`    | Regex patterns to redact    |
+| `redact_fields`      | `List[str]` | `[]`         | `FAPILOG_REDACT_FIELDS`      | Field names to redact       |
+| `redact_replacement` | `str`       | `"REDACTED"` | `FAPILOG_REDACT_REPLACEMENT` | Replacement value           |
+| `redact_level`       | `str`       | `"INFO"`     | `FAPILOG_REDACT_LEVEL`       | Minimum level for redaction |
+
+**Performance Settings:**
+
+| Field                     | Type        | Default | Environment Variable              | Description                 |
+| ------------------------- | ----------- | ------- | --------------------------------- | --------------------------- |
+| `sampling_rate`           | `float`     | `1.0`   | `FAPILOG_SAMPLING_RATE`           | Log sampling rate (0.0-1.0) |
+| `sampling_levels`         | `List[str]` | `[]`    | `FAPILOG_SAMPLING_LEVELS`         | Levels to sample            |
+| `enable_resource_metrics` | `bool`      | `False` | `FAPILOG_ENABLE_RESOURCE_METRICS` | Enable resource metrics     |
+
+**Trace Settings:**
+
+| Field                            | Type   | Default          | Environment Variable                     | Description              |
+| -------------------------------- | ------ | ---------------- | ---------------------------------------- | ------------------------ |
+| `trace_id_header`                | `str`  | `"X-Request-ID"` | `FAPILOG_TRACE_ID_HEADER`                | HTTP header for trace ID |
+| `enable_httpx_trace_propagation` | `bool` | `False`          | `FAPILOG_ENABLE_HTTPX_TRACE_PROPAGATION` | Enable httpx propagation |
+
+**Allowable Values:**
+
+**Log Levels:**
+
+- `"DEBUG"` - Detailed debug information
+- `"INFO"` - General information messages
+- `"WARNING"` - Warning messages
+- `"ERROR"` - Error messages
+- `"CRITICAL"` - Critical error messages
+
+**Formats:**
+
+- `"auto"` - Automatically choose based on environment
+- `"json"` - Structured JSON output
+- `"pretty"` - Human-readable console output
+
+**Overflow Strategies:**
+
+- `"drop"` - Drop new logs when queue is full
+- `"block"` - Wait for space (may block application)
+- `"sample"` - Keep percentage of logs under load
+
+**Examples:**
+
+**Development Configuration:**
+
+```python
+settings = LoggingSettings(
+    level="DEBUG",
+    format="pretty",
+    sinks=["stdout"],
+    queue_enabled=False,
+    enable_resource_metrics=False
+)
+```
+
+**Production Configuration:**
+
+```python
+settings = LoggingSettings(
+    level="INFO",
+    format="json",
+    sinks=["stdout", "file", "loki"],
+    file_path="/var/log/app.log",
+    queue_enabled=True,
+    queue_size=5000,
+    redact_patterns=["email", "phone", "credit_card"],
+    sampling_rate=0.1
+)
+```
+
+**High-Performance Configuration:**
+
+```python
+settings = LoggingSettings(
+    level="INFO",
+    format="json",
+    queue_enabled=True,
+    queue_size=10000,
+    batch_size=100,
+    batch_timeout=0.1,
+    overflow_strategy="drop",
+    sampling_rate=0.5
+)
 ```
 
 ---
@@ -192,7 +307,7 @@ export FAPILOG_USER_CONTEXT_ENABLED=true
 
 ### `log`
 
-The main logger instance that provides structured logging capabilities.
+**The main logger instance that provides structured logging capabilities.**
 
 ```python
 from fapilog import log
@@ -212,11 +327,13 @@ log.debug("Processing request", request_id="abc123", duration_ms=45.2)
 
 **Available Methods:**
 
-- `log.debug(message, **kwargs)` - Debug level logging
-- `log.info(message, **kwargs)` - Info level logging
-- `log.warning(message, **kwargs)` - Warning level logging
-- `log.error(message, **kwargs)` - Error level logging
-- `log.critical(message, **kwargs)` - Critical level logging
+| Method                            | Level    | Use Case                   |
+| --------------------------------- | -------- | -------------------------- |
+| `log.debug(message, **kwargs)`    | DEBUG    | Detailed debug information |
+| `log.info(message, **kwargs)`     | INFO     | General information        |
+| `log.warning(message, **kwargs)`  | WARNING  | Warning messages           |
+| `log.error(message, **kwargs)`    | ERROR    | Error messages             |
+| `log.critical(message, **kwargs)` | CRITICAL | Critical errors            |
 
 **Features:**
 
@@ -242,13 +359,64 @@ log.debug("Processing request", request_id="abc123", duration_ms=45.2)
 }
 ```
 
+**Common Patterns:**
+
+**Error Handling:**
+
+```python
+try:
+    result = risky_operation()
+    log.info("Operation successful", result_type=type(result).__name__)
+except Exception as e:
+    log.error("Operation failed",
+              error=str(e),
+              error_type=type(e).__name__,
+              operation="risky_operation")
+    raise
+```
+
+**Performance Monitoring:**
+
+```python
+import time
+
+def monitored_function():
+    start_time = time.time()
+
+    try:
+        result = complex_calculation()
+        duration_ms = (time.time() - start_time) * 1000
+        log.info("Function completed",
+                 duration_ms=duration_ms,
+                 result_size=len(result))
+        return result
+    except Exception as e:
+        duration_ms = (time.time() - start_time) * 1000
+        log.error("Function failed",
+                  duration_ms=duration_ms,
+                  error=str(e))
+        raise
+```
+
+**User Activity Tracking:**
+
+```python
+def track_user_action(user_id: str, action: str, **kwargs):
+    """Track user actions with consistent context."""
+    log.info("User action",
+             user_id=user_id,
+             action=action,
+             timestamp=time.time(),
+             **kwargs)
+```
+
 ---
 
 ## Middleware
 
 ### `TraceIDMiddleware`
 
-FastAPI middleware that provides request correlation and timing.
+**FastAPI middleware that provides request correlation and timing.**
 
 ```python
 from fapilog.middleware import TraceIDMiddleware
@@ -264,37 +432,34 @@ from fapilog import configure_logging
 configure_logging(app=app)
 ```
 
-**Features:**
-
-- **Trace Correlation**: Generates or forwards trace_id from configurable header (default: `X-Request-ID`)
-- **Span Generation**: Creates unique span_id for each request
-- **Request Timing**: Measures and logs request latency
-- **Request Context Enrichment**: Captures comprehensive request metadata (method, path, client_ip, status_code, etc.)
-- **Response Headers**: Adds correlation headers to responses
-- **Context Isolation**: Ensures clean context between requests
-
 **Constructor Parameters:**
 
-- `trace_id_header` (str, optional): HTTP header name for incoming trace ID. Defaults to `"X-Request-ID"`.
+| Parameter         | Type  | Default          | Description                            |
+| ----------------- | ----- | ---------------- | -------------------------------------- |
+| `trace_id_header` | `str` | `"X-Request-ID"` | HTTP header name for incoming trace ID |
 
 **Response Headers:**
 
-- `X-Trace-Id`: Request trace identifier (echoed back)
-- `X-Span-Id`: Request span identifier
-- `X-Response-Time-ms`: Request latency in milliseconds
+| Header               | Description                            |
+| -------------------- | -------------------------------------- |
+| `X-Trace-Id`         | Request trace identifier (echoed back) |
+| `X-Span-Id`          | Request span identifier                |
+| `X-Response-Time-ms` | Request latency in milliseconds        |
 
 **Captured Metadata (automatically added to log context):**
 
-- `trace_id`: Request correlation identifier
-- `span_id`: Request span identifier
-- `method`: HTTP method (GET, POST, etc.)
-- `path`: Request path
-- `client_ip`: Client IP address
-- `status_code`: HTTP response status code
-- `latency_ms`: Request duration in milliseconds
-- `req_bytes`: Request body size in bytes
-- `res_bytes`: Response body size in bytes
-- `user_agent`: User-Agent header value
+| Field         | Type    | Description                      |
+| ------------- | ------- | -------------------------------- |
+| `trace_id`    | `str`   | Request correlation identifier   |
+| `span_id`     | `str`   | Request span identifier          |
+| `method`      | `str`   | HTTP method (GET, POST, etc.)    |
+| `path`        | `str`   | Request path                     |
+| `client_ip`   | `str`   | Client IP address                |
+| `status_code` | `int`   | HTTP response status code        |
+| `latency_ms`  | `float` | Request duration in milliseconds |
+| `req_bytes`   | `int`   | Request body size in bytes       |
+| `res_bytes`   | `int`   | Response body size in bytes      |
+| `user_agent`  | `str`   | User-Agent header value          |
 
 **Configuration via Settings:**
 
@@ -312,103 +477,152 @@ configure_logging(settings=settings, app=app)
 export FAPILOG_TRACE_ID_HEADER=X-Custom-Trace-ID
 ```
 
-### `add_trace_exception_handler()`
-
-Register a custom exception handler that adds trace headers to error responses.
+**Example Usage:**
 
 ```python
-from fapilog.middleware import add_trace_exception_handler
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fapilog import configure_logging, log
 
 app = FastAPI()
-add_trace_exception_handler(app)
+configure_logging(app=app)
+
+@app.get("/users/{user_id}")
+async def get_user(user_id: str):
+    log.info("User requested", user_id=user_id)
+
+    try:
+        user = await get_user_from_db(user_id)
+        log.info("User found", user_id=user_id, user_name=user.name)
+        return user
+    except UserNotFound:
+        log.warning("User not found", user_id=user_id)
+        raise HTTPException(status_code=404, detail="User not found")
 ```
 
-**Features:**
+**Expected Log Output:**
 
-- Adds trace headers to 500 error responses
-- Preserves original error handling
-- Includes latency information in error responses
+```json
+{
+  "timestamp": "2024-01-15T10:30:45.123Z",
+  "level": "info",
+  "event": "User requested",
+  "trace_id": "abc123def456",
+  "span_id": "789ghi012jkl",
+  "method": "GET",
+  "path": "/users/123",
+  "client_ip": "192.168.1.100",
+  "user_id": "123"
+}
+```
 
 ---
 
-## Trace Propagation
+## Context Management
 
-### HTTP Request Trace Propagation (Story 6.2)
+**Context management allows you to add request-scoped metadata to all log events.**
 
-Automatic trace ID propagation for outgoing HTTP requests made with `httpx.AsyncClient`.
+### `bind_context()`
 
-```python
-from fapilog.settings import LoggingSettings
-from fapilog import configure_logging
-import httpx
-
-# Enable httpx trace propagation
-settings = LoggingSettings(
-    enable_httpx_trace_propagation=True,
-    trace_id_header="X-Request-ID"  # Header used for propagation
-)
-configure_logging(settings=settings, app=app)
-
-# Now all httpx requests automatically include trace ID
-async with httpx.AsyncClient() as client:
-    # This request will automatically include the X-Request-ID header
-    # with the current trace ID value
-    response = await client.get("https://api.example.com/data")
-```
-
-**Features:**
-
-- **Automatic Headers**: Outgoing requests include current trace ID in configured header
-- **Opt-in**: Must be explicitly enabled via settings to avoid side effects
-- **Thread-safe**: Works correctly with concurrent requests
-- **Graceful Fallback**: No errors if httpx is not installed
-
-**Configuration:**
+**Bind context variables that will be included in all subsequent log events.**
 
 ```python
-# Via LoggingSettings
-settings = LoggingSettings(
-    enable_httpx_trace_propagation=True,  # Enable the feature
-    trace_id_header="X-Custom-Trace"      # Custom header name
+from fapilog._internal.context import bind_context
+
+# Bind single variable
+bind_context(user_id="123")
+
+# Bind multiple variables
+bind_context(
+    user_id="123",
+    session_id="abc456",
+    request_id="req789",
+    tenant="acme-corp"
 )
 
-# Via environment variables
-export FAPILOG_ENABLE_HTTPX_TRACE_PROPAGATION=true
-export FAPILOG_TRACE_ID_HEADER=X-Custom-Trace
+# All subsequent logs will include these fields
+log.info("User action")  # Includes user_id, session_id, etc.
 ```
 
-**Requirements:**
+### `get_context()`
 
-- `httpx` must be installed: `pip install httpx`
-- Feature must be enabled in settings
-- Must be within a request context (trace ID available)
+**Get the current context variables.**
 
-**Use Cases:**
+```python
+from fapilog._internal.context import get_context
 
-- **Distributed Tracing**: Correlate requests across microservices
-- **API Gateway Integration**: Maintain trace continuity through service mesh
-- **External Service Calls**: Include correlation IDs in third-party API calls
-- **Debugging**: Follow request flow through multiple services
+context = get_context()
+print(context)  # {'user_id': '123', 'session_id': 'abc456', ...}
+```
 
-**Notes:**
+### `clear_context()`
 
-- Only applied when `get_current_trace_id()` returns a valid trace ID
-- Header is only added if not already present in the request
-- Works with both sync and async httpx clients
-- Minimal performance overhead
+**Clear all context variables.**
+
+```python
+from fapilog._internal.context import clear_context
+
+# Clear context (useful for testing or request cleanup)
+clear_context()
+```
+
+**Context Variables:**
+
+Common context variables set by middleware:
+
+| Variable      | Type    | Description              |
+| ------------- | ------- | ------------------------ |
+| `trace_id`    | `str`   | Request trace identifier |
+| `span_id`     | `str`   | Request span identifier  |
+| `req_bytes`   | `int`   | Request body size        |
+| `res_bytes`   | `int`   | Response body size       |
+| `status_code` | `int`   | HTTP status code         |
+| `latency_ms`  | `float` | Request latency          |
+| `user_agent`  | `str`   | User-Agent header        |
+
+**Best Practices:**
+
+- Use context for request-scoped data
+- Clear context between requests in long-running processes
+- Avoid storing large objects in context
+- Use descriptive variable names
+
+**Example with FastAPI:**
+
+```python
+from fastapi import FastAPI, Depends
+from fapilog import configure_logging, log
+from fapilog._internal.context import bind_context
+
+app = FastAPI()
+configure_logging(app=app)
+
+async def get_current_user():
+    # Your authentication logic
+    return {"id": "user123", "roles": ["admin"]}
+
+@app.get("/protected")
+async def protected_route(user=Depends(get_current_user)):
+    # Bind user context
+    bind_context(user_id=user["id"], user_roles=user["roles"])
+
+    # All logs in this request include user context
+    log.info("Protected route accessed")
+    log.warning("Permission check", resource="/admin")
+
+    return {"message": "Access granted"}
+```
 
 ---
 
 ## Enrichers
 
-Enrichers add metadata to log events automatically. Built-in enrichers provide system and request information.
+**Enrichers add metadata to log events automatically. Built-in enrichers provide system and request information.**
 
 ### Built-in Enrichers
 
 #### `host_process_enricher()`
 
-Adds hostname and process ID to all log events.
+**Adds hostname and process ID to all log events.**
 
 ```python
 # Automatically applied - no manual configuration needed
@@ -416,12 +630,14 @@ Adds hostname and process ID to all log events.
 
 **Added Fields:**
 
-- `hostname`: System hostname
-- `pid`: Process ID
+| Field      | Type  | Description     |
+| ---------- | ----- | --------------- |
+| `hostname` | `str` | System hostname |
+| `pid`      | `int` | Process ID      |
 
 #### `resource_snapshot_enricher()`
 
-Adds memory and CPU usage metrics to log events.
+**Adds memory and CPU usage metrics to log events.**
 
 ```python
 # Enable via settings
@@ -431,12 +647,14 @@ configure_logging(settings=settings)
 
 **Added Fields:**
 
-- `memory_mb`: Resident memory usage in MB
-- `cpu_percent`: Process CPU usage percentage
+| Field         | Type    | Description                  |
+| ------------- | ------- | ---------------------------- |
+| `memory_mb`   | `float` | Resident memory usage in MB  |
+| `cpu_percent` | `float` | Process CPU usage percentage |
 
 #### `body_size_enricher()`
 
-Adds request and response body sizes to log events.
+**Adds request and response body sizes to log events.**
 
 ```python
 # Automatically applied when TraceIDMiddleware is used
@@ -444,28 +662,14 @@ Adds request and response body sizes to log events.
 
 **Added Fields:**
 
-- `req_bytes`: Request body size in bytes
-- `res_bytes`: Response body size in bytes
-
-#### `request_response_enricher()`
-
-Adds comprehensive request/response metadata to log events.
-
-```python
-# Automatically applied when TraceIDMiddleware is used
-```
-
-**Added Fields:**
-
-- `status_code`: HTTP status code
-- `latency_ms`: Request latency in milliseconds
-- `req_bytes`: Request body size
-- `res_bytes`: Response body size
-- `user_agent`: User-Agent header value
+| Field       | Type  | Description                 |
+| ----------- | ----- | --------------------------- |
+| `req_bytes` | `int` | Request body size in bytes  |
+| `res_bytes` | `int` | Response body size in bytes |
 
 ### Custom Enrichers
 
-Register custom enrichers to add application-specific metadata.
+**Register custom enrichers to add application-specific metadata.**
 
 ```python
 from fapilog.enrichers import register_enricher
@@ -519,21 +723,42 @@ register_enricher(custom_enricher_2)
 clear_enrichers()
 ```
 
+**Example Custom Enricher:**
+
+```python
+import os
+from fapilog.enrichers import register_enricher
+
+@register_enricher
+def environment_enricher(logger, method_name, event_dict):
+    """Add environment information to all logs."""
+    event_dict["environment"] = os.getenv("ENVIRONMENT", "development")
+    event_dict["version"] = os.getenv("APP_VERSION", "1.0.0")
+    event_dict["deployment_id"] = os.getenv("DEPLOYMENT_ID")
+    return event_dict
+
+@register_enricher
+def performance_enricher(logger, method_name, event_dict):
+    """Add performance metrics to logs."""
+    import psutil
+    event_dict["memory_usage_mb"] = psutil.Process().memory_info().rss / 1024 / 1024
+    event_dict["cpu_percent"] = psutil.Process().cpu_percent()
+    return event_dict
+```
+
 ---
 
 ## Sinks
 
-Sinks handle writing log events to different destinations. Built-in sinks provide common output targets.
+**Sinks handle writing log events to different destinations. Built-in sinks provide common output targets.**
 
 ### Built-in Sinks
 
-#### `StdoutSink`
+#### Stdout Sink
 
-Writes log events to stdout with JSON or pretty formatting.
+**Writes log events to stdout with JSON or pretty formatting.**
 
 ```python
-from fapilog.sinks.stdout import StdoutSink
-
 # JSON output (production)
 sink = StdoutSink(pretty=False)
 
@@ -546,54 +771,93 @@ sink = StdoutSink(pretty=True)
 - JSON or pretty console output
 - Automatic flushing
 - Thread-safe writing
-- Configurable via `LoggingSettings.json_console`
+- Configurable via `LoggingSettings.format`
+
+#### File Sink
+
+**Writes log events to files with rotation support.**
+
+```python
+# Basic file sink
+sink = FileSink("/var/log/app.log")
+
+# With rotation
+sink = FileSink("/var/log/app.log", max_size="10MB", backup_count=5)
+```
+
+**Parameters:**
+
+| Parameter      | Type  | Default  | Description                      |
+| -------------- | ----- | -------- | -------------------------------- |
+| `filename`     | `str` | Required | Path to log file                 |
+| `max_size`     | `str` | `None`   | Maximum file size (e.g., "10MB") |
+| `backup_count` | `int` | `0`      | Number of backup files to keep   |
+
+#### Loki Sink
+
+**Sends log events to Grafana Loki for aggregation.**
+
+```python
+# Basic Loki sink
+sink = LokiSink("http://localhost:3100")
+
+# With custom labels
+sink = LokiSink("http://localhost:3100", labels={"app": "myapp", "env": "prod"})
+```
+
+**Parameters:**
+
+| Parameter       | Type    | Default  | Description              |
+| --------------- | ------- | -------- | ------------------------ |
+| `url`           | `str`   | Required | Loki API endpoint        |
+| `labels`        | `dict`  | `{}`     | Static labels to add     |
+| `batch_size`    | `int`   | `100`    | Events per batch         |
+| `batch_timeout` | `float` | `1.0`    | Batch timeout in seconds |
 
 ### Custom Sinks
 
-Create custom sinks for specific output destinations.
+**Create custom sinks for specific output destinations.**
 
 ```python
-from fapilog._internal.queue import Sink
-import httpx
+from fapilog import Sink
+import requests
 
-class HTTPApiSink(Sink):
-    """Send logs to HTTP API endpoint."""
+class SlackSink(Sink):
+    """Send error logs to Slack."""
 
-    def __init__(self, url: str, api_key: str):
-        self.url = url
-        self.api_key = api_key
-        self.client = httpx.AsyncClient()
+    def __init__(self, webhook_url: str, channel: str = "#alerts"):
+        self.webhook_url = webhook_url
+        self.channel = channel
 
-    async def write(self, event_dict):
-        """Write log event to HTTP API."""
-        headers = {"Authorization": f"Bearer {self.api_key}"}
-        await self.client.post(self.url, json=event_dict, headers=headers)
+    def write(self, event):
+        if event.get("level") == "error":
+            message = {
+                "channel": self.channel,
+                "text": f"Error: {event.get('event', 'Unknown error')}",
+                "attachments": [{
+                    "fields": [
+                        {"title": "Trace ID", "value": event.get("trace_id", "N/A")},
+                        {"title": "User ID", "value": event.get("user_id", "N/A")},
+                        {"title": "Timestamp", "value": event.get("timestamp", "N/A")}
+                    ]
+                }]
+            }
 
-    async def close(self):
-        """Clean up resources."""
-        await self.client.aclose()
+            try:
+                requests.post(self.webhook_url, json=message)
+            except Exception as e:
+                # Don't let sink errors break logging
+                print(f"Slack sink error: {e}")
 
-class FileSink(Sink):
-    """Write logs to rotating files."""
-
-    def __init__(self, filename: str):
-        self.filename = filename
-
-    async def write(self, event_dict):
-        """Write log event to file."""
-        import json
-        with open(self.filename, "a") as f:
-            f.write(json.dumps(event_dict) + "\n")
-
-    async def close(self):
-        """Clean up resources."""
-        pass
+# Register custom sink
+slack_sink = SlackSink("https://hooks.slack.com/services/YOUR/WEBHOOK/URL")
+configure_logging(sinks=["stdout", slack_sink])
 ```
 
 **Sink Interface:**
 
 ```python
-from fapilog._internal.queue import Sink
+from fapilog import Sink
 
 class CustomSink(Sink):
     async def write(self, event_dict):
@@ -611,19 +875,44 @@ class CustomSink(Sink):
         pass
 ```
 
+**Example HTTP API Sink:**
+
+```python
+import aiohttp
+from fapilog import Sink
+
+class HTTPApiSink(Sink):
+    """Send logs to HTTP API endpoint."""
+
+    def __init__(self, url: str, api_key: str):
+        self.url = url
+        self.api_key = api_key
+        self.session = None
+
+    async def start(self):
+        """Initialize the sink."""
+        self.session = aiohttp.ClientSession()
+
+    async def write(self, event_dict):
+        """Send log to HTTP API."""
+        headers = {"Authorization": f"Bearer {self.api_key}"}
+        await self.session.post(self.url, json=event_dict, headers=headers)
+
+    async def close(self):
+        """Clean up resources."""
+        if self.session:
+            await self.session.close()
+```
+
 ---
 
-## Metrics and Monitoring
+## Monitoring
 
-The metrics and monitoring system provides comprehensive performance tracking for queue operations, sink performance, and overall logging health.
+**The monitoring system provides comprehensive performance tracking for queue operations, sink performance, and overall logging health.**
 
-### `fapilog.monitoring`
+### `start_metrics_server()`
 
-Main module for Prometheus metrics export and monitoring functionality.
-
-#### `start_metrics_server()`
-
-Start a Prometheus metrics HTTP server for scraping.
+**Start a Prometheus metrics HTTP server for scraping.**
 
 ```python
 from fapilog.monitoring import start_metrics_server
@@ -641,17 +930,19 @@ exporter = await start_metrics_server(
 
 **Parameters:**
 
-- `host` (str, optional): Host to bind to. Default: `"0.0.0.0"`
-- `port` (int, optional): Port to bind to. Default: `8000`
-- `path` (str, optional): HTTP path for metrics endpoint. Default: `"/metrics"`
+| Parameter | Type  | Default      | Description                    |
+| --------- | ----- | ------------ | ------------------------------ |
+| `host`    | `str` | `"0.0.0.0"`  | Host to bind to                |
+| `port`    | `int` | `8000`       | Port to bind to                |
+| `path`    | `str` | `"/metrics"` | HTTP path for metrics endpoint |
 
 **Returns:**
 
 - `PrometheusExporter`: The metrics exporter instance, or `None` if failed
 
-#### `get_metrics_text()`
+### `get_metrics_text()`
 
-Get current metrics in Prometheus text format.
+**Get current metrics in Prometheus text format.**
 
 ```python
 from fapilog.monitoring import get_metrics_text
@@ -665,9 +956,9 @@ print(metrics_text)
 
 - `str`: Metrics in Prometheus format
 
-#### `get_metrics_dict()`
+### `get_metrics_dict()`
 
-Get current metrics as a structured dictionary.
+**Get current metrics as a structured dictionary.**
 
 ```python
 from fapilog.monitoring import get_metrics_dict
@@ -682,70 +973,44 @@ print(f"Total events: {metrics['performance']['total_log_events']}")
 
 - `dict`: Structured metrics data with queue, sinks, and performance sections
 
-### `fapilog._internal.metrics`
-
-Internal metrics collection system (advanced usage).
-
-#### `create_metrics_collector()`
-
-Create and configure a global metrics collector.
-
-```python
-from fapilog._internal.metrics import create_metrics_collector
-
-# Create with defaults
-collector = create_metrics_collector(enabled=True)
-
-# Create with custom sample window
-collector = create_metrics_collector(
-    enabled=True,
-    sample_window=200
-)
-```
-
-**Parameters:**
-
-- `enabled` (bool): Whether to enable metrics collection
-- `sample_window` (int): Number of samples for moving averages
-
-**Returns:**
-
-- `MetricsCollector`: The metrics collector instance
-
 ### Available Metrics
 
-The metrics system provides comprehensive tracking across multiple categories:
+**Queue Metrics:**
 
-#### Queue Metrics
+| Metric                             | Type    | Description             |
+| ---------------------------------- | ------- | ----------------------- |
+| `fapilog_queue_size`               | Gauge   | Current queue size      |
+| `fapilog_queue_peak_size`          | Gauge   | Peak queue size         |
+| `fapilog_queue_enqueued_total`     | Counter | Total events enqueued   |
+| `fapilog_queue_dequeued_total`     | Counter | Total events dequeued   |
+| `fapilog_queue_dropped_total`      | Counter | Total events dropped    |
+| `fapilog_queue_enqueue_latency_ms` | Gauge   | Average enqueue latency |
+| `fapilog_queue_memory_bytes`       | Gauge   | Queue memory usage      |
 
-- `fapilog_queue_size`: Current queue size (gauge)
-- `fapilog_queue_peak_size`: Peak queue size (gauge)
-- `fapilog_queue_enqueued_total`: Total events enqueued (counter)
-- `fapilog_queue_dequeued_total`: Total events dequeued (counter)
-- `fapilog_queue_dropped_total`: Total events dropped (counter)
-- `fapilog_queue_enqueue_latency_ms`: Average enqueue latency (gauge)
-- `fapilog_queue_memory_bytes`: Queue memory usage (gauge)
-
-#### Sink Metrics
+**Sink Metrics:**
 
 Per-sink metrics with `sink` label:
 
-- `fapilog_sink_writes_total{sink="..."}`: Total writes per sink (counter)
-- `fapilog_sink_successes_total{sink="..."}`: Total successful writes (counter)
-- `fapilog_sink_failures_total{sink="..."}`: Total failed writes (counter)
-- `fapilog_sink_success_rate{sink="..."}`: Success rate ratio (gauge)
-- `fapilog_sink_latency_ms{sink="..."}`: Average write latency (gauge)
+| Metric                                     | Type    | Description             |
+| ------------------------------------------ | ------- | ----------------------- |
+| `fapilog_sink_writes_total{sink="..."}`    | Counter | Total writes per sink   |
+| `fapilog_sink_successes_total{sink="..."}` | Counter | Total successful writes |
+| `fapilog_sink_failures_total{sink="..."}`  | Counter | Total failed writes     |
+| `fapilog_sink_success_rate{sink="..."}`    | Gauge   | Success rate ratio      |
+| `fapilog_sink_latency_ms{sink="..."}`      | Gauge   | Average write latency   |
 
-#### Performance Metrics
+**Performance Metrics:**
 
-- `fapilog_events_total`: Total log events processed (counter)
-- `fapilog_events_per_second`: Current throughput (gauge)
-- `fapilog_memory_bytes`: Process memory usage (gauge)
-- `fapilog_cpu_percent`: Process CPU usage (gauge)
+| Metric                      | Type    | Description                |
+| --------------------------- | ------- | -------------------------- |
+| `fapilog_events_total`      | Counter | Total log events processed |
+| `fapilog_events_per_second` | Gauge   | Current throughput         |
+| `fapilog_memory_bytes`      | Gauge   | Process memory usage       |
+| `fapilog_cpu_percent`       | Gauge   | Process CPU usage          |
 
 ### Configuration
 
-Enable metrics through settings:
+**Enable metrics through settings:**
 
 ```python
 from fapilog.settings import LoggingSettings
@@ -764,7 +1029,7 @@ settings = LoggingSettings(
 )
 ```
 
-Or via environment variables:
+**Or via environment variables:**
 
 ```bash
 export FAPILOG_METRICS_ENABLED=true
@@ -772,149 +1037,24 @@ export FAPILOG_METRICS_PROMETHEUS_ENABLED=true
 export FAPILOG_METRICS_PROMETHEUS_PORT=8000
 ```
 
----
+**Example Prometheus Configuration:**
 
-## Context Management
-
-Context management allows you to add request-scoped metadata to all log events.
-
-### `bind_context()`
-
-Bind context variables that will be included in all subsequent log events.
-
-```python
-from fapilog._internal.context import bind_context
-
-# Bind single variable
-bind_context(user_id="123")
-
-# Bind multiple variables
-bind_context(
-    user_id="123",
-    session_id="abc456",
-    request_id="req789",
-    tenant="acme-corp"
-)
-
-# All subsequent logs will include these fields
-log.info("User action")  # Includes user_id, session_id, etc.
+```yaml
+# prometheus.yml
+scrape_configs:
+  - job_name: "fapilog"
+    static_configs:
+      - targets: ["localhost:8000"]
+    metrics_path: "/metrics"
 ```
-
-### `get_context()`
-
-Get the current context variables.
-
-```python
-from fapilog._internal.context import get_context
-
-context = get_context()
-print(context)  # {'user_id': '123', 'session_id': 'abc456', ...}
-```
-
-### `clear_context()`
-
-Clear all context variables.
-
-```python
-from fapilog._internal.context import clear_context
-
-# Clear context (useful for testing or request cleanup)
-clear_context()
-```
-
-**Context Variables:**
-
-Common context variables set by middleware:
-
-- `trace_id`: Request trace identifier
-- `span_id`: Request span identifier
-- `req_bytes`: Request body size
-- `res_bytes`: Response body size
-- `status_code`: HTTP status code
-- `latency_ms`: Request latency
-- `user_agent`: User-Agent header
-
-**Best Practices:**
-
-- Use context for request-scoped data
-- Clear context between requests in long-running processes
-- Avoid storing large objects in context
-- Use descriptive variable names
-
----
-
-## Types and Models
-
-### `Sink`
-
-Base class for all log sinks.
-
-```python
-from fapilog._internal.queue import Sink
-
-class MySink(Sink):
-    async def write(self, event_dict):
-        # Implementation
-        pass
-
-    async def close(self):
-        # Cleanup
-        pass
-```
-
-### `QueueWorker`
-
-Manages the async log queue and sink processing.
-
-```python
-from fapilog._internal.queue import QueueWorker
-
-# Usually managed internally, but can be customized
-worker = QueueWorker(
-    sinks=[my_sink],
-    queue_size=1000,
-    batch_size=10,
-    batch_timeout=1.0
-)
-```
-
-### Environment Variables
-
-All configuration can be set via environment variables:
-
-| Variable                                 | Default        | Description                           |
-| ---------------------------------------- | -------------- | ------------------------------------- |
-| `FAPILOG_LEVEL`                          | `INFO`         | Logging level                         |
-| `FAPILOG_SINKS`                          | `stdout`       | Comma-separated sink list             |
-| `FAPILOG_JSON_CONSOLE`                   | `auto`         | Console format                        |
-| `FAPILOG_QUEUE_ENABLED`                  | `true`         | Enable async queue                    |
-| `FAPILOG_QUEUE_MAXSIZE`                  | `1000`         | Queue maximum size                    |
-| `FAPILOG_QUEUE_OVERFLOW`                 | `drop`         | Queue overflow strategy               |
-| `FAPILOG_QUEUE_BATCH_SIZE`               | `10`           | Events per batch                      |
-| `FAPILOG_QUEUE_BATCH_TIMEOUT`            | `1.0`          | Batch timeout (seconds)               |
-| `FAPILOG_QUEUE_RETRY_DELAY`              | `1.0`          | Retry delay (seconds)                 |
-| `FAPILOG_QUEUE_MAX_RETRIES`              | `3`            | Maximum retries                       |
-| `FAPILOG_SAMPLING_RATE`                  | `1.0`          | Log sampling rate                     |
-| `FAPILOG_ENABLE_RESOURCE_METRICS`        | `false`        | Enable resource metrics               |
-| `FAPILOG_METRICS_ENABLED`                | `false`        | Enable comprehensive metrics          |
-| `FAPILOG_METRICS_SAMPLE_WINDOW`          | `100`          | Metrics sample window size            |
-| `FAPILOG_METRICS_PROMETHEUS_ENABLED`     | `false`        | Enable Prometheus endpoint            |
-| `FAPILOG_METRICS_PROMETHEUS_PORT`        | `8000`         | Prometheus endpoint port              |
-| `FAPILOG_METRICS_PROMETHEUS_HOST`        | `0.0.0.0`      | Prometheus endpoint host              |
-| `FAPILOG_TRACE_ID_HEADER`                | `X-Request-ID` | HTTP header for trace ID              |
-| `FAPILOG_ENABLE_HTTPX_TRACE_PROPAGATION` | `false`        | Enable httpx propagation              |
-| `FAPILOG_REDACT_PATTERNS`                | ``             | Comma-separated regex patterns        |
-| `FAPILOG_REDACT_FIELDS`                  | ``             | Comma-separated field names to redact |
-| `FAPILOG_REDACT_REPLACEMENT`             | `REDACTED`     | Replacement value for redacted fields |
-| `FAPILOG_REDACT_LEVEL`                   | `INFO`         | Minimum log level for redaction       |
 
 ---
 
 ## Error Handling
 
-### Custom Exception Classes
+**Fapilog provides a comprehensive set of custom exceptions for different error scenarios.**
 
-`fapilog` provides a comprehensive set of custom exceptions for different error scenarios:
+### Custom Exception Classes
 
 **`FapilogError`** - Base exception class for all fapilog errors
 
@@ -992,7 +1132,7 @@ ContextError("Failed to clear context", operation="clear_context", error="Timeou
 
 ### Error Context and Recovery
 
-All exceptions include rich context information:
+**All exceptions include rich context information:**
 
 ```python
 try:
@@ -1006,7 +1146,7 @@ except ConfigurationError as e:
 
 ### Graceful Degradation
 
-The library implements graceful degradation for non-critical errors:
+**The library implements graceful degradation for non-critical errors:**
 
 - **Sink failures** don't break the entire logging system
 - **Queue errors** fall back to synchronous logging
@@ -1015,7 +1155,7 @@ The library implements graceful degradation for non-critical errors:
 
 ### Retry Mechanisms
 
-Automatic retry with exponential backoff for transient failures:
+**Automatic retry with exponential backoff for transient failures:**
 
 ```python
 # Loki sink automatically retries failed HTTP requests
@@ -1025,7 +1165,7 @@ Automatic retry with exponential backoff for transient failures:
 
 ### Legacy Exceptions
 
-For backward compatibility, some operations may still raise standard exceptions:
+**For backward compatibility, some operations may still raise standard exceptions:**
 
 **`RuntimeError`** - Async context issues
 **`ValueError`** - Invalid parameter values  
@@ -1047,35 +1187,100 @@ print(settings.model_dump())
 
 ---
 
+## Types and Models
+
+### `Sink`
+
+**Base class for all log sinks.**
+
+```python
+from fapilog import Sink
+
+class MySink(Sink):
+    async def write(self, event_dict):
+        # Implementation
+        pass
+
+    async def close(self):
+        # Cleanup
+        pass
+```
+
+### `QueueWorker`
+
+**Manages the async log queue and sink processing.**
+
+```python
+from fapilog import QueueWorker
+
+# Usually managed internally, but can be customized
+worker = QueueWorker(
+    sinks=[my_sink],
+    queue_size=1000,
+    batch_size=10,
+    batch_timeout=1.0
+)
+```
+
+### Environment Variables
+
+**All configuration can be set via environment variables:**
+
+| Variable                                 | Default        | Description                           |
+| ---------------------------------------- | -------------- | ------------------------------------- |
+| `FAPILOG_LEVEL`                          | `INFO`         | Logging level                         |
+| `FAPILOG_SINKS`                          | `stdout`       | Comma-separated sink list             |
+| `FAPILOG_FORMAT`                         | `auto`         | Console format                        |
+| `FAPILOG_QUEUE_ENABLED`                  | `true`         | Enable async queue                    |
+| `FAPILOG_QUEUE_SIZE`                     | `1000`         | Queue maximum size                    |
+| `FAPILOG_OVERFLOW_STRATEGY`              | `drop`         | Queue overflow strategy               |
+| `FAPILOG_BATCH_SIZE`                     | `100`          | Events per batch                      |
+| `FAPILOG_BATCH_TIMEOUT`                  | `0.5`          | Batch timeout (seconds)               |
+| `FAPILOG_SAMPLING_RATE`                  | `1.0`          | Log sampling rate                     |
+| `FAPILOG_ENABLE_RESOURCE_METRICS`        | `false`        | Enable resource metrics               |
+| `FAPILOG_METRICS_ENABLED`                | `false`        | Enable comprehensive metrics          |
+| `FAPILOG_METRICS_SAMPLE_WINDOW`          | `100`          | Metrics sample window size            |
+| `FAPILOG_METRICS_PROMETHEUS_ENABLED`     | `false`        | Enable Prometheus endpoint            |
+| `FAPILOG_METRICS_PROMETHEUS_PORT`        | `8000`         | Prometheus endpoint port              |
+| `FAPILOG_METRICS_PROMETHEUS_HOST`        | `0.0.0.0`      | Prometheus endpoint host              |
+| `FAPILOG_TRACE_ID_HEADER`                | `X-Request-ID` | HTTP header for trace ID              |
+| `FAPILOG_ENABLE_HTTPX_TRACE_PROPAGATION` | `false`        | Enable httpx propagation              |
+| `FAPILOG_REDACT_PATTERNS`                | ``             | Comma-separated regex patterns        |
+| `FAPILOG_REDACT_FIELDS`                  | ``             | Comma-separated field names to redact |
+| `FAPILOG_REDACT_REPLACEMENT`             | `REDACTED`     | Replacement value for redacted fields |
+| `FAPILOG_REDACT_LEVEL`                   | `INFO`         | Minimum log level for redaction       |
+
+---
+
 ## Performance Considerations
 
 ### Queue Configuration
 
-For high-throughput applications:
+**For high-throughput applications:**
 
 ```python
 settings = LoggingSettings(
-    queue_maxsize=5000,        # Larger queue
-    queue_batch_size=50,       # Larger batches
-    queue_batch_timeout=0.5,   # Shorter timeout
-    queue_overflow="drop"      # Drop logs under load
+    queue_size=10000,        # Larger queue
+    batch_size=100,          # Larger batches
+    batch_timeout=0.1,       # Shorter timeout
+    overflow_strategy="drop" # Drop logs under load
 )
 ```
 
 ### Sampling
 
-For very high-volume logging:
+**For very high-volume logging:**
 
 ```python
 settings = LoggingSettings(
     sampling_rate=0.1,  # Log only 10% of events
-    queue_overflow="sample"  # Adaptive sampling under load
+    overflow_strategy="sample"  # Adaptive sampling under load
 )
 ```
 
 ### Resource Metrics
 
-Enable only when needed:
+**Enable only when needed:**
 
 ```python
 settings = LoggingSettings(
@@ -1129,416 +1334,4 @@ async def add_trace_id(request, call_next):
 # After
 from fapilog import configure_logging
 configure_logging(app=app)  # Automatic trace ID handling
-```
-
-## Container Architecture
-
-### LoggingContainer
-
-The `LoggingContainer` class provides advanced dependency injection and multiple configuration support.
-
-```python
-class LoggingContainer:
-    def __init__(self, settings: Optional[LoggingSettings] = None) -> None
-    def configure(
-        self,
-        level: Optional[str] = None,
-        json_console: Optional[str] = None,
-        sinks: Optional[Dict[str, Any]] = None,
-        settings: Optional[LoggingSettings] = None,
-        app: Optional[Any] = None,
-    ) -> structlog.BoundLogger
-    async def shutdown(self) -> None
-    def shutdown_sync(self) -> None
-    def reset(self) -> None
-
-    @property
-    def settings(self) -> LoggingSettings
-    @property
-    def is_configured(self) -> bool
-    @property
-    def queue_worker(self) -> Optional[QueueWorker]
-```
-
-**Key Methods:**
-
-#### **init**(settings)
-
-Initialize a new logging container.
-
-**Parameters:**
-
-- `settings`: Optional LoggingSettings instance
-
-#### configure(...)
-
-Configure the container. Parameters same as `configure_logging()`.
-
-**Returns:** Configured structlog.BoundLogger
-
-#### shutdown() / shutdown_sync()
-
-Gracefully shutdown the container and clean up resources.
-
-#### reset()
-
-Reset the container configuration for testing.
-
-**Example:**
-
-```python
-from fapilog.container import LoggingContainer
-from fapilog.settings import LoggingSettings
-
-# Create container with custom settings
-settings = LoggingSettings(
-    level="INFO",
-    sinks=["stdout", "file:///var/log/app.log"],
-    queue_enabled=True
-)
-container = LoggingContainer(settings)
-logger = container.configure()
-
-# Use logger
-logger.info("Application started")
-
-# Clean shutdown
-container.shutdown_sync()
-```
-
-### Container Management Functions
-
-#### cleanup_all_containers()
-
-```python
-def cleanup_all_containers() -> None
-```
-
-Clean up all container instances. Automatically called on process exit.
-
-**Example:**
-
-```python
-from fapilog.container import cleanup_all_containers
-
-# Manual cleanup (usually not needed)
-cleanup_all_containers()
-```
-
-## Settings
-
-### LoggingSettings
-
-Comprehensive configuration class using Pydantic v2.
-
-```python
-class LoggingSettings(BaseSettings):
-    # Basic Configuration
-    level: str = "INFO"
-    json_console: str = "auto"
-
-    # Queue Configuration
-    queue_enabled: bool = False
-    queue_maxsize: int = 1000
-    queue_batch_size: int = 10
-    queue_batch_timeout: float = 1.0
-    queue_overflow: Literal["drop", "block", "sample"] = "drop"
-    queue_retry_delay: float = 1.0
-    queue_max_retries: int = 3
-
-    # Sink Configuration
-    sinks: List[str] = ["stdout"]
-
-    # Security Configuration
-    redact_fields: List[str] = []
-    redact_patterns: List[str] = []
-    redact_level: str = "INFO"
-    enable_auto_pii_redaction: bool = False
-
-    # Trace Configuration
-    enable_httpx_trace_propagation: bool = False
-    trace_id_header: str = "X-Request-ID"
-
-    # Performance Configuration
-    sampling_rate: float = 1.0
-    enable_resource_metrics: bool = False
-```
-
-**Environment Variables:**
-All settings can be configured via environment variables with `FAPILOG_` prefix:
-
-```bash
-export FAPILOG_LEVEL=DEBUG
-export FAPILOG_SINKS="stdout,file:///var/log/app.log"
-export FAPILOG_QUEUE_ENABLED=true
-```
-
-## Context Utilities
-
-### get_context()
-
-```python
-def get_context() -> Dict[str, Any]
-```
-
-Get current request context variables.
-
-**Returns:** Dictionary containing trace_id, span_id, user_id, etc.
-
-### bind_context()
-
-```python
-def bind_context(
-    trace_id: Optional[str] = None,
-    span_id: Optional[str] = None,
-    user_id: Optional[str] = None,
-    **kwargs
-) -> None
-```
-
-Bind values to the current request context.
-
-### clear_context()
-
-```python
-def clear_context() -> None
-```
-
-Clear all context variables.
-
-### context_copy()
-
-```python
-def context_copy() -> contextvars.Context
-```
-
-Create a copy of current context for background tasks.
-
-**Example:**
-
-```python
-import asyncio
-from fapilog import get_context, context_copy
-
-async def background_task():
-    # Context is preserved from parent task
-    context = get_context()
-    print(f"Background task trace_id: {context['trace_id']}")
-
-# In request handler
-context = context_copy()
-asyncio.create_task(context.run(background_task))
-```
-
-## Enrichers
-
-### register_enricher()
-
-```python
-def register_enricher(enricher_func: Callable) -> None
-```
-
-Register a custom enricher function.
-
-**Parameters:**
-
-- `enricher_func`: Function with signature `(logger, method_name, event_dict) -> event_dict`
-
-### clear_enrichers()
-
-```python
-def clear_enrichers() -> None
-```
-
-Clear all registered enrichers.
-
-**Example:**
-
-```python
-from fapilog.enrichers import register_enricher
-
-def tenant_enricher(logger, method_name, event_dict):
-    event_dict["tenant_id"] = get_current_tenant_id()
-    return event_dict
-
-register_enricher(tenant_enricher)
-```
-
-## User Context
-
-### create_user_dependency()
-
-```python
-def create_user_dependency(get_user_func: Callable) -> Callable
-```
-
-Create a FastAPI dependency for user context enrichment.
-
-**Example:**
-
-```python
-from fastapi import Depends
-from fapilog.enrichers import create_user_dependency
-
-async def get_current_user():
-    return {"id": "user123", "roles": ["admin"]}
-
-UserDep = create_user_dependency(get_current_user)
-
-@app.get("/protected")
-async def protected_route(user=Depends(UserDep)):
-    # User context automatically added to logs
-    logger.info("Protected route accessed")
-```
-
-## Trace Propagation
-
-### get_current_trace_id()
-
-```python
-def get_current_trace_id() -> Optional[str]
-```
-
-Get the current trace ID from context.
-
-**Returns:** Current trace ID or None if not in request context
-
-## Exception Classes
-
-### FapilogError
-
-Base exception class for all fapilog errors.
-
-### ConfigurationError
-
-Raised when configuration is invalid.
-
-### SinkError
-
-Raised when sink operations fail.
-
-### QueueError
-
-Raised when queue operations fail.
-
-### MiddlewareError
-
-Raised when middleware operations fail.
-
-**Example:**
-
-```python
-from fapilog.exceptions import ConfigurationError
-from fapilog.settings import LoggingSettings
-
-try:
-    settings = LoggingSettings(level="INVALID")
-except ConfigurationError as e:
-    print(f"Configuration error: {e}")
-```
-
-## Sinks
-
-### Built-in Sinks
-
-#### Stdout Sink
-
-```
-stdout
-```
-
-#### File Sink
-
-```
-file:///path/to/logfile.log
-file:///path/to/logfile.log?rotation=1MB&retention=7
-```
-
-#### Loki Sink
-
-```
-loki://localhost:3100/loki/api/v1/push
-loki://localhost:3100/loki/api/v1/push?labels=app:myapp,env:prod
-```
-
-### Custom Sinks
-
-Implement the sink interface:
-
-```python
-class CustomSink:
-    async def write(self, event_dict: Dict[str, Any]) -> None:
-        # Process the log event
-        pass
-```
-
-## Advanced Usage
-
-### Multiple Containers
-
-```python
-from fapilog.container import LoggingContainer
-from fapilog.settings import LoggingSettings
-
-# Service A container
-service_a_settings = LoggingSettings(
-    level="DEBUG",
-    sinks=["stdout", "file:///var/log/service-a.log"]
-)
-service_a_container = LoggingContainer(service_a_settings)
-service_a_logger = service_a_container.configure()
-
-# Service B container
-service_b_settings = LoggingSettings(
-    level="INFO",
-    sinks=["stdout", "loki://localhost:3100"]
-)
-service_b_container = LoggingContainer(service_b_settings)
-service_b_logger = service_b_container.configure()
-
-# Independent logging
-service_a_logger.debug("Service A debug message")
-service_b_logger.info("Service B info message")
-```
-
-### Testing with Containers
-
-```python
-import pytest
-from fapilog.container import LoggingContainer
-
-@pytest.fixture
-def isolated_logging():
-    container = LoggingContainer()
-    logger = container.configure()
-    yield container, logger
-    container.reset()
-
-def test_my_feature(isolated_logging):
-    container, logger = isolated_logging
-    # Test with isolated logging instance
-    logger.info("Test message")
-    assert container.is_configured
-```
-
-## Migration from Global State
-
-For more detailed migration examples, see [Container Architecture Documentation](container-architecture.md).
-
-### Before (Deprecated)
-
-```python
-from fapilog.bootstrap import _configure_standard_logging
-_configure_standard_logging("INFO")  # Deprecated
-```
-
-### After (Recommended)
-
-```python
-from fapilog.container import LoggingContainer
-from fapilog.settings import LoggingSettings
-
-settings = LoggingSettings(level="INFO")
-container = LoggingContainer(settings)
-container.configure()
 ```
