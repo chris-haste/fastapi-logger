@@ -1,5 +1,7 @@
 # User Guide
 
+**New to Fapilog? Start with the [Quickstart Tutorial](quickstart.md) for a hands-on, step-by-step introduction!**
+
 This guide provides step-by-step tutorials for using `fapilog` in your applications. It's designed to take you from basic setup to advanced features, with practical examples throughout.
 
 ---
@@ -1692,3 +1694,5 @@ Now that you've learned the basics, explore these advanced topics:
 - **Discussions**: Ask questions in GitHub Discussions
 
 Happy logging! 🚀
+
+**See also:** [Primer](primer.md), [Quickstart](quickstart.md), [API Reference](api-reference.md), [Config](config.md), [Style Guide](style-guide.md)

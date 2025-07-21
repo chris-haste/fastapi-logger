@@ -1,3 +1,8 @@
+Fapilog: High-Level Overview
+===========================
+
+Fapilog is a robust, extensible logging framework for Python and FastAPI. For a quick start and to understand the core concepts, see the new :doc:`primer`.
+
 FastAPI-Logger (``fapilog``)
 ==============================
 
@@ -239,9 +244,12 @@ Table of Contents
    :maxdepth: 2
    :caption: Contents:
 
+   primer.md
+   quickstart.md
+   user-guide
    config
    api-reference
-   user-guide
+   style-guide.md
 
 Development Setup
 =================
