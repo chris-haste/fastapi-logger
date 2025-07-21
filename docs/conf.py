@@ -48,12 +48,8 @@ exclude_patterns = [
     "_build",
     "Thumbs.db",
     ".DS_Store",
-    "*.md",  # Exclude all markdown files to avoid conflicts
     "stories/*",  # Exclude story files
     "REVIEW.md",
-    "api-reference.md",
-    "user-guide.md",
-    "config.md",
     "container-architecture.md",
     "error-handling-implementation-summary.md",
     "story-13-refactored-summary.md",
@@ -67,7 +63,7 @@ exclude_patterns = [
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "sphinx_rtd_theme"
+html_theme = "sphinx_material"
 html_static_path = ["_static"]
 
 # -- Extension configuration -------------------------------------------------
@@ -119,32 +115,18 @@ todo_include_todos = True
 
 # HTML theme options
 html_theme_options = {
-    "canonical_url": "",
-    "analytics_id": "",
-    "logo_only": False,
-    "display_version": True,
-    "prev_next_buttons_location": "bottom",
-    "style_external_links": False,
-    "vcs_pageview_mode": "",
-    "style_nav_header_background": "#2980B9",
-    # TOC options
-    "collapse_navigation": False,
-    "sticky_navigation": True,
-    "navigation_depth": 4,
-    "includehidden": True,
-    "titles_only": False,
+    "nav_title": "fapilog Documentation",
+    "color_primary": "blue",
+    "color_accent": "light-blue",
+    "repo_url": "https://github.com/chris-haste/fastapi-logger/",
+    "repo_name": "fapilog",
+    "globaltoc_depth": 2,
+    "globaltoc_collapse": False,
+    "globaltoc_includehidden": True,
 }
 
 # Custom sidebar
-html_sidebars = {
-    "**": [
-        "about.html",
-        "navigation.html",
-        "relations.html",
-        "searchbox.html",
-        "donate.html",
-    ]
-}
+html_sidebars = {"**": ["globaltoc.html", "localtoc.html", "searchbox.html"]}
 
 # Additional HTML context
 html_context = {
@@ -159,6 +141,11 @@ html_context = {
 master_doc = "index"
 
 # Source file extensions
+# Only use Markdown (.md) as the source format for documentation
 source_suffix = {
-    ".rst": None,
+    ".md": "markdown",
 }
+
+# WARNING: Do not reintroduce .rst files. All documentation should be written
+# in Markdown (.md) only. If you need to add new documentation, use Markdown
+# and update navigation accordingly.

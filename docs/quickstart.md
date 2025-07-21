@@ -1,161 +1,279 @@
-# Quickstart Tutorial: Fapilog End-to-End
+# Quickstart Tutorial
 
-## Introduction
+**Get up and running with Fapilog in under 5 minutes!**
 
-A hands-on, step-by-step guide to get you from data ingestion to analysis and dashboarding with Fapilog.
+This tutorial will guide you through installing, configuring, and using Fapilog in a FastAPI application. By the end, you'll have structured logging working with automatic context enrichment.
+
+**See also:** [User Guide](user-guide.md), [API Reference](api-reference.md), [Configuration Guide](config.md)
+
+---
 
 ## Prerequisites
 
 - Python 3.8+
-- FastAPI
-- Fapilog installed ([see Installation](user-guide.md#installation))
+- FastAPI (optional, but recommended)
+- Basic understanding of Python logging
 
 ---
 
-## Step 1: Ingestion
+## Step 1: Installation
 
-In this step, you'll set up a basic FastAPI app and configure Fapilog to ingest log events.
+Install Fapilog using pip:
+
+```bash
+pip install fapilog
+```
+
+For development with FastAPI:
+
+```bash
+pip install fapilog[fastapi]
+```
+
+---
+
+## Step 2: Basic Setup
+
+Create a simple Python script to test Fapilog:
 
 ```python
-from fastapi import FastAPI
-import fapilog
+# basic_setup.py
+from fapilog import configure_logging, log
 
-# Initialize Fapilog
-fapilog.bootstrap()
+# Configure logging with defaults
+configure_logging()
+
+# Start logging
+log.info("Application started", version="1.0.0")
+log.warning("Deprecated feature used", feature="old_api")
+log.error("Database connection failed", database="postgres")
+```
+
+Run the script:
+
+```bash
+python basic_setup.py
+```
+
+**Expected Output:**
+
+```json
+{"timestamp": "2024-01-15T10:30:45.123Z", "level": "info", "event": "Application started", "hostname": "your-host", "pid": 12345, "version": "1.0.0"}
+{"timestamp": "2024-01-15T10:30:45.124Z", "level": "warning", "event": "Deprecated feature used", "hostname": "your-host", "pid": 12345, "feature": "old_api"}
+{"timestamp": "2024-01-15T10:30:45.125Z", "level": "error", "event": "Database connection failed", "hostname": "your-host", "pid": 12345, "database": "postgres"}
+```
+
+**What happened:**
+
+- ✅ Structured JSON logging enabled
+- ✅ Automatic timestamp and log level
+- ✅ Hostname and process ID added
+- ✅ Pretty console output in development
+- ✅ Async-safe logging with background queue
+
+---
+
+## Step 3: FastAPI Integration
+
+Create a FastAPI application with Fapilog:
+
+```python
+# fastapi_app.py
+from fastapi import FastAPI, HTTPException
+from fapilog import configure_logging, log
+
+# Create FastAPI app
+app = FastAPI(title="My API", version="1.0.0")
+
+# Configure logging with FastAPI integration
+configure_logging(app=app)
+
+@app.get("/")
+async def root():
+    log.info("Root endpoint accessed")
+    return {"message": "Hello World"}
+
+@app.get("/users/{user_id}")
+async def get_user(user_id: str):
+    log.info("User requested", user_id=user_id, endpoint="/users/{user_id}")
+
+    if user_id == "admin":
+        log.warning("Admin user accessed", user_id=user_id)
+        return {"user_id": user_id, "role": "admin"}
+
+    return {"user_id": user_id, "role": "user"}
+
+@app.get("/error")
+async def trigger_error():
+    log.error("Error endpoint accessed", error_type="test")
+    raise HTTPException(status_code=500, detail="Test error")
+```
+
+Run the FastAPI app:
+
+```bash
+uvicorn fastapi_app:app --reload
+```
+
+Visit `http://localhost:8000/` and check the logs. You'll see:
+
+- **Automatic request correlation** - Each request gets a unique trace ID
+- **Structured logging** - All log fields are JSON-structured
+- **Context enrichment** - Request path, method, and user info added
+- **Error tracking** - Exceptions are automatically logged
+
+---
+
+## Step 4: Environment Configuration
+
+Create a `.env` file for configuration:
+
+```bash
+# .env
+FAPILOG_LEVEL=INFO
+FAPILOG_FORMAT=json
+FAPILOG_QUEUE_ENABLED=true
+FAPILOG_SINKS=stdout,file
+FAPILOG_FILE_PATH=app.log
+```
+
+Update your application to use environment variables:
+
+```python
+# config_app.py
+import os
+from fastapi import FastAPI
+from fapilog import configure_logging, log
 
 app = FastAPI()
 
+# Configure with environment variables
+configure_logging()
+
 @app.get("/")
-def read_root():
-    fapilog.logger.info("Hello from Fapilog!")
-    return {"message": "Log event ingested!"}
+async def root():
+    log.info("Application accessed",
+             environment=os.getenv("ENVIRONMENT", "development"),
+             version="1.0.0")
+    return {"status": "ok"}
 ```
 
-**Explanation:**
+---
 
-- `fapilog.bootstrap()` sets up the logging pipeline with default settings.
-- The FastAPI route logs a message using Fapilog.
-- Run the app and visit `/` to generate and ingest a log event.
+## Step 5: Advanced Features
 
-**See also:** [Primer](primer.md), [User Guide](user-guide.md#logging), [API Reference](api-reference.md)
-
-[Next: Analysis →](#step-2-analysis)
-
-## Step 2: Analysis
-
-Now that you are ingesting logs, let's analyze them. For this example, we'll read logs from a file sink and print out error events.
-
-First, configure Fapilog to write logs to a file (if not already set):
+### Custom Context Enrichment
 
 ```python
-import fapilog
+from fapilog import configure_logging, log, set_user_context
 
-fapilog.bootstrap({
-    'sinks': [
-        {
-            'type': 'file',
-            'path': 'logs/app.log',
-            'level': 'INFO',
-        }
-    ]
-})
+configure_logging()
+
+# Set user context for the current request
+set_user_context(user_id="123", session_id="abc123")
+
+log.info("User action", action="login", duration_ms=45.2)
 ```
 
-**Analyzing logs:**
-You can use Python to parse the log file and extract error events:
+### Structured Logging with Multiple Fields
 
 ```python
-import json
-
-with open('logs/app.log') as f:
-    for line in f:
-        log_event = json.loads(line)
-        if log_event.get('level') == 'ERROR':
-            print(log_event)
+log.info(
+    "API request processed",
+    endpoint="/api/users",
+    method="GET",
+    status_code=200,
+    duration_ms=45.2,
+    user_id="123",
+    request_size_bytes=1024,
+    response_size_bytes=2048
+)
 ```
 
-**Explanation:**
+### Error Handling with Context
 
-- The first snippet configures Fapilog to write logs to `logs/app.log`.
-- The second snippet reads the log file and prints any log event with level `ERROR`.
-- You can adapt the analysis code to filter, aggregate, or visualize logs as needed.
+```python
+try:
+    # Your application logic
+    result = some_operation()
+    log.info("Operation successful", result_type=type(result).__name__)
+except Exception as e:
+    log.error("Operation failed",
+              error=str(e),
+              error_type=type(e).__name__,
+              operation="some_operation")
+    raise
+```
 
-**See also:** [API Reference](api-reference.md), [Examples](../examples/), [Config](config.md)
+---
 
-[Previous: Ingestion](#step-1-ingestion) | [Next: Dashboard →](#step-3-dashboard)
+## What's Next?
 
-## Step 3: Dashboard
+### Learn More
 
-Now, let's visualize your log data. We'll use [Streamlit](https://streamlit.io/) for a quick, interactive dashboard.
+- **User Guide**: [Complete tutorials and advanced features](user-guide.md)
+- **API Reference**: [Complete API documentation](api-reference.md)
+- **Configuration**: [Environment variables and settings](config.md)
 
-**Install Streamlit:**
+### Explore Examples
+
+- **Basic Setup**: [examples/01_basic_setup.py](../examples/01_basic_setup.py)
+- **FastAPI Integration**: [examples/05_fastapi_basic.py](../examples/05_fastapi_basic.py)
+- **Advanced Configuration**: [examples/09_queue_configuration.py](../examples/09_queue_configuration.py)
+
+### Production Deployment
+
+- **Environment Configuration**: [User Guide - Production](user-guide.md#production-deployment)
+- **Performance Tuning**: [User Guide - Performance](user-guide.md#performance-tuning)
+- **Monitoring Integration**: [User Guide - Monitoring](user-guide.md#monitoring-integration)
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+**Q: Logs not appearing in console?**
+A: Check that `FAPILOG_SINKS` includes `stdout` and `FAPILOG_LEVEL` is set appropriately.
+
+**Q: Performance issues with high log volume?**
+A: Enable the async queue with `FAPILOG_QUEUE_ENABLED=true` and adjust `FAPILOG_QUEUE_SIZE`.
+
+**Q: Missing trace IDs in logs?**
+A: Ensure you're using `configure_logging(app=app)` for FastAPI applications.
+
+For more troubleshooting help, see the [Troubleshooting Guide](troubleshooting.md).
+
+---
+
+## Quick Reference
+
+### Basic Usage
+
+```python
+from fapilog import configure_logging, log
+
+configure_logging()
+log.info("Message", field1="value1", field2="value2")
+```
+
+### FastAPI Integration
+
+```python
+from fastapi import FastAPI
+from fapilog import configure_logging
+
+app = FastAPI()
+configure_logging(app=app)
+```
+
+### Environment Variables
 
 ```bash
-pip install streamlit
+FAPILOG_LEVEL=INFO
+FAPILOG_FORMAT=json
+FAPILOG_QUEUE_ENABLED=true
+FAPILOG_SINKS=stdout,file
 ```
 
-**Create a dashboard script (dashboard.py):**
-
-```python
-import streamlit as st
-import json
-
-st.title('Fapilog Error Dashboard')
-
-log_file = 'logs/app.log'
-errors = []
-
-with open(log_file) as f:
-    for line in f:
-        log_event = json.loads(line)
-        if log_event.get('level') == 'ERROR':
-            errors.append(log_event)
-
-st.write(f"Total error events: {len(errors)}")
-
-for event in errors:
-    st.json(event)
-```
-
-**Run the dashboard:**
-
-```bash
-streamlit run dashboard.py
-```
-
-**Explanation:**
-
-- This script reads your log file and displays error events in a simple web dashboard.
-- You can extend it to visualize other log levels, add charts, or filter by fields.
-- Streamlit makes it easy to build interactive dashboards with minimal code.
-
-**See also:** [User Guide](user-guide.md#dashboarding), [Examples](../examples/), [Primer](primer.md)
-
-[Previous: Analysis](#step-2-analysis)
-
----
-
-## Troubleshooting & Common Pitfalls
-
-- **Fapilog not found:** Ensure you have installed Fapilog in your environment (`pip install fapilog`).
-- **Log file not created:** Check that the directory for your log file exists (e.g., `logs/`). Create it if missing.
-- **Streamlit not installed:** Install with `pip install streamlit`.
-- **Streamlit dashboard not updating:** Make sure you are writing logs to the correct file and refresh the dashboard page.
-- **JSON decode errors:** Ensure each log event is written as a single line of valid JSON.
-
----
-
-## Next Steps
-
-- Explore the [User Guide](user-guide.md) for more advanced features and configuration options.
-- Review the [API Reference](api-reference.md) for details on Fapilog's classes and functions.
-- Try out more [Examples](../examples/) to deepen your understanding.
-- Contribute improvements or new tutorials by following the [Style Guide](style-guide.md).
-
----
-
-## Internal Links
-
-- [Core Concepts](user-guide.md#core-concepts)
-- [API Reference](api-reference.md)
-- [Examples](../examples/)
+For complete configuration options, see the [Configuration Guide](config.md).
