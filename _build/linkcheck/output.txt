@@ -1,0 +1,2 @@
+index.rst:7: [redirected permanently] https://opensource.org/licenses/Apache-2.0 to https://opensource.org/license/apache-2-0
+index.rst:7: [redirected permanently] https://python.org to https://www.python.org/
