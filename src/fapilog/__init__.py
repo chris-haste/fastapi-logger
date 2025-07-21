@@ -30,18 +30,29 @@ def _get_version() -> str:
         try:
             import tomli as tomllib
         except ImportError:
-            return "0.1.2"  # Fallback version
+            return "unknown"  # No TOML parser available
 
-    # Find pyproject.toml relative to this file
+    # Try to find pyproject.toml in multiple locations
     current_file = Path(__file__)
-    pyproject_path = current_file.parent.parent.parent / "pyproject.toml"
+    possible_paths = [
+        current_file.parent.parent.parent
+        / "pyproject.toml",  # src/fapilog/__init__.py -> pyproject.toml
+        current_file.parent.parent
+        / "pyproject.toml",  # src/__init__.py -> pyproject.toml
+        current_file.parent / "pyproject.toml",  # __init__.py -> pyproject.toml
+        Path("pyproject.toml"),  # Current working directory
+    ]
 
-    try:
-        with open(pyproject_path, "rb") as f:
-            data = tomllib.load(f)
-            return data["project"]["version"]
-    except (KeyError, FileNotFoundError, OSError):
-        return "0.1.2"  # Fallback version
+    for pyproject_path in possible_paths:
+        try:
+            with open(pyproject_path, "rb") as f:
+                data = tomllib.load(f)
+                return data["project"]["version"]
+        except (KeyError, FileNotFoundError, OSError):
+            continue
+
+    # If all attempts fail, return unknown
+    return "unknown"
 
 
 # Get version from package metadata or pyproject.toml

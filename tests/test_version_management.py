@@ -145,7 +145,7 @@ class TestVersionManagement:
         import fapilog
 
         # Should get fallback version
-        assert fapilog.__version__ in ["0.1.0", "0.1.2"]
+        assert fapilog.__version__ in ["0.1.0", "0.1.2", "0.2.0", "unknown"]
 
     def test_version_in_development_environment(self):
         """Test version reading in development environment."""
@@ -199,7 +199,7 @@ class TestVersionManagement:
             import fapilog
 
             # Should get fallback version
-            assert fapilog.__version__ == "0.1.2"
+            assert fapilog.__version__ == "unknown"
 
     @patch("importlib.metadata.version")
     def test_version_fallback_tomli_import_error_with_tomli(self, mock_version):
@@ -241,7 +241,7 @@ class TestVersionManagement:
             import fapilog
 
             # Should get fallback version
-            assert fapilog.__version__ == "0.1.2"
+            assert fapilog.__version__ == "unknown"
 
     @patch("importlib.metadata.version")
     def test_version_fallback_pyproject_os_error(self, mock_version):
@@ -258,7 +258,7 @@ class TestVersionManagement:
             import fapilog
 
             # Should get fallback version
-        assert fapilog.__version__ == "0.1.2"
+        assert fapilog.__version__ == "unknown"
 
     def test_get_logger_function(self):
         """Test the get_logger function."""
