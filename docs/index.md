@@ -2,6 +2,8 @@
 
 > **Note:** All documentation is written in Markdown (`.md`). Do not add `.rst` files or navigation.
 
+**Current Version:** {{ version }} | [Changelog](https://github.com/chris-haste/fastapi-logger/blob/main/CHANGELOG.md) | [GitHub](https://github.com/chris-haste/fastapi-logger)
+
 Welcome to the Fapilog documentation! This is the canonical entry point for all user and contributor documentation.
 
 ---
@@ -89,8 +91,10 @@ This documentation follows a progressive learning path:
 
 ## Related Resources
 
+- **Current Version**: {{ version }}
 - **GitHub Repository**: [chris-haste/fastapi-logger](https://github.com/chris-haste/fastapi-logger)
 - **PyPI Package**: [fapilog](https://pypi.org/project/fapilog/)
+- **Changelog**: [Release History](https://github.com/chris-haste/fastapi-logger/blob/main/CHANGELOG.md)
 - **Issues & Discussions**: [GitHub Issues](https://github.com/chris-haste/fastapi-logger/issues)
 
 ---
