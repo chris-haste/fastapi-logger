@@ -4,6 +4,8 @@
 
 This reference provides comprehensive documentation for all public functions, classes, and configuration options in Fapilog. Each section includes practical examples, default values, and allowable options.
 
+**Current Version:** {{ version }} | [Changelog](https://github.com/chris-haste/fastapi-logger/blob/main/CHANGELOG.md)
+
 **See also:** [User Guide](user-guide.md), [Quickstart](quickstart.md), [Configuration Guide](config.md)
 
 ---

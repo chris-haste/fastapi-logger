@@ -2,6 +2,8 @@
 
 This guide provides a complete reference for all configuration options available in `fapilog`. All settings can be configured via environment variables or programmatically through the `LoggingSettings` class.
 
+**Current Version:** {{ version }} | [Changelog](https://github.com/chris-haste/fastapi-logger/blob/main/CHANGELOG.md)
+
 **See also:** [User Guide](user-guide.md), [API Reference](api-reference.md), [Quickstart](quickstart.md), [Primer](primer.md), [Style Guide](style-guide.md)
 
 ## Quick Start

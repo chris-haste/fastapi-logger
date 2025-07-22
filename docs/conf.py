@@ -117,7 +117,15 @@ myst_enable_extensions = [
     "colon_fence",
     "fieldlist",
     "attrs_inline",
+    "substitution",
 ]
+
+# MyST substitutions for version and other variables
+myst_substitutions = {
+    "version": get_version(),
+    "release": get_version(),
+    "current_version": get_version(),
+}
 
 # TODO extension
 todo_include_todos = True
