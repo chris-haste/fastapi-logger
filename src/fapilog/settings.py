@@ -7,6 +7,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .exceptions import ConfigurationError
 
+# Forward declaration to avoid circular imports
+try:
+    from ._internal.queue import Sink
+except ImportError:
+    # During imports, Sink might not be available yet
+    Sink = None
+
 
 class LoggingSettings(BaseSettings):
     """Configuration settings for fapilog structured logging.
@@ -19,10 +26,10 @@ class LoggingSettings(BaseSettings):
         default="INFO",
         description="Logging level (DEBUG, INFO, WARN, ERROR, CRITICAL)",
     )
-    sinks: Union[List[str], str] = Field(
+    sinks: Union[List[Union[str, "Sink"]], str] = Field(
         default_factory=lambda: ["stdout"],
-        description="List of sink names to use for log output "
-        "(comma-separated or list)",
+        description="List of sink names/URIs or sink instances for log output "
+        "(comma-separated string or list)",
     )
     json_console: str = Field(
         default="auto",
@@ -136,10 +143,23 @@ class LoggingSettings(BaseSettings):
 
     @field_validator("sinks", mode="before")
     @classmethod
-    def parse_sinks(cls, v: Any) -> List[str]:
+    def parse_sinks(cls, v: Any) -> List[Union[str, "Sink"]]:
+        """Parse sinks field to support strings and Sink instances."""
         if isinstance(v, str):
             return [item.strip() for item in v.split(",") if item.strip()]
-        return list(v) if isinstance(v, (list, tuple)) else [v]
+        if isinstance(v, (list, tuple)):
+            # Support mixed list of strings and Sink instances
+            result = []
+            for item in v:
+                if isinstance(item, str):
+                    result.append(item.strip())
+                elif Sink is not None and isinstance(item, Sink):
+                    result.append(item)
+                else:
+                    # Convert other types to string
+                    result.append(str(item))
+            return result  # type: ignore[return-value]
+        return [v]
 
     @field_validator("redact_patterns", mode="before")
     @classmethod

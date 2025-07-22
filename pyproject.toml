@@ -263,6 +263,73 @@ ignore_names = [
     "_set_nested_value",
     # Backward compatibility functions
     "_get_log",
+    # Methods used in tests or public API
+    "record_sink_retry",
+    "_write_with_metrics",
+    "get_queue_worker",
+    "_shutdown_queue_worker",
+    "is_configured",
+    "setup",
+    "configure_httpx_trace_propagation",
+    "metrics_endpoint",
+    "health_endpoint",
+    "root_endpoint",
+    "is_running",
+    "get_metrics_url",
+    "start_metrics_server",
+    "stop_metrics_server",
+    "get_metrics_text",
+    "get_metrics_dict",
+    # Pydantic validators and framework methods
+    "parse_sinks",
+    "parse_redact_patterns", 
+    "parse_redact_fields",
+    "parse_custom_pii_patterns",
+    "validate_redact_level",
+    "validate_level",
+    "validate_json_console",
+    "validate_sampling_rate",
+    "validate_queue_maxsize",
+    "validate_queue_batch_size",
+    "validate_queue_batch_timeout",
+    "validate_queue_retry_delay",
+    "validate_queue_max_retries",
+    "validate_queue_overflow",
+    # Context and utility functions
+    "context_copy",
+    "get_span_id",
+    "get_user_id", 
+    "get_user_roles",
+    "get_auth_scheme",
+    "set_trace_context",
+    "reset_trace_context",
+    "set_request_metadata",
+    "set_response_metadata",
+    "reset_request_metadata",
+    "reset_response_metadata",
+    # Queue and async functions
+    "queue_sink_async",
+    "reset_logging",
+    # Enricher functions
+    "create_user_dependency",
+    "register_enricher",
+    "clear_enrichers",
+    # HTTPX functions
+    "disable_httpx_trace_propagation",
+    "is_httpx_trace_propagation_enabled",
+    # Middleware functions
+    "add_trace_exception_handler",
+    "trace_exception_handler",
+    "dispatch",
+    # Monitoring functions
+    "model_config",
+    # Conditional imports and framework variables
+    "Response",
+    "FASTAPI_AVAILABLE",
+    "exc",
+    # Loki sink attributes
+    "_last_flush",
+    "_flush_task",
 ]
 ignore_decorators = [
     "pytest.fixture",
