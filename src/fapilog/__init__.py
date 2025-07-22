@@ -7,6 +7,8 @@ from typing import Any, Optional
 import structlog
 
 from ._internal.context import get_trace_id as get_current_trace_id
+from ._internal.queue import Sink
+from ._internal.sink_registry import SinkRegistry, register_sink
 from .bootstrap import configure_logging
 from .container import LoggingContainer
 from .settings import LoggingSettings
@@ -63,6 +65,9 @@ __all__ = [
     "create_logging_container",
     "get_logger",
     "get_current_trace_id",
+    "Sink",
+    "SinkRegistry",
+    "register_sink",
     "__version__",
 ]
 

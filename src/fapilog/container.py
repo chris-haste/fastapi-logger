@@ -12,7 +12,11 @@ from ._internal.error_handling import (
     handle_configuration_error,
     handle_sink_error,
 )
-from ._internal.queue import QueueWorker
+from ._internal.queue import QueueWorker, Sink
+from ._internal.sink_factory import (
+    SinkConfigurationError,
+    create_custom_sink_from_uri,
+)
 from .httpx_patch import HttpxTracePropagation
 from .middleware import TraceIDMiddleware
 from .pipeline import build_processor_chain
@@ -199,7 +203,14 @@ class LoggingContainer:
         # Create sinks based on settings
         self._sinks = []
 
-        for sink_uri in self._settings.sinks:
+        for sink_item in self._settings.sinks:
+            # Handle direct Sink instances
+            if isinstance(sink_item, Sink):
+                self._sinks.append(sink_item)
+                continue
+
+            # Handle string URIs (existing logic)
+            sink_uri = sink_item
             if sink_uri == "stdout":
                 # Map console_format to StdoutSink mode
                 if console_format == "pretty":
@@ -228,13 +239,22 @@ class LoggingContainer:
                         e, "loki", {"uri": sink_uri}, "initialize"
                     ) from e
             else:
-                # Unknown sink type
-                raise handle_sink_error(
-                    ValueError(f"Unknown sink type: {sink_uri}"),
-                    "unknown",
-                    {"uri": sink_uri},
-                    "initialize",
-                )
+                # Try custom sink from registry
+                try:
+                    self._sinks.append(create_custom_sink_from_uri(sink_uri))
+                except SinkConfigurationError as e:
+                    # If it's a custom sink error, re-raise with sink error handling
+                    raise handle_sink_error(
+                        e, e.sink_name or "custom", {"uri": sink_uri}, "initialize"
+                    ) from e
+                except Exception as e:
+                    # Unknown sink type or other error
+                    raise handle_sink_error(
+                        ValueError(f"Unknown sink type: {sink_uri}"),
+                        "unknown",
+                        {"uri": sink_uri},
+                        "initialize",
+                    ) from e
 
         # Create queue worker with error handling
         try:

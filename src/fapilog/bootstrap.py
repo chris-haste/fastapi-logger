@@ -1,9 +1,10 @@
 """Bootstrap configuration for fapilog structured logging."""
 
-from typing import Any, Optional
+from typing import Any, List, Optional, Union
 
 import structlog
 
+from ._internal.queue import Sink
 from .container import LoggingContainer
 from .settings import LoggingSettings
 
@@ -22,6 +23,7 @@ def _get_default_container() -> LoggingContainer:
 def configure_logging(
     settings: Optional[LoggingSettings] = None,
     app: Optional[Any] = None,
+    sinks: Optional[List[Union[str, Sink]]] = None,
 ) -> structlog.BoundLogger:
     """Configure structured logging for the application.
 
@@ -32,6 +34,8 @@ def configure_logging(
         settings: Optional LoggingSettings instance. If None, created from env.
         app: Optional FastAPI app instance. If provided, TraceIDMiddleware
              will be registered once.
+        sinks: Optional list of sink URIs or sink instances. If provided,
+               overrides the sinks setting in LoggingSettings.
 
     Returns:
         A configured structlog.BoundLogger instance
@@ -39,6 +43,16 @@ def configure_logging(
     Raises:
         RuntimeError: If called from an async context without proper setup
     """
+    # Handle sinks parameter
+    if sinks is not None:
+        # Override settings.sinks with provided sinks
+        if settings is None:
+            settings = LoggingSettings()
+        else:
+            # Create a copy to avoid modifying the original
+            settings = LoggingSettings(**settings.model_dump())
+        settings.sinks = sinks
+
     container = _get_default_container()
     result = container.configure(
         settings=settings,

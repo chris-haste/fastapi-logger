@@ -818,92 +818,594 @@ sink = LokiSink("http://localhost:3100", labels={"app": "myapp", "env": "prod"})
 
 ### Custom Sinks
 
-**Create custom sinks for specific output destinations.**
+**Create custom sinks for specialized output destinations and requirements.**
+
+#### Sink Interface
+
+**Complete interface documentation for the Sink base class:**
 
 ```python
-from fapilog import Sink
-import requests
-
-class SlackSink(Sink):
-    """Send error logs to Slack."""
-
-    def __init__(self, webhook_url: str, channel: str = "#alerts"):
-        self.webhook_url = webhook_url
-        self.channel = channel
-
-    def write(self, event):
-        if event.get("level") == "error":
-            message = {
-                "channel": self.channel,
-                "text": f"Error: {event.get('event', 'Unknown error')}",
-                "attachments": [{
-                    "fields": [
-                        {"title": "Trace ID", "value": event.get("trace_id", "N/A")},
-                        {"title": "User ID", "value": event.get("user_id", "N/A")},
-                        {"title": "Timestamp", "value": event.get("timestamp", "N/A")}
-                    ]
-                }]
-            }
-
-            try:
-                requests.post(self.webhook_url, json=message)
-            except Exception as e:
-                # Don't let sink errors break logging
-                print(f"Slack sink error: {e}")
-
-# Register custom sink
-slack_sink = SlackSink("https://hooks.slack.com/services/YOUR/WEBHOOK/URL")
-configure_logging(sinks=["stdout", slack_sink])
-```
-
-**Sink Interface:**
-
-```python
-from fapilog import Sink
+from fapilog._internal.queue import Sink
+from typing import Dict, Any, Optional
+import asyncio
 
 class CustomSink(Sink):
-    async def write(self, event_dict):
+    """Base class for all custom sinks."""
+
+    def __init__(self):
+        """Initialize the sink. Called once during setup."""
+        super().__init__()
+        self._sink_name = self.__class__.__name__
+
+    async def write(self, event_dict: Dict[str, Any]) -> None:
         """
-        Write a log event.
+        Write a log event to the sink.
+
+        This is the ONLY required method that must be implemented.
 
         Args:
-            event_dict: The structured log event dictionary
+            event_dict: The structured log event dictionary containing:
+                - level: Log level (str)
+                - event: Log message (str)
+                - timestamp: Event timestamp (float)
+                - trace_id: Request trace ID (str, optional)
+                - user_id: User identifier (str, optional)
+                - Additional custom fields from enrichers
+
+        Raises:
+            Exception: Any exception will be caught and logged by the framework
         """
-        # Your sink implementation
+        raise NotImplementedError
+
+    async def start(self) -> None:
+        """
+        Initialize the sink. Called once before processing begins.
+
+        Use this for:
+        - Creating HTTP sessions
+        - Opening database connections
+        - Starting background tasks
+        - Validating configuration
+        """
         pass
 
-    async def close(self):
-        """Clean up resources when sink is closed."""
+    async def stop(self) -> None:
+        """
+        Clean up the sink. Called once during shutdown.
+
+        Use this for:
+        - Closing HTTP sessions
+        - Closing database connections
+        - Cancelling background tasks
+        - Flushing remaining data
+        """
+        pass
+
+    async def flush(self) -> None:
+        """
+        Flush any buffered data immediately.
+
+        Called during graceful shutdown or when immediate
+        data persistence is required.
+        """
         pass
 ```
 
-**Example HTTP API Sink:**
+#### Required vs Optional Methods
+
+| Method       | Required        | Purpose                       | When to Implement            |
+| ------------ | --------------- | ----------------------------- | ---------------------------- |
+| `write()`    | ✅ **Required** | Process individual log events | Always implement             |
+| `__init__()` | ✅ **Required** | Initialize sink state         | Always implement             |
+| `start()`    | Optional        | Setup connections/resources   | When using external services |
+| `stop()`     | Optional        | Cleanup resources             | When using external services |
+| `flush()`    | Optional        | Force data persistence        | When buffering data          |
+
+#### Error Handling Best Practices
+
+**1. Never Let Sink Errors Break Logging:**
+
+```python
+class RobustSink(Sink):
+    async def write(self, event_dict: Dict[str, Any]) -> None:
+        try:
+            # Your sink logic here
+            await self._send_to_external_service(event_dict)
+        except Exception as e:
+            # Log the error but don't re-raise
+            # This prevents sink failures from breaking the application
+            import logging
+            logging.getLogger(__name__).error(
+                f"Sink {self._sink_name} failed: {e}",
+                extra={"sink_error": True, "original_event": event_dict}
+            )
+```
+
+**2. Implement Retry Logic for Transient Failures:**
+
+```python
+import asyncio
+from typing import Optional
+
+class RetryableSink(Sink):
+    def __init__(self, max_retries: int = 3, retry_delay: float = 1.0):
+        super().__init__()
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
+
+    async def write(self, event_dict: Dict[str, Any]) -> None:
+        last_error: Optional[Exception] = None
+
+        for attempt in range(self.max_retries):
+            try:
+                await self._send_to_service(event_dict)
+                return  # Success
+            except Exception as e:
+                last_error = e
+                if attempt < self.max_retries - 1:
+                    await asyncio.sleep(self.retry_delay * (2 ** attempt))  # Exponential backoff
+
+        # All retries failed
+        raise last_error
+```
+
+**3. Handle Different Error Types Appropriately:**
+
+```python
+class SmartSink(Sink):
+    async def write(self, event_dict: Dict[str, Any]) -> None:
+        try:
+            await self._send_to_service(event_dict)
+        except ConnectionError as e:
+            # Network issues - retry later
+            await self._queue_for_retry(event_dict)
+        except ValueError as e:
+            # Invalid data - log and skip
+            import logging
+            logging.getLogger(__name__).warning(
+                f"Invalid event data: {e}",
+                extra={"event": event_dict}
+            )
+        except Exception as e:
+            # Unexpected error - log and continue
+            import logging
+            logging.getLogger(__name__).error(
+                f"Unexpected sink error: {e}",
+                extra={"event": event_dict}
+            )
+```
+
+#### Performance Considerations
+
+**1. Batching for High-Throughput Sinks:**
+
+```python
+import asyncio
+from typing import List
+import time
+
+class BatchedSink(Sink):
+    def __init__(self, batch_size: int = 100, batch_timeout: float = 5.0):
+        super().__init__()
+        self.batch_size = batch_size
+        self.batch_timeout = batch_timeout
+        self.buffer: List[Dict[str, Any]] = []
+        self.last_send_time = time.time()
+        self._send_task: Optional[asyncio.Task] = None
+
+    async def start(self):
+        """Start background batch sender."""
+        self._send_task = asyncio.create_task(self._batch_sender())
+
+    async def stop(self):
+        """Flush remaining data and stop."""
+        if self._send_task:
+            self._send_task.cancel()
+            try:
+                await self._send_task
+            except asyncio.CancelledError:
+                pass
+
+        # Send any remaining buffered data
+        if self.buffer:
+            await self._send_batch(self.buffer)
+            self.buffer.clear()
+
+    async def write(self, event_dict: Dict[str, Any]) -> None:
+        """Add event to buffer."""
+        self.buffer.append(event_dict)
+
+        # Send immediately if buffer is full
+        if len(self.buffer) >= self.batch_size:
+            await self._send_buffered_data()
+
+    async def _batch_sender(self):
+        """Background task that sends batches periodically."""
+        while True:
+            try:
+                await asyncio.sleep(self.batch_timeout)
+                await self._send_buffered_data()
+            except asyncio.CancelledError:
+                break
+
+    async def _send_buffered_data(self):
+        """Send all buffered data."""
+        if self.buffer:
+            await self._send_batch(self.buffer)
+            self.buffer.clear()
+            self.last_send_time = time.time()
+
+    async def _send_batch(self, batch: List[Dict[str, Any]]) -> None:
+        """Send a batch of events to the external service."""
+        # Your batch sending logic here
+        pass
+```
+
+**2. Async Patterns for Non-Blocking Operations:**
 
 ```python
 import aiohttp
-from fapilog import Sink
+import asyncio
+from typing import Optional
 
-class HTTPApiSink(Sink):
-    """Send logs to HTTP API endpoint."""
-
-    def __init__(self, url: str, api_key: str):
+class AsyncHTTPSink(Sink):
+    def __init__(self, url: str, timeout: float = 10.0):
+        super().__init__()
         self.url = url
-        self.api_key = api_key
-        self.session = None
+        self.timeout = timeout
+        self.session: Optional[aiohttp.ClientSession] = None
 
     async def start(self):
-        """Initialize the sink."""
-        self.session = aiohttp.ClientSession()
+        """Create HTTP session."""
+        timeout = aiohttp.ClientTimeout(total=self.timeout)
+        self.session = aiohttp.ClientSession(timeout=timeout)
 
-    async def write(self, event_dict):
-        """Send log to HTTP API."""
-        headers = {"Authorization": f"Bearer {self.api_key}"}
-        await self.session.post(self.url, json=event_dict, headers=headers)
-
-    async def close(self):
-        """Clean up resources."""
+    async def stop(self):
+        """Close HTTP session."""
         if self.session:
             await self.session.close()
+
+    async def write(self, event_dict: Dict[str, Any]) -> None:
+        """Send event via HTTP POST."""
+        if not self.session:
+            raise RuntimeError("Sink not started")
+
+        try:
+            async with self.session.post(self.url, json=event_dict) as response:
+                response.raise_for_status()
+        except Exception as e:
+            raise Exception(f"HTTP sink failed: {e}")
+```
+
+**3. Memory Management for Large Events:**
+
+```python
+class MemoryEfficientSink(Sink):
+    def __init__(self, max_event_size: int = 1024 * 1024):  # 1MB
+        super().__init__()
+        self.max_event_size = max_event_size
+
+    async def write(self, event_dict: Dict[str, Any]) -> None:
+        # Check event size before processing
+        event_size = len(str(event_dict).encode('utf-8'))
+        if event_size > self.max_event_size:
+            # Truncate large events to prevent memory issues
+            truncated_event = self._truncate_event(event_dict)
+            await self._send_event(truncated_event)
+        else:
+            await self._send_event(event_dict)
+
+    def _truncate_event(self, event_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """Truncate large events to prevent memory issues."""
+        truncated = event_dict.copy()
+        if 'event' in truncated and len(truncated['event']) > 1000:
+            truncated['event'] = truncated['event'][:1000] + "... [truncated]"
+        return truncated
+```
+
+#### Integration Patterns with FastAPI Lifecycle Events
+
+**1. Sink Lifecycle Management:**
+
+```python
+from fastapi import FastAPI
+from contextlib import asynccontextmanager
+
+class ManagedSink(Sink):
+    def __init__(self):
+        super().__init__()
+        self._started = False
+
+    async def start(self):
+        """Initialize sink resources."""
+        if self._started:
+            return
+        # Your initialization logic
+        self._started = True
+
+    async def stop(self):
+        """Clean up sink resources."""
+        if not self._started:
+            return
+        # Your cleanup logic
+        self._started = False
+
+# FastAPI integration
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    custom_sink = ManagedSink()
+    await custom_sink.start()
+
+    # Make sink available to the application
+    app.state.custom_sink = custom_sink
+
+    yield
+
+    # Shutdown
+    await custom_sink.stop()
+
+app = FastAPI(lifespan=lifespan)
+```
+
+**2. Sink Registration with FastAPI:**
+
+```python
+from fapilog import configure_logging
+from fapilog.settings import LoggingSettings
+
+class FastAPISink(Sink):
+    def __init__(self, app: FastAPI):
+        super().__init__()
+        self.app = app
+
+    async def write(self, event_dict: Dict[str, Any]) -> None:
+        # Add FastAPI context to logs
+        event_dict['app_name'] = self.app.title
+        event_dict['app_version'] = getattr(self.app, 'version', 'unknown')
+
+        # Your sink logic here
+        await self._send_to_service(event_dict)
+
+# Register custom sink with FastAPI
+app = FastAPI()
+custom_sink = FastAPISink(app)
+
+settings = LoggingSettings(sinks=["stdout", custom_sink])
+configure_logging(settings=settings)
+```
+
+**3. Health Checks and Monitoring:**
+
+```python
+class MonitoredSink(Sink):
+    def __init__(self):
+        super().__init__()
+        self.write_count = 0
+        self.error_count = 0
+        self.last_write_time = None
+
+    async def write(self, event_dict: Dict[str, Any]) -> None:
+        try:
+            await self._send_to_service(event_dict)
+            self.write_count += 1
+            self.last_write_time = time.time()
+        except Exception as e:
+            self.error_count += 1
+            raise
+
+    async def health_check(self) -> Dict[str, Any]:
+        """Return sink health status for monitoring."""
+        return {
+            "sink_name": self._sink_name,
+            "status": "healthy" if self.error_count == 0 else "degraded",
+            "write_count": self.write_count,
+            "error_count": self.error_count,
+            "last_write_time": self.last_write_time,
+            "uptime": time.time() - (self.last_write_time or time.time())
+        }
+```
+
+#### Complete Custom Sink Example
+
+```python
+import asyncio
+import aiohttp
+import json
+import time
+from typing import Dict, Any, List, Optional
+
+class SlackAlertSink(Sink):
+    """
+    Custom sink that sends error logs to Slack.
+
+    Demonstrates:
+    - Required vs optional methods
+    - Error handling best practices
+    - Performance considerations (batching)
+    - FastAPI lifecycle integration
+    """
+
+    def __init__(
+        self,
+        webhook_url: str,
+        channel: str = "#alerts",
+        batch_size: int = 5,
+        batch_timeout: float = 30.0,
+        max_retries: int = 3
+    ):
+        super().__init__()
+        self.webhook_url = webhook_url
+        self.channel = channel
+        self.batch_size = batch_size
+        self.batch_timeout = batch_timeout
+        self.max_retries = max_retries
+
+        # State management
+        self.session: Optional[aiohttp.ClientSession] = None
+        self.buffer: List[Dict[str, Any]] = []
+        self._send_task: Optional[asyncio.Task] = None
+        self._started = False
+
+    async def start(self):
+        """Initialize HTTP session and start background sender."""
+        if self._started:
+            return
+
+        self.session = aiohttp.ClientSession()
+        self._send_task = asyncio.create_task(self._batch_sender())
+        self._started = True
+
+    async def stop(self):
+        """Clean up resources and send remaining data."""
+        if not self._started:
+            return
+
+        # Cancel background task
+        if self._send_task:
+            self._send_task.cancel()
+            try:
+                await self._send_task
+            except asyncio.CancelledError:
+                pass
+
+        # Send any remaining buffered alerts
+        if self.buffer:
+            await self._send_alerts(self.buffer)
+            self.buffer.clear()
+
+        # Close HTTP session
+        if self.session:
+            await self.session.close()
+
+        self._started = False
+
+    async def write(self, event_dict: Dict[str, Any]) -> None:
+        """Process log event - only send errors to Slack."""
+        # Only process error-level logs
+        if event_dict.get("level") != "error":
+            return
+
+        # Add to buffer for batching
+        self.buffer.append(event_dict)
+
+        # Send immediately if buffer is full
+        if len(self.buffer) >= self.batch_size:
+            await self._send_buffered_alerts()
+
+    async def _batch_sender(self):
+        """Background task that sends alerts periodically."""
+        while True:
+            try:
+                await asyncio.sleep(self.batch_timeout)
+                await self._send_buffered_alerts()
+            except asyncio.CancelledError:
+                break
+
+    async def _send_buffered_alerts(self):
+        """Send all buffered alerts."""
+        if self.buffer:
+            await self._send_alerts(self.buffer)
+            self.buffer.clear()
+
+    async def _send_alerts(self, alerts: List[Dict[str, Any]]) -> None:
+        """Send alerts to Slack with retry logic."""
+        if not alerts:
+            return
+
+        # Prepare Slack message
+        message = self._prepare_slack_message(alerts)
+
+        # Send with retry logic
+        for attempt in range(self.max_retries):
+            try:
+                if not self.session:
+                    raise RuntimeError("Session not initialized")
+
+                async with self.session.post(
+                    self.webhook_url,
+                    json=message,
+                    timeout=aiohttp.ClientTimeout(total=10.0)
+                ) as response:
+                    response.raise_for_status()
+                    return  # Success
+
+            except Exception as e:
+                if attempt == self.max_retries - 1:
+                    # Final attempt failed - log but don't raise
+                    import logging
+                    logging.getLogger(__name__).error(
+                        f"Slack sink failed after {self.max_retries} attempts: {e}",
+                        extra={"alerts": alerts}
+                    )
+                else:
+                    # Wait before retry
+                    await asyncio.sleep(1.0 * (2 ** attempt))  # Exponential backoff
+
+    def _prepare_slack_message(self, alerts: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Prepare Slack message from alerts."""
+        # Group alerts by error type
+        error_groups = {}
+        for alert in alerts:
+            error_type = alert.get("event", "Unknown Error")
+            if error_type not in error_groups:
+                error_groups[error_type] = []
+            error_groups[error_type].append(alert)
+
+        # Create Slack message
+        fields = []
+        for error_type, group_alerts in error_groups.items():
+            fields.append({
+                "title": f"Error: {error_type}",
+                "value": f"Count: {len(group_alerts)}",
+                "short": True
+            })
+
+        # Add trace information
+        trace_ids = list(set(
+            alert.get("trace_id", "N/A")
+            for alert in alerts
+            if alert.get("trace_id")
+        ))
+        if trace_ids:
+            fields.append({
+                "title": "Trace IDs",
+                "value": ", ".join(trace_ids[:5]),  # Limit to first 5
+                "short": True
+            })
+
+        return {
+            "channel": self.channel,
+            "text": f"🚨 {len(alerts)} error(s) detected",
+            "attachments": [{
+                "color": "danger",
+                "fields": fields,
+                "footer": f"fapilog Slack Sink | {time.strftime('%Y-%m-%d %H:%M:%S')}"
+            }]
+        }
+
+# Usage with FastAPI
+from fastapi import FastAPI
+from fapilog import configure_logging
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Create and start custom sink
+    slack_sink = SlackAlertSink(
+        webhook_url="https://hooks.slack.com/services/YOUR/WEBHOOK/URL",
+        channel="#alerts"
+    )
+    await slack_sink.start()
+
+    # Configure logging with custom sink
+    configure_logging(sinks=["stdout", slack_sink])
+
+    yield
+
+    # Stop custom sink
+    await slack_sink.stop()
+
+app = FastAPI(lifespan=lifespan)
 ```
 
 ---
