@@ -336,3 +336,7 @@ ignore_decorators = [
     "pytest.mark.asyncio",
     "asyncio.coroutine",
 ]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true

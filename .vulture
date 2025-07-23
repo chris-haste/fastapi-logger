@@ -63,3 +63,46 @@ exc
 
 # Pydantic validator parameters (required by decorator)
 cls 
+
+# Testing framework public API methods - used by external developers
+create_test_sink
+validate_sink_interface
+validate_sink_name_for_uri
+clear_state
+get_test_summary
+debug_sink_configuration
+print_sink_registry_status
+print_sink_debug_info
+run_integration_suite
+get_test_results
+clear_test_results
+print_test_summary
+run_uri_test_suite
+get_test_summary
+clear_results
+create_test_uri_cases
+run_comprehensive_test
+get_metrics
+clear_metrics
+print_summary
+
+# Mock sink public API methods - used by external developers for testing
+get_events
+get_last_event
+get_stats
+reset_stats
+get_performance_stats
+get_failure_count
+get_batches
+get_current_batch
+
+# Mock sink classes - used by external developers for testing
+ConditionalFailingSink
+BatchingSink
+
+# Testing framework internal attributes that appear unused but are part of API
+_test_events
+ignore_order
+
+# Queue internal attributes used by the system
+disabled 

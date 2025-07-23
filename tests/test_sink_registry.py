@@ -17,8 +17,8 @@ from fapilog.settings import LoggingSettings
 
 
 # Test sink implementations
-class TestSink(Sink):
-    """Simple test sink for registry testing."""
+class MockSink(Sink):
+    """Simple mock sink for registry testing."""
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -51,23 +51,23 @@ class TestSinkRegistry:
 
     def test_register_sink(self):
         """Test basic sink registration."""
-        result = SinkRegistry.register("test", TestSink)
-        assert result is TestSink
-        assert SinkRegistry.get("test") is TestSink
+        result = SinkRegistry.register("test", MockSink)
+        assert result is MockSink
+        assert SinkRegistry.get("test") is MockSink
 
     def test_register_sink_with_whitespace(self):
         """Test registration handles whitespace in names."""
-        SinkRegistry.register("  test  ", TestSink)
-        assert SinkRegistry.get("test") is TestSink
-        assert SinkRegistry.get("  test  ") is TestSink
+        SinkRegistry.register("  test  ", MockSink)
+        assert SinkRegistry.get("test") is MockSink
+        assert SinkRegistry.get("  test  ") is MockSink
 
     def test_register_invalid_name(self):
         """Test registration with invalid names."""
         with pytest.raises(ValueError, match="Sink name cannot be empty"):
-            SinkRegistry.register("", TestSink)
+            SinkRegistry.register("", MockSink)
 
         with pytest.raises(ValueError, match="Sink name cannot be empty"):
-            SinkRegistry.register("   ", TestSink)
+            SinkRegistry.register("   ", MockSink)
 
     def test_register_invalid_class(self):
         """Test registration with invalid sink class."""
@@ -85,21 +85,21 @@ class TestSinkRegistry:
 
     def test_list_sinks(self):
         """Test listing registered sinks."""
-        SinkRegistry.register("test1", TestSink)
+        SinkRegistry.register("test1", MockSink)
         SinkRegistry.register("test2", PostgresSink)
 
         sinks = SinkRegistry.list()
         assert len(sinks) == 2
-        assert sinks["test1"] is TestSink
+        assert sinks["test1"] is MockSink
         assert sinks["test2"] is PostgresSink
 
         # Verify it returns a copy
-        sinks["test3"] = TestSink
+        sinks["test3"] = MockSink
         assert "test3" not in SinkRegistry.list()
 
     def test_clear_registry(self):
         """Test clearing the registry."""
-        SinkRegistry.register("test", TestSink)
+        SinkRegistry.register("test", MockSink)
         assert len(SinkRegistry.list()) == 1
 
         SinkRegistry.clear()
@@ -143,7 +143,7 @@ class TestSinkFactory:
         """Set up test sinks in registry."""
         SinkRegistry.clear()
         SinkRegistry.register("postgres", PostgresSink)
-        SinkRegistry.register("test", TestSink)
+        SinkRegistry.register("test", MockSink)
 
     def test_create_custom_sink_basic(self):
         """Test creating custom sink from basic URI."""
@@ -253,11 +253,11 @@ class TestBootstrapIntegration:
     def setup_method(self):
         """Set up test environment."""
         SinkRegistry.clear()
-        SinkRegistry.register("test", TestSink)
+        SinkRegistry.register("test", MockSink)
 
     def test_configure_logging_with_sink_instances(self):
         """Test configure_logging accepts direct sink instances."""
-        test_sink = TestSink(test_param="value")
+        test_sink = MockSink(test_param="value")
 
         logger = configure_logging(sinks=[test_sink])
         assert logger is not None
@@ -269,7 +269,7 @@ class TestBootstrapIntegration:
 
     def test_configure_logging_mixed_sinks(self):
         """Test configure_logging with mixed sink types."""
-        test_sink = TestSink()
+        test_sink = MockSink()
         logger = configure_logging(sinks=[test_sink, "stdout"])
         assert logger is not None
 
@@ -280,11 +280,11 @@ class TestSettingsIntegration:
     def setup_method(self):
         """Set up test environment."""
         SinkRegistry.clear()
-        SinkRegistry.register("test", TestSink)
+        SinkRegistry.register("test", MockSink)
 
     def test_settings_with_sink_instances(self):
         """Test LoggingSettings accepts sink instances."""
-        test_sink = TestSink()
+        test_sink = MockSink()
         settings = LoggingSettings(sinks=[test_sink, "stdout"])
 
         assert len(settings.sinks) == 2
@@ -293,11 +293,11 @@ class TestSettingsIntegration:
 
     def test_settings_parse_mixed_types(self):
         """Test settings parser handles mixed types."""
-        test_sink = TestSink()
+        test_sink = MockSink()
         settings = LoggingSettings(sinks=[test_sink, "stdout", "test://host"])
 
         assert len(settings.sinks) == 3
-        assert isinstance(settings.sinks[0], TestSink)
+        assert isinstance(settings.sinks[0], MockSink)
         assert settings.sinks[1] == "stdout"
         assert settings.sinks[2] == "test://host"
 
@@ -322,7 +322,7 @@ class TestErrorHandling:
 
         def register_sink_thread(name):
             try:
-                SinkRegistry.register(f"sink_{name}", TestSink)
+                SinkRegistry.register(f"sink_{name}", MockSink)
                 results.append(f"success_{name}")
             except Exception as e:
                 results.append(f"error_{name}_{e}")
