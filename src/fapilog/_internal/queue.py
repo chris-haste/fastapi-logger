@@ -185,7 +185,7 @@ class QueueWorker:
                 else:
                     # Different loop, just let it cancel naturally
                     try:
-                        logger.debug("Different loop, allowing natural cancellation")
+                        logger.debug("Different loop, allowing natural cancel")
                     except Exception:
                         # Ignore logging errors during shutdown
                         pass
@@ -207,9 +207,8 @@ class QueueWorker:
     def shutdown_sync(self, timeout: float = 5.0) -> None:
         """Shutdown the worker from a sync context.
 
-        This method marks the worker as stopping and returns immediately.
-        The worker will shut down naturally when it next checks the stopping
-        flag.
+        This method attempts to properly shutdown the worker, including
+        waiting for background tasks to complete when possible.
         """
         if self._stopping:
             return  # Already shutting down
@@ -221,16 +220,60 @@ class QueueWorker:
         self._stopping = True
         self._running = False
 
-        # Try to cancel the task if it exists and we're not in an async context
+        # Disable asyncio logger to prevent "I/O operation on closed file" errors
+        # during shutdown when tasks are being cleaned up
+        try:
+            asyncio_logger = logging.getLogger("asyncio")
+            asyncio_logger.disabled = True
+        except Exception:
+            pass
+
+        # Try to cancel the task if it exists
         if self._task is not None and not self._task.done():
             try:
-                # Only cancel if we can - don't wait for completion to avoid
-                # event loop conflicts
+                # Cancel the task
                 self._task.cancel()
                 try:
                     logger.debug("QueueWorker task cancelled")
                 except Exception:
                     pass  # Ignore logging errors during shutdown
+
+                # Try to wait for the task to complete using a temporary event loop
+                # This helps prevent the "Task was destroyed but it is pending!" error
+                try:
+                    import asyncio
+
+                    # Check if we're already in an async context
+                    try:
+                        asyncio.get_running_loop()
+                        # We're in an async context, can't create a new loop
+                        # The task will be cleaned up naturally
+                    except RuntimeError:
+                        # No running loop, we can create a temporary one
+                        # Create a new event loop to wait for the task
+                        temp_loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(temp_loop)
+                        try:
+                            # Wait for the task to complete with timeout
+                            temp_loop.run_until_complete(
+                                asyncio.wait_for(
+                                    asyncio.shield(self._task),
+                                    timeout=min(timeout, 2.0),
+                                )
+                            )
+                        except (asyncio.TimeoutError, asyncio.CancelledError):
+                            # Task didn't complete in time or was cancelled, that's OK
+                            pass
+                        except Exception:
+                            # Any other error during cleanup is also OK
+                            pass
+                        finally:
+                            temp_loop.close()
+                            asyncio.set_event_loop(None)
+                except Exception:
+                    # If anything goes wrong with the event loop, just continue
+                    pass
+
             except Exception as e:
                 try:
                     logger.debug(f"Could not cancel queue worker task: {e}")
@@ -271,7 +314,11 @@ class QueueWorker:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Error in queue worker: {e}")
+                try:
+                    logger.error(f"Error in queue worker: {e}")
+                except Exception:
+                    # Ignore logging errors during shutdown
+                    pass
                 if not self._stopping:
                     await asyncio.sleep(self.retry_delay)
 
