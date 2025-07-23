@@ -159,32 +159,60 @@ class TestQueueWorker:
         assert metrics.queue_metrics.total_enqueued > 0
 
     @pytest.mark.asyncio
-    async def test_sink_error_handling(self, worker, mock_sink):
+    async def test_sink_error_handling(self, mock_sink):
         """Test handling of sink errors during processing."""
         # Configure multiple sinks, some failing
         failing_sink = Mock(spec=Sink)
         failing_sink.write = AsyncMock(side_effect=Exception("Sink failed"))
         failing_sink._sink_name = "FailingSink"
 
-        # Ensure the worker has sinks configured before starting
-        worker.sinks = [mock_sink, failing_sink]
+        # Create worker with both sinks from the start
+        worker = QueueWorker(
+            sinks=[mock_sink, failing_sink],
+            queue_max_size=5,
+            batch_size=1,  # Process events one at a time for easier testing
+            batch_timeout=0.05,  # Shorter timeout for faster processing
+            retry_delay=0.01,
+            max_retries=1,
+            overflow_strategy="block",  # Ensure events aren't dropped
+            sampling_rate=1.0,  # Process all events
+        )
 
         await worker.start()
 
         # Make sure worker is running
         assert worker._running is True
 
-        await worker.enqueue({"test": "event"})
+        # Enqueue an event
+        enqueue_success = await worker.enqueue({"test": "event"})
+        assert enqueue_success is True
 
-        # Give more time for processing (increased from 0.2 to 0.5)
-        await asyncio.sleep(0.5)
+        # Wait for processing with proper timeout
+        # Use a loop to wait for the event to be processed
+        max_wait_time = 2.0  # 2 seconds max
+        wait_interval = 0.1
+        total_waited = 0.0
+
+        while total_waited < max_wait_time:
+            # Check if both sinks have been called
+            mock_called = mock_sink.write.call_count >= 1
+            failing_called = failing_sink.write.call_count >= 1
+            if mock_called and failing_called:
+                break
+            await asyncio.sleep(wait_interval)
+            total_waited += wait_interval
+
         await worker.stop()
 
         # The event should have been processed by both sinks
         # The successful sink should have been called
-        assert mock_sink.write.call_count >= 1
+        assert mock_sink.write.call_count >= 1, (
+            f"Mock sink was called {mock_sink.write.call_count} times"
+        )
         # The failing sink should also have been called (even though it failed)
-        assert failing_sink.write.call_count >= 1
+        assert failing_sink.write.call_count >= 1, (
+            f"Failing sink was called {failing_sink.write.call_count} times"
+        )
 
 
 class TestQueueSinkFunctions:
