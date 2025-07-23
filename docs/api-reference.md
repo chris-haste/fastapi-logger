@@ -1408,6 +1408,125 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 ```
 
+### Sink Registry
+
+**The sink registry allows you to register custom sinks for reuse across applications.**
+
+#### `@register_sink` Decorator
+
+**Register custom sinks with string identifiers for configuration:**
+
+```python
+from fapilog import register_sink, Sink
+
+@register_sink("my_custom_sink")
+class MyCustomSink(Sink):
+    def __init__(self, url: str, timeout: float = 30.0):
+        super().__init__()
+        self.url = url
+        self.timeout = timeout
+
+    async def write(self, event_dict: Dict[str, Any]) -> None:
+        # Your implementation
+        pass
+
+# Use in configuration
+settings = LoggingSettings(sinks=["my_custom_sink://example.com?timeout=10"])
+```
+
+#### URI-Based Configuration
+
+**Configure registered sinks using URI syntax:**
+
+```python
+# Basic registration
+@register_sink("webhook")
+class WebhookSink(Sink):
+    def __init__(self, url: str, auth_token: str = None):
+        super().__init__()
+        self.url = url
+        self.auth_token = auth_token
+
+    async def write(self, event_dict: Dict[str, Any]) -> None:
+        # Send HTTP POST to webhook URL
+        pass
+
+# URI configuration examples
+settings = LoggingSettings(sinks=[
+    "webhook://api.example.com/logs",              # Basic URL
+    "webhook://api.example.com/logs?auth_token=abc123", # With query params
+    "stdout",                                       # Built-in sinks still work
+    "file:///var/log/app.log"                      # File sink with absolute path
+])
+```
+
+#### Registry Management
+
+```python
+from fapilog._internal.sink_registry import SinkRegistry
+
+# Get registered sink
+sink_class = SinkRegistry.get_sink("my_custom_sink")
+
+# List all registered sinks
+all_sinks = SinkRegistry.list_sinks()
+print(all_sinks)  # ['stdout', 'file', 'loki', 'my_custom_sink']
+
+# Check if sink is registered
+is_registered = SinkRegistry.is_registered("my_custom_sink")
+```
+
+#### Best Practices for Sink Registration
+
+**1. Use Descriptive Names:**
+
+```python
+@register_sink("elasticsearch")
+class ElasticsearchSink(Sink):
+    # Clear, descriptive name
+    pass
+
+@register_sink("slack_alerts")
+class SlackAlertSink(Sink):
+    # Descriptive for specific use case
+    pass
+```
+
+**2. Support Configuration Parameters:**
+
+```python
+@register_sink("database")
+class DatabaseSink(Sink):
+    def __init__(self, host: str, port: int = 5432, database: str = "logs"):
+        super().__init__()
+        self.host = host
+        self.port = port
+        self.database = database
+
+# Usage: "database://localhost:5432/app_logs"
+```
+
+**3. Document Your Sink:**
+
+```python
+@register_sink("custom_sink")
+class CustomSink(Sink):
+    """
+    Custom sink for sending logs to external service.
+
+    URI Format: custom_sink://host:port/path?param=value
+
+    Parameters:
+        host (str): Target hostname
+        port (int): Target port (default: 8080)
+        timeout (float): Request timeout in seconds (default: 30.0)
+
+    Example:
+        custom_sink://api.example.com:8080/logs?timeout=10
+    """
+    pass
+```
+
 ---
 
 ## Monitoring

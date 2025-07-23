@@ -66,7 +66,7 @@ exclude_patterns = [
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "sphinx_rtd_theme"
+html_theme = "furo"
 html_static_path = ["_static"]
 
 # -- Extension configuration -------------------------------------------------
@@ -130,26 +130,17 @@ myst_substitutions = {
 # TODO extension
 todo_include_todos = True
 
-# HTML theme options for sphinx_rtd_theme
+# HTML theme options for Furo
 html_theme_options = {
-    "navigation_depth": 4,
-    "collapse_navigation": False,
-    "sticky_navigation": True,
-    "includehidden": True,
-    "titles_only": False,
-    "prev_next_buttons_location": "bottom",
-    "style_external_links": True,
-    "style_nav_header_background": "#2980B9",
+    "sidebar_hide_name": False,
+    "navigation_with_keys": True,
+    "top_of_page_button": "edit",
+    "source_repository": "https://github.com/chris-haste/fastapi-logger/",
+    "source_branch": "main",
+    "source_directory": "docs/",
 }
 
-# Custom sidebar for sphinx_rtd_theme
-html_sidebars = {
-    "**": [
-        "globaltoc.html",
-        "localtoc.html",
-        "searchbox.html",
-    ]
-}
+# Furo handles sidebars automatically - no custom sidebar configuration needed
 
 # Additional HTML context
 html_context = {
