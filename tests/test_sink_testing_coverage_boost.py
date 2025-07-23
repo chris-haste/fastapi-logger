@@ -43,7 +43,8 @@ class SinkWithSyncWrite(Sink):
     def __init__(self):
         super().__init__()
 
-    async def write(self, event_dict: Dict[str, Any]) -> None:  # Now async
+    def write(self, event_dict: Dict[str, Any]) -> None:  # type: ignore[override]
+        """Intentionally synchronous write method for testing validation."""
         pass
 
 
