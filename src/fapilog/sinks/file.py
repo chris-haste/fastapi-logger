@@ -1,6 +1,5 @@
 """File sink implementation for async logging with rotation support."""
 
-import json
 import logging
 import logging.handlers
 import threading
@@ -11,6 +10,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .._internal.metrics import get_metrics_collector
 from .._internal.queue import Sink
+from .._internal.utils import safe_json_serialize
 from ..exceptions import ConfigurationError
 
 
@@ -66,8 +66,8 @@ class FileSink(Sink):
         error_msg = None
 
         try:
-            # Convert to JSON string
-            log_line = json.dumps(event_dict) + "\n"
+            # Convert to JSON string using safe serialization
+            log_line = safe_json_serialize(event_dict)
 
             # Create a log record
             record = logging.LogRecord(
