@@ -1,0 +1,211 @@
+name: Project Board Automation
+
+on:
+  issues:
+    types: [opened, closed, labeled, assigned]
+  pull_request:
+    types: [opened, closed, ready_for_review, converted_to_draft]
+  push:
+    branches: ['story-*', 'feat/story-*', 'fix/story-*']
+
+jobs:
+  manage-project:
+    runs-on: ubuntu-latest
+    name: Manage Project Board
+    steps:
+      - name: Add issue to project
+        if: github.event_name == 'issues' && github.event.action == 'opened'
+        uses: actions/add-to-project@v0.5.0
+        with:
+          project-url: https://github.com/users/${{ github.repository_owner }}/projects/1
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Move story branch to In Progress
+        if: github.event_name == 'push' && contains(github.ref, 'story-')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Extract story number from branch name
+            const branch = context.ref.replace('refs/heads/', '');
+            const storyMatch = branch.match(/story-(\d+\.\d+)/);
+            
+            if (storyMatch) {
+              const storyNumber = storyMatch[1];
+              console.log(`Detected story branch: ${branch}, story: ${storyNumber}`);
+              
+              // Find issue with story number in title
+              const issues = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open'
+              });
+              
+              const storyIssue = issues.data.find(issue => 
+                issue.title.includes(`Story ${storyNumber}`) || 
+                issue.title.includes(`story-${storyNumber}`)
+              );
+              
+              if (storyIssue) {
+                console.log(`Found story issue: #${storyIssue.number}`);
+                
+                // Add comment to issue
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: storyIssue.number,
+                  body: `🚀 **Development Started**\n\nBranch \`${branch}\` has been created. Story moved to **In Progress**.\n\n_Automated via GitHub Actions_`
+                });
+                
+                // Add in-progress label
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: storyIssue.number,
+                  labels: ['in-progress']
+                });
+              }
+            }
+
+      - name: Move PR to Review
+        if: github.event_name == 'pull_request' && github.event.action == 'opened'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            
+            // Extract story number from PR title or branch
+            const branch = pr.head.ref;
+            const storyMatch = branch.match(/story-(\d+\.\d+)/) || 
+                             pr.title.match(/Story (\d+\.\d+)/i);
+            
+            if (storyMatch) {
+              const storyNumber = storyMatch[1];
+              console.log(`PR for story: ${storyNumber}`);
+              
+              // Find corresponding issue
+              const issues = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open'
+              });
+              
+              const storyIssue = issues.data.find(issue => 
+                issue.title.includes(`Story ${storyNumber}`) || 
+                issue.title.includes(`story-${storyNumber}`)
+              );
+              
+              if (storyIssue) {
+                console.log(`Found story issue: #${storyIssue.number}`);
+                
+                // Remove in-progress label and add review label
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: storyIssue.number,
+                  name: 'in-progress'
+                }).catch(() => {}); // Ignore if label doesn't exist
+                
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: storyIssue.number,
+                  labels: ['review']
+                });
+                
+                // Add comment to issue
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: storyIssue.number,
+                  body: `📖 **Ready for Review**\n\nPull Request #${pr.number} has been created and is ready for review.\n\n**PR:** ${pr.html_url}\n\n_Automated via GitHub Actions_`
+                });
+              }
+            }
+
+      - name: Handle PR completion
+        if: github.event_name == 'pull_request' && github.event.action == 'closed'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            
+            // Extract story number from PR title or branch
+            const branch = pr.head.ref;
+            const storyMatch = branch.match(/story-(\d+\.\d+)/) || 
+                             pr.title.match(/Story (\d+\.\d+)/i);
+            
+            if (storyMatch) {
+              const storyNumber = storyMatch[1];
+              console.log(`PR ${pr.merged ? 'merged' : 'closed'} for story: ${storyNumber}`);
+              
+              // Find corresponding issue
+              const issues = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open'
+              });
+              
+              const storyIssue = issues.data.find(issue => 
+                issue.title.includes(`Story ${storyNumber}`) || 
+                issue.title.includes(`story-${storyNumber}`)
+              );
+              
+              if (storyIssue) {
+                console.log(`Found story issue: #${storyIssue.number}`);
+                
+                if (pr.merged) {
+                  // PR was merged - mark as complete
+                  await github.rest.issues.removeLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: storyIssue.number,
+                    name: 'review'
+                  }).catch(() => {});
+                  
+                  await github.rest.issues.addLabels({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: storyIssue.number,
+                    labels: ['completed']
+                  });
+                  
+                  // Close the issue
+                  await github.rest.issues.update({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: storyIssue.number,
+                    state: 'closed'
+                  });
+                  
+                  // Add completion comment
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: storyIssue.number,
+                    body: `✅ **Story Completed**\n\nPR #${pr.number} has been merged successfully. Story ${storyNumber} is now complete!\n\n**Merged PR:** ${pr.html_url}\n\n_Automated via GitHub Actions_`
+                  });
+                } else {
+                  // PR was closed without merging - back to in-progress
+                  await github.rest.issues.removeLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: storyIssue.number,
+                    name: 'review'
+                  }).catch(() => {});
+                  
+                  await github.rest.issues.addLabels({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: storyIssue.number,
+                    labels: ['in-progress']
+                  });
+                  
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: storyIssue.number,
+                    body: `🔄 **Back to Development**\n\nPR #${pr.number} was closed. Story moved back to **In Progress**.\n\n_Automated via GitHub Actions_`
+                  });
+                }
+              }
+            } 

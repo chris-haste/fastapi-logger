@@ -1,0 +1,118 @@
+name: 📖 Story Implementation
+description: Create an issue to track story implementation progress
+title: "Story [X.X] – [Story Title]"
+labels: ["story", "enhancement"]
+body:
+  - type: input
+    id: story-number
+    attributes:
+      label: Story Number
+      description: "Story number (e.g., 100.1, 13.5, etc.)"
+      placeholder: "100.1"
+    validations:
+      required: true
+
+  - type: input
+    id: epic-number
+    attributes:
+      label: Epic Number
+      description: "Epic this story belongs to"
+      placeholder: "100"
+    validations:
+      required: true
+
+  - type: input
+    id: story-points
+    attributes:
+      label: Story Points
+      description: "Estimated complexity/effort"
+      placeholder: "8"
+    validations:
+      required: true
+
+  - type: textarea
+    id: user-story
+    attributes:
+      label: User Story
+      description: "As a [role] I want [goal] so that [benefit]"
+      placeholder: "As a performance-conscious developer, I want enrichers to execute in parallel when they have no dependencies, so that log processing throughput increases by 2-3x for high-volume applications."
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: "List the acceptance criteria for this story"
+      placeholder: |
+        - [ ] Independent enrichers execute concurrently instead of sequentially
+        - [ ] Dependency resolution still respects enricher dependencies via topological sorting
+        - [ ] Parallel execution groups are determined automatically from dependency graph
+        - [ ] Error in one enricher doesn't block others in the same parallel group
+    validations:
+      required: true
+
+  - type: textarea
+    id: tasks
+    attributes:
+      label: Technical Tasks
+      description: "List the main technical tasks to complete this story"
+      placeholder: |
+        1. **Enhance dependency resolution in `src/fapilog/_internal/enricher_registry.py`**
+           - Extend `resolve_dependencies()` to return parallel execution groups
+           - Group enrichers by dependency levels (level 0, level 1, etc.)
+
+        2. **Update async pipeline in `src/fapilog/_internal/async_pipeline.py`**
+           - Replace sequential `for` loop with `asyncio.gather()` for parallel groups
+           - Implement timeout handling per group rather than per enricher
+    validations:
+      required: true
+
+  - type: textarea
+    id: dev-notes
+    attributes:
+      label: Development Notes
+      description: "Additional context, dependencies, or implementation notes"
+      placeholder: |
+        **Current Bottleneck:**
+        ```python
+        # Sequential processing in async_pipeline.py
+        for enricher in self._async_enrichers:
+            result = await enricher(logger, method_name, result)
+        ```
+
+        **Target Architecture:**
+        ```python
+        # Parallel processing by dependency level
+        for level_enrichers in parallel_groups:
+            results = await asyncio.gather(
+                *[enricher(logger, method_name, result) for enricher in level_enrichers],
+                return_exceptions=True
+            )
+            result = merge_enricher_results(results, result)
+        ```
+
+  - type: textarea
+    id: definition-of-done
+    attributes:
+      label: Definition of Done
+      description: "How do we know this story is complete?"
+      placeholder: |
+        - [ ] All acceptance criteria are met
+        - [ ] Unit tests written and passing
+        - [ ] Integration tests written and passing
+        - [ ] Performance tests show expected improvements
+        - [ ] Documentation updated
+        - [ ] Code reviewed and approved
+        - [ ] Story file updated with completion details
+
+  - type: checkboxes
+    id: linked-story-file
+    attributes:
+      label: Story File
+      description: "Link to the story documentation file"
+      options:
+        - label: "Story file exists in `docs/stories/story-[X.X].md`"
+          required: true
+        - label: "Story file will be updated throughout development"
+          required: true 
