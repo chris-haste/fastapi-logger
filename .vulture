@@ -26,6 +26,15 @@ create_user_dependency
 register_enricher
 clear_enrichers
 
+# Processor base classes and implementations - used by external developers
+Processor
+FunctionProcessor
+RedactionProcessor
+SamplingProcessor
+FilterNoneProcessor
+_processor_to_function
+is_started
+
 # HTTPX patch functions for trace propagation
 disable_httpx_trace_propagation
 is_httpx_trace_propagation_enabled

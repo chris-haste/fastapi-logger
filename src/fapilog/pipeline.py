@@ -1,12 +1,16 @@
 """Default processor pipeline for fapilog structured logging."""
 
-import random
-import re
-from typing import Any, Dict, List, Optional
+from typing import Any, List
 
 import structlog
 
 from ._internal.pii_patterns import DEFAULT_PII_PATTERNS, auto_redact_pii_processor
+from ._internal.processor import Processor
+from ._internal.processors import (
+    FilterNoneProcessor,
+    RedactionProcessor,
+    SamplingProcessor,
+)
 from .enrichers import (
     body_size_enricher,
     host_process_enricher,
@@ -15,80 +19,28 @@ from .enrichers import (
     run_registered_enrichers,
     user_context_enricher,
 )
-from .redactors import _should_redact_at_level, field_redactor
+from .redactors import field_redactor
 from .settings import LoggingSettings
 
 
-def _redact_processor(patterns: List[str], redact_level: str = "INFO") -> Any:
-    """Create a redaction processor that masks values matching patterns.
+def _processor_to_function(processor: Processor) -> Any:
+    """Convert a processor instance to a function for structlog chain.
 
     Args:
-        patterns: List of regex patterns to match for redaction
-        redact_level: Minimum log level for redaction to be applied
+        processor: The processor instance to convert
 
     Returns:
-        A processor function that redacts matching values
+        A function that can be used in the structlog processor chain
     """
-    if not patterns:
-        return lambda logger, method_name, event_dict: event_dict
 
-    compiled_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in patterns]
+    def processor_function(logger: Any, method_name: str, event_dict: Any) -> Any:
+        return processor.process(logger, method_name, event_dict)
 
-    def redact_processor(
-        logger: Any, method_name: str, event_dict: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Redact sensitive information from log entries."""
-        # Check if redaction should be applied based on log level
-        event_level = event_dict.get("level", "INFO")
-        if not _should_redact_at_level(event_level, redact_level):
-            return event_dict
-
-        redacted_dict = event_dict.copy()
-
-        for key, value in event_dict.items():
-            if isinstance(value, str):
-                for pattern in compiled_patterns:
-                    if pattern.search(key) or pattern.search(value):
-                        redacted_dict[key] = "[REDACTED]"
-                        break
-            elif isinstance(value, dict):
-                # Recursively redact nested dictionaries
-                redacted_dict[key] = redact_processor(logger, method_name, value)
-
-        return redacted_dict
-
-    return redact_processor
+    return processor_function
 
 
-def _sampling_processor(rate: float) -> Any:
-    """Create a sampling processor that drops events probabilistically.
-
-    Args:
-        rate: Sampling rate between 0.0 and 1.0
-
-    Returns:
-        A processor function that returns None for dropped events
-    """
-    if rate >= 1.0:
-        return lambda logger, method_name, event_dict: event_dict
-
-    def sampling_processor(
-        logger: Any, method_name: str, event_dict: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
-        """Sample log events based on the configured rate."""
-        if random.random() >= rate:
-            return None  # Drop this event
-        return event_dict
-
-    return sampling_processor
-
-
-def _filter_none_processor(
-    logger: Any, method_name: str, event_dict: Optional[Dict[str, Any]]
-) -> Optional[Dict[str, Any]]:
-    if event_dict is None:
-        return None
-    return event_dict
+# Legacy function-based processors have been replaced with class-based processors
+# Located in src/fapilog/_internal/processors.py
 
 
 def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> List[Any]:
@@ -121,10 +73,11 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
     # 6. Host and process info enricher (early in chain)
     processors.append(host_process_enricher)
 
-    # 7. Custom redaction processor (regex patterns)
-    processors.append(
-        _redact_processor(settings.redact_patterns, settings.redact_level)
+    # 7. Custom redaction processor (regex patterns) - class-based
+    redaction_processor = RedactionProcessor(
+        patterns=settings.redact_patterns, redact_level=settings.redact_level
     )
+    processors.append(_processor_to_function(redaction_processor))
 
     # 8. Field redaction processor (field names)
     processors.append(
@@ -160,12 +113,13 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
     # 13. Custom registered enrichers (after all built-in enrichers)
     processors.append(run_registered_enrichers)
 
-    # 14. Sampling processor (must be just before renderer)
-    sampling = _sampling_processor(settings.sampling_rate)
+    # 14. Sampling processor (must be just before renderer) - class-based
+    sampling_processor = SamplingProcessor(rate=settings.sampling_rate)
+    processors.append(_processor_to_function(sampling_processor))
 
-    # 15. Filter None processor (skips rendering if None)
-    processors.append(sampling)
-    processors.append(_filter_none_processor)
+    # 15. Filter None processor (skips rendering if None) - class-based
+    filter_processor = FilterNoneProcessor()
+    processors.append(_processor_to_function(filter_processor))
 
     # 16. Queue sink or renderer
     if settings.queue_enabled:
