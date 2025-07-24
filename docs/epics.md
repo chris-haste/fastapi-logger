@@ -1,93 +1,433 @@
-## Epic 1 – Core Library Foundation
+# GitHub Epic Labels Reference
 
-- **`Story 1.1`**: Create project scaffold (pyproject.toml, packaging, tox/hatch config)
-- **`Story 1.2`**: Implement log facade and configure_logging() bootstrap
-- **`Story 1.3`**: Design LoggingSettings (Pydantic) with env-var mapping
-- **`Story 1.4`**: Provide default structlog pipeline (JSON formatter + pretty console)
-- **`Story 1.5`**: Add basic unit tests for facade & settings
+This document provides a comprehensive mapping of GitHub epic labels to help automatically determine which epic is most appropriate for issues and stories.
 
-## Epic 2 – Middleware & Context Propagation
+## Epic Label Mapping
 
-- Story 2.1: TraceIDMiddleware (generate / forward trace_id, span_id)
-- Story 2.2: Request timing & status-code enrichment
-- Story 2.3: ContextVars management to avoid cross-request leakage
-- Story 2.4: Middleware test coverage with TestClient
+### `epic:core-foundation` (Epic 1 – Core Library Foundation)
 
-## Epic 3 – Async Logging Infrastructure
+**GitHub Description:** Core Library Foundation  
+**Focus Areas:**
 
-- Story 3.1: Implement non-blocking in-process queue
-- Story 3.2: Background worker coroutine with graceful shutdown hook
-- Story 3.3: Back-pressure / overflow strategy (drop, block, sampling toggle)
-- Story 3.4: Load-test script to validate queue performance
+- Project scaffold and packaging setup
+- Basic logging facade and `configure_logging()` function
+- `LoggingSettings` with Pydantic and environment variable mapping
+- Default structlog pipeline (JSON formatter + pretty console)
+- Basic unit tests for facade and settings
 
-## Epic 4 – Field Enrichers
+**When to Use:**
 
-- Story 4.1: Hostname & process info enricher
-- Story 4.2: Memory / CPU snapshot enricher
-- Story 4.3: Request size & response size enrichment
-- Story 4.4: Extensible registry for custom enrichers
+- Setting up project structure, build tools, or packaging
+- Core logging configuration and setup functionality
+- Basic logging facade implementation
+- Environment variable configuration systems
+- Fundamental project infrastructure
 
-## Epic 5 – Sink Implementations
+**Example Issues:**
 
-- Story 5.1: Stdout sink (sync fallback + async writer)
-- Story 5.2: Rotating file sink
-- Story 5.3: Loki HTTP sink with batch & retry
-- Story 5.4: Plug-in interface for third-party sinks
+- Project scaffold creation (pyproject.toml, packaging)
+- Implementing `configure_logging()` bootstrap
+- Adding basic unit test framework
+- Core library API design
 
-## Epic 6 – Contextual Enrichers
+---
 
-- Story 6.1: Context Enricher: Request Metadata (method, path, status, duration, client IP)
-- Story 6.2: Context Enricher: Correlation + Trace ID Propagation
-- Story 6.3: Context Enricher: User and Auth Context
+### `epic:middleware-context` (Epic 2 – Middleware & Context Propagation)
 
-## Epic 7 – Security & Redaction
+**GitHub Description:** Middleware & Context Propagation  
+**Focus Areas:**
 
-- Story 7.1: Regex-based field masking utility
-- Story 7.2: Allow-list / deny-list filter stage
-- Story 7.3: Unit tests for PII redaction paths
+- TraceIDMiddleware (generate/forward trace_id, span_id)
+- Request timing and status-code enrichment
+- ContextVars management to avoid cross-request leakage
+- FastAPI middleware integration
 
-## Epic 8 – Observability Integration
+**When to Use:**
 
-- Story 8.1: Prometheus metrics export
-- Story 8.2: Health check endpoints
-- Story 8.3: Distributed tracing integration (OpenTelemetry)
-- Story 8.4: Log aggregation system integration
+- HTTP middleware development
+- Request/response trace correlation
+- Context propagation between requests
+- Request timing and metadata collection
+- FastAPI-specific middleware features
 
-## Epic 9 – Developer Experience
+**Example Issues:**
 
-- Story 9.1: Comprehensive documentation (README, API docs, examples)
-- Story 9.2: Development tools (pre-commit, linting, type checking)
-- Story 9.3: CI/CD pipeline setup
-- Story 9.4: Release automation and packaging
+- Implementing trace ID generation
+- Adding request timing middleware
+- Context variable management
+- Middleware test coverage
 
-## Epic 10 – Production Readiness
+---
 
-- Story 10.1: Performance optimization and benchmarking
-- Story 10.2: Error handling and recovery mechanisms
-- Story 10.3: Configuration validation and error messages
-- Story 10.4: Production deployment guides
+### `epic:async-logging` (Epic 3 – Async Logging Infrastructure)
 
-## Epic 11 – Advanced Features
+**GitHub Description:** Async Logging Infrastructure  
+**Focus Areas:**
 
-- Story 11.1: Log sampling and filtering
-- Story 11.2: Custom log formats and templates
-- Story 11.3: Multi-tenant logging support
-- Story 11.4: Log archival and retention policies
+- Non-blocking in-process queue implementation
+- Background worker coroutine with graceful shutdown
+- Back-pressure and overflow strategies (drop, block, sampling)
+- High-performance async logging architecture
 
-## Epic 12 – Integration & Ecosystem
+**When to Use:**
 
-- Story 12.1: FastAPI ecosystem integration (Dependency injection, background tasks)
-- Story 12.2: Cloud provider integration (AWS, GCP, Azure)
-- Story 12.3: Database logging integration
-- Story 12.4: Third-party service integration (Datadog, New Relic, etc.)
+- Asynchronous logging systems
+- Queue-based log processing
+- Background worker implementation
+- Performance optimization for high-throughput logging
+- Graceful shutdown and resource management
 
-## Epic 13 – Architecture Improvements
+**Example Issues:**
 
-- **`Story 13.1`**: Eliminate Global State and Implement Dependency Injection
-- **`Story 13.2`**: Refactor Large Functions into Smaller, Focused Functions
-- **`Story 13.3`**: Standardize Error Handling Patterns Across Codebase
-- **`Story 13.4`**: Simplify Configuration API and Remove Deprecated Patterns
-- **`Story 13.5`**: Add Comprehensive Monitoring and Metrics
-- **`Story 13.6`**: Enhance Security Features with Advanced PII Detection and Validation
-- **`Story 13.7`**: Improve Plugin Architecture and Sink Registration System
-- **`Story 13.8`**: Add Performance Benchmarks and Optimization
+- Implementing async log queues
+- Background worker coroutines
+- Load testing and performance validation
+- Overflow strategy implementation
+
+---
+
+### `epic:field-enrichers` (Epic 4 – Field Enrichers)
+
+**GitHub Description:** Field Enrichers  
+**Focus Areas:**
+
+- Hostname and process info enrichers
+- Memory/CPU snapshot enrichers
+- Request/response size enrichment
+- Extensible registry for custom enrichers
+
+**When to Use:**
+
+- Adding metadata to log events
+- System resource monitoring
+- Process and host information collection
+- Custom enricher development
+- Registry systems for enrichers
+
+**Example Issues:**
+
+- Adding hostname/PID enrichers
+- CPU and memory monitoring
+- Custom enricher registry
+- Request size tracking
+
+---
+
+### `epic:sink-implementations` (Epic 5 – Sink Implementations)
+
+**GitHub Description:** Sink Implementations  
+**Focus Areas:**
+
+- Stdout sink (sync fallback + async writer)
+- Rotating file sink implementation
+- HTTP-based sinks (Loki, custom endpoints)
+- Plugin interface for third-party sinks
+
+**When to Use:**
+
+- Log output destinations (files, stdout, HTTP endpoints)
+- Sink implementation and interfaces
+- Log rotation and file management
+- Third-party logging service integration
+- Plugin architecture for sinks
+
+**Example Issues:**
+
+- File sink implementation
+- Stdout sink with async support
+- Log rotation features
+- Third-party sink plugins
+
+---
+
+### `epic:contextual-enrichers` (Epic 6 – Contextual Enrichers)
+
+**GitHub Description:** Contextual Enrichers  
+**Focus Areas:**
+
+- Request metadata enrichment (method, path, status, duration, client IP)
+- Correlation and trace ID propagation
+- User and authentication context enrichment
+
+**When to Use:**
+
+- HTTP request context enrichment
+- User authentication context
+- Request correlation across services
+- Client information tracking
+- Session and security context
+
+**Example Issues:**
+
+- Request metadata enrichers
+- User context propagation
+- Authentication enrichment
+- Client IP tracking
+
+---
+
+### `epic:data-redaction` (Epic 7 – Security & Redaction)
+
+**GitHub Description:** Data Redaction  
+**Focus Areas:**
+
+- Regex-based field masking utilities
+- Allow-list/deny-list filter stages
+- PII (Personally Identifiable Information) detection
+- Security and compliance features
+
+**When to Use:**
+
+- Data privacy and security
+- PII detection and redaction
+- Field masking and filtering
+- Compliance requirements (GDPR, HIPAA, SOC2)
+- Security logging practices
+
+**Example Issues:**
+
+- PII auto-detection
+- Field redaction systems
+- Security compliance features
+- Data masking utilities
+
+---
+
+### `epic:loki-integration` (Subset of Epic 5 – Loki-Specific Features)
+
+**GitHub Description:** Loki Integration  
+**Focus Areas:**
+
+- Grafana Loki HTTP sink implementation
+- Loki-specific batching and retry logic
+- Loki query optimization
+- Grafana dashboard integration
+
+**When to Use:**
+
+- Grafana Loki logging backend
+- Loki-specific features and optimizations
+- Grafana dashboard integration
+- Loki query and indexing optimization
+
+**Example Issues:**
+
+- Loki HTTP sink implementation
+- Loki batch processing
+- Grafana integration features
+- Loki-specific configuration
+
+---
+
+### `epic:architecture-improvements` (Epic 13 – Architecture Improvements)
+
+**GitHub Description:** Architecture Improvements  
+**Focus Areas:**
+
+- Eliminating global state and implementing dependency injection
+- Refactoring large functions into smaller, focused functions
+- Standardizing error handling patterns
+- Plugin architecture and registry systems
+- Performance benchmarks and optimization
+
+**When to Use:**
+
+- Code quality improvements
+- Architecture refactoring
+- Error handling standardization
+- Plugin and registry systems
+- Performance optimization
+- Technical debt reduction
+
+**Example Issues:**
+
+- Dependency injection implementation
+- Function refactoring
+- Error handling patterns
+- Plugin registry systems
+- Performance benchmarking
+
+---
+
+### `epic:developer-experience` (Epic 9 – Developer Experience & CI)
+
+**GitHub Description:** Developer Experience & CI  
+**Focus Areas:**
+
+- Development tools (pre-commit, linting, type checking)
+- CI/CD pipeline setup
+- Release automation and packaging
+- Developer workflow optimization
+
+**When to Use:**
+
+- Development tooling and workflow
+- CI/CD pipeline configuration
+- Code quality tools (linting, type checking)
+- Developer productivity enhancements
+- Build and release automation
+
+**Example Issues:**
+
+- Pre-commit hook setup
+- CI/CD pipeline configuration
+- Linting and type checking tools
+- Release automation
+
+---
+
+### `epic:documentation` (Epic 15 – Documentation Overhaul)
+
+**GitHub Description:** Documentation  
+**Focus Areas:**
+
+- Comprehensive documentation (README, API docs, examples)
+- ReadTheDocs integration and structure
+- Developer-centric documentation style
+- Quickstart guides and tutorials
+
+**When to Use:**
+
+- Documentation creation and improvement
+- API reference documentation
+- User guides and tutorials
+- Documentation infrastructure
+- Example code and samples
+
+**Example Issues:**
+
+- API documentation generation
+- User guide creation
+- Documentation site setup
+- Example code development
+
+---
+
+### `epic:packaging-distribution` (Epic 12 – Packaging & Distribution)
+
+**GitHub Description:** Packaging & Distribution  
+**Focus Areas:**
+
+- Python packaging and distribution
+- PyPI publishing automation
+- Package metadata and dependencies
+- Distribution optimization
+
+**When to Use:**
+
+- Python package management
+- PyPI publishing and distribution
+- Package configuration
+- Dependency management
+- Distribution automation
+
+**Example Issues:**
+
+- PyPI package configuration
+- Distribution automation
+- Package dependency management
+- Publishing pipeline setup
+
+---
+
+### `epic:release-versioning` (Epic 12 – Release & Versioning)
+
+**GitHub Description:** Release & Versioning  
+**Focus Areas:**
+
+- Version management and release processes
+- Changelog generation
+- Release automation
+- Version compatibility
+
+**When to Use:**
+
+- Release process automation
+- Version management
+- Changelog maintenance
+- Release documentation
+- Version compatibility
+
+**Example Issues:**
+
+- Automated release processes
+- Version bump automation
+- Changelog generation
+- Release documentation
+
+---
+
+## Automatic Epic Assignment Guidelines
+
+### Priority Order for Classification
+
+When an issue could fit multiple epics, use this priority order:
+
+1. **Architecture/Technical Debt** → `epic:architecture-improvements`
+2. **Core Functionality** → `epic:core-foundation`
+3. **Specific Feature Area** → Use specific epic (e.g., `epic:data-redaction`, `epic:async-logging`)
+4. **Infrastructure/Tooling** → `epic:developer-experience`
+5. **Documentation** → `epic:documentation`
+
+### Keywords for Automatic Detection
+
+#### Core Foundation
+
+- Keywords: scaffold, packaging, configure_logging, bootstrap, settings, pydantic, environment
+- File patterns: `pyproject.toml`, `src/fapilog/__init__.py`, `bootstrap.py`, `settings.py`
+
+#### Middleware & Context
+
+- Keywords: middleware, trace, correlation, context, request, response, FastAPI
+- File patterns: `middleware.py`, `context.py`, `trace.py`
+
+#### Async Logging
+
+- Keywords: async, queue, worker, background, performance, non-blocking, coroutine
+- File patterns: `queue.py`, `worker.py`, async-related files
+
+#### Field Enrichers
+
+- Keywords: enricher, metadata, hostname, process, memory, CPU, system
+- File patterns: `enrichers.py`, enricher-related files
+
+#### Sink Implementations
+
+- Keywords: sink, output, file, stdout, loki, destination, writer
+- File patterns: `sinks/`, sink-related files
+
+#### Data Redaction
+
+- Keywords: redaction, PII, mask, security, privacy, compliance, GDPR
+- File patterns: `redactors.py`, `pii_patterns.py`, security-related files
+
+#### Architecture Improvements
+
+- Keywords: refactor, architecture, global state, dependency injection, registry, performance
+- File patterns: `container.py`, `registry.py`, architecture improvements
+
+#### Developer Experience
+
+- Keywords: CI, CD, lint, test, pre-commit, tox, hatch, development
+- File patterns: `.github/`, `tox.ini`, `pyproject.toml` (dev tools)
+
+#### Documentation
+
+- Keywords: documentation, docs, README, examples, tutorial, guide
+- File patterns: `docs/`, `README.md`, `examples/`
+
+### Example Classification Logic
+
+```python
+def classify_epic(issue_title, issue_body, file_paths):
+    """
+    Classify an issue into the most appropriate epic based on content analysis.
+
+    Returns the epic label that best matches the issue.
+    """
+    # Implementation would analyze keywords, file patterns, and context
+    # to automatically suggest the most appropriate epic label
+    pass
+```
+
+This mapping enables automatic epic classification based on issue content, file paths, and keyword analysis, ensuring consistent project organization and reducing manual classification overhead.
