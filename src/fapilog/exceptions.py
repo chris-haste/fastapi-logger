@@ -225,3 +225,87 @@ class ContextError(FapilogError):
         if operation:
             context["operation"] = operation
         super().__init__(message, context)
+
+
+class ProcessorError(FapilogError):
+    """Base exception for processor-related errors."""
+
+
+class ProcessorConfigurationError(ProcessorError):
+    """Processor configuration is invalid."""
+
+    def __init__(
+        self,
+        message: str,
+        processor_name: Optional[str] = None,
+        setting: Optional[str] = None,
+        value: Any = None,
+    ) -> None:
+        """Initialize processor configuration error.
+
+        Args:
+            message: Human-readable error message
+            processor_name: Name of the processor that failed
+            setting: Configuration setting that caused the error
+            value: Value that caused the error
+        """
+        context = {}
+        if processor_name:
+            context["processor_name"] = processor_name
+        if setting:
+            context["setting"] = setting
+        if value is not None:
+            context["value"] = value
+        super().__init__(message, context)
+
+
+class ProcessorExecutionError(ProcessorError):
+    """Processor execution failed."""
+
+    def __init__(
+        self,
+        message: str,
+        processor_name: Optional[str] = None,
+        operation: Optional[str] = None,
+        event_context: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Initialize processor execution error.
+
+        Args:
+            message: Human-readable error message
+            processor_name: Name of the processor that failed
+            operation: Operation that failed (e.g., "process", "start", "stop")
+            event_context: Context about the event being processed
+        """
+        context = {}
+        if processor_name:
+            context["processor_name"] = processor_name
+        if operation:
+            context["operation"] = operation
+        if event_context:
+            context["event_context"] = event_context
+        super().__init__(message, context)
+
+
+class ProcessorRegistrationError(ProcessorError):
+    """Processor registration failed."""
+
+    def __init__(
+        self,
+        message: str,
+        processor_name: Optional[str] = None,
+        registration_type: Optional[str] = None,
+    ) -> None:
+        """Initialize processor registration error.
+
+        Args:
+            message: Human-readable error message
+            processor_name: Name of the processor that failed to register
+            registration_type: Type of registration that failed
+        """
+        context = {}
+        if processor_name:
+            context["processor_name"] = processor_name
+        if registration_type:
+            context["registration_type"] = registration_type
+        super().__init__(message, context)

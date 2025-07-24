@@ -38,6 +38,20 @@ is_started
 # HTTPX patch functions for trace propagation
 disable_httpx_trace_propagation
 is_httpx_trace_propagation_enabled
+get_current_span_context
+
+# Processor error handling - used by external developers
+ProcessorError
+ProcessorConfigurationError
+ProcessorExecutionError
+ProcessorRegistrationError
+handle_processor_error
+safe_processor_execution
+log_processor_error_with_context
+create_safe_processor_wrapper
+validate_processor_configuration
+safe_processor_lifecycle_operation
+_handle_processor_chain_error
 
 # Middleware functions used by FastAPI
 add_trace_exception_handler

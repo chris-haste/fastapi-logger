@@ -1,11 +1,14 @@
 """Default processor pipeline for fapilog structured logging."""
 
-from typing import Any, List
+from typing import Any, Dict, List
 
 import structlog
 
 from ._internal.pii_patterns import DEFAULT_PII_PATTERNS, auto_redact_pii_processor
 from ._internal.processor import Processor
+from ._internal.processor_error_handling import (
+    create_safe_processor_wrapper,
+)
 from ._internal.processors import (
     FilterNoneProcessor,
     RedactionProcessor,
@@ -37,6 +40,65 @@ def _processor_to_function(processor: Processor) -> Any:
         return processor.process(logger, method_name, event_dict)
 
     return processor_function
+
+
+def _wrap_processor_with_error_handling(
+    processor: Processor,
+    fallback_strategy: str = "pass_through",
+    retry_count: int = 0,
+) -> Any:
+    """Wrap processor with error handling and graceful degradation.
+
+    Args:
+        processor: The processor instance to wrap
+        fallback_strategy: Strategy for handling failures
+            - "pass_through": Return original event_dict on failure
+            - "drop": Return None to drop the event
+            - "fallback_value": Return a safe default event structure
+        retry_count: Number of retries on failure (0 = no retries)
+
+    Returns:
+        A wrapped processor function with error handling
+    """
+    return create_safe_processor_wrapper(processor, fallback_strategy, retry_count)
+
+
+def _handle_processor_chain_error(
+    processor_name: str,
+    error: Exception,
+    event_dict: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Handle errors in processor chain with fallback behavior.
+
+    Args:
+        processor_name: Name of the processor that failed
+        error: The exception that occurred
+        event_dict: The original event dictionary
+
+    Returns:
+        Fallback event dictionary
+    """
+    from ._internal.processor_error_handling import handle_processor_error
+
+    # Handle the error with context
+    handle_processor_error(
+        error,
+        processor_name,
+        context={
+            "event_keys": list(event_dict.keys()) if event_dict else [],
+            "chain_position": "unknown",
+        },
+        operation="chain_processing",
+    )
+
+    # Return a safe fallback event
+    return {
+        "level": event_dict.get("level", "ERROR"),
+        "message": "Processor chain error occurred",
+        "processor_error": True,
+        "failed_processor": processor_name,
+        "original_message": event_dict.get("message", "unknown"),
+    }
 
 
 # Legacy function-based processors have been replaced with class-based processors
@@ -73,16 +135,22 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
     # 6. Host and process info enricher (early in chain)
     processors.append(host_process_enricher)
 
-    # 7. Custom redaction processor (regex patterns) - class-based
+    # 7. Custom redaction processor (regex patterns) - class-based with error handling
     redaction_processor = RedactionProcessor(
         patterns=settings.redact_patterns, redact_level=settings.redact_level
     )
-    processors.append(_processor_to_function(redaction_processor))
+    processors.append(
+        _wrap_processor_with_error_handling(
+            redaction_processor, fallback_strategy="pass_through"
+        )
+    )
 
     # 8. Field redaction processor (field names)
     processors.append(
         field_redactor(
-            settings.redact_fields, settings.redact_replacement, settings.redact_level
+            settings.redact_fields,
+            settings.redact_replacement,
+            settings.redact_level,
         )
     )
 
@@ -92,7 +160,9 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
         all_pii_patterns = DEFAULT_PII_PATTERNS + settings.custom_pii_patterns
         processors.append(
             auto_redact_pii_processor(
-                all_pii_patterns, settings.redact_replacement, settings.redact_level
+                all_pii_patterns,
+                settings.redact_replacement,
+                settings.redact_level,
             )
         )
 
@@ -113,13 +183,21 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
     # 13. Custom registered enrichers (after all built-in enrichers)
     processors.append(run_registered_enrichers)
 
-    # 14. Sampling processor (must be just before renderer) - class-based
+    # 14. Sampling processor - class-based with error handling
     sampling_processor = SamplingProcessor(rate=settings.sampling_rate)
-    processors.append(_processor_to_function(sampling_processor))
+    processors.append(
+        _wrap_processor_with_error_handling(
+            sampling_processor, fallback_strategy="pass_through"
+        )
+    )
 
-    # 15. Filter None processor (skips rendering if None) - class-based
+    # 15. Filter None processor - class-based with error handling
     filter_processor = FilterNoneProcessor()
-    processors.append(_processor_to_function(filter_processor))
+    processors.append(
+        _wrap_processor_with_error_handling(
+            filter_processor, fallback_strategy="pass_through"
+        )
+    )
 
     # 16. Queue sink or renderer
     if settings.queue_enabled:
