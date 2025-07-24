@@ -13,12 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Manage Project Board
     steps:
-      - name: Add issue to project
-        if: github.event_name == 'issues' && github.event.action == 'opened'
-        uses: actions/add-to-project@v0.5.0
-        with:
-          project-url: https://github.com/users/chris-haste/projects/1
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+      # Note: Issues are manually added to project board for better control
 
       - name: Move story branch to In Progress
         if: github.event_name == 'push' && contains(github.ref, 'story-')
