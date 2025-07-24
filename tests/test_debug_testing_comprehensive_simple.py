@@ -101,8 +101,8 @@ class TestSinkDebuggerComprehensiveSimple:
             def __init__(self):
                 super().__init__()
 
-            async def write(self, event_dict: Dict[str, Any]) -> None:
-                # Now async
+            def write(self, event_dict: Dict[str, Any]) -> None:  # type: ignore[override]
+                # Not async - this should trigger validation error
                 pass
 
         issues = SinkDebugger.validate_sink_class(SyncWriteSink)

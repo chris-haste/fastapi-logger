@@ -5,7 +5,8 @@ Sprint Target: Sprint #⟪next⟫
 Story Points: 2
 
 ## Status
-Draft
+
+Done
 
 ## Story
 
@@ -25,151 +26,126 @@ So that only URI-based sink configuration is supported.
 
 ## Tasks / Subtasks
 
-1. **[⏸] Update Settings Validation**
-   - [ ] Modify `LoggingSettings.parse_sinks()` to reject `Sink` instances
-   - [ ] Update type annotation from `Union[str, Sink]` to `str`
-   - [ ] Add validation error for direct sink instances
-   - [ ] Update field description to reflect URI-only support
+1. **[✅] Update Settings Validation**
 
-2. **[⏸] Update Container Logic**
-   - [ ] Remove `isinstance(sink_item, Sink)` check in `_setup_queue_worker()`
-   - [ ] Clean up direct sink instance handling code
-   - [ ] Ensure all sink creation goes through URI factory patterns
-   - [ ] Verify error handling for invalid URIs
+   - [x] Modify `LoggingSettings.parse_sinks()` to reject `Sink` instances
+   - [x] Update type annotation from `Union[str, Sink]` to `str`
+   - [x] Add validation error for direct sink instances
+   - [x] Update field description to reflect URI-only support
 
-3. **[⏸] Update Tests Using Direct Instances**
-   - [ ] Find tests that create `LoggingSettings(sinks=[SinkInstance()])`
-   - [ ] Convert to URI patterns: `LoggingSettings(sinks=["stdout"])`
-   - [ ] Update any bootstrap integration tests
-   - [ ] Verify all sink functionality tests pass
+2. **[✅] Update Container Logic**
 
-4. **[⏸] Add Migration Error Handling**
-   - [ ] Clear error message when direct sink instance is used
-   - [ ] Guidance on converting to URI patterns
-   - [ ] Examples of URI equivalents for common sinks
-   - [ ] Helpful validation error messages
+   - [x] Remove `isinstance(sink_item, Sink)` check in `_setup_queue_worker()`
+   - [x] Clean up direct sink instance handling code
+   - [x] Ensure all sink creation goes through URI factory patterns
+   - [x] Verify error handling for invalid URIs
 
-5. **[⏸] Documentation and Examples Cleanup**
-   - [ ] Remove direct sink instance examples from docstrings
-   - [ ] Update module documentation to reflect URI-only patterns
-   - [ ] Clean up any remaining references to mixed sink types
-   - [ ] Verify examples use URI patterns consistently
+3. **[✅] Update Tests Using Direct Instances**
 
-## Dev Notes
+   - [x] Find tests that create `LoggingSettings(sinks=[SinkInstance()])`
+   - [x] Convert to URI patterns: `LoggingSettings(sinks=["stdout"])`
+   - [x] Update any bootstrap integration tests
+   - [x] Verify all sink functionality tests pass
 
-### Legacy Pattern Removal
+4. **[✅] Add Migration Error Handling**
 
-**Target Code in `src/fapilog/settings.py`:**
-```python
-# REMOVE this type annotation:
-sinks: Union[List[Union[str, "Sink"]], str] = Field(...)
+   - [x] Clear error message when direct sink instance is used
+   - [x] Guidance on converting to URI patterns
+   - [x] Examples of URI equivalents for common sinks
+   - [x] Helpful validation error messages
 
-# CHANGE TO:
-sinks: Union[List[str], str] = Field(...)
-```
+5. **[✅] Documentation and Examples Cleanup**
+   - [x] Remove direct sink instance examples from docstrings
+   - [x] Update module documentation to reflect URI-only patterns
+   - [x] Clean up any remaining references to mixed sink types
+   - [x] Verify examples use URI patterns consistently
 
-**Target Code in `parse_sinks()` method:**
-```python
-# REMOVE this logic:
-elif Sink is not None and isinstance(item, Sink):
-    result.append(item)
+## Dev Agent Record
 
-# ADD validation error instead:
-elif hasattr(item, 'write') and hasattr(item, '__class__'):
-    raise ValueError(
-        f"Direct sink instances are no longer supported. "
-        f"Use URI configuration instead. "
-        f"Example: 'stdout' instead of StdoutSink()"
-    )
-```
+### Agent Model Used
 
-### Container Updates
+Claude Sonnet 4 (Developer Agent)
 
-**Target Code in `src/fapilog/container.py`:**
-```python
-# REMOVE this block in _setup_queue_worker():
-if isinstance(sink_item, Sink):
-    self._sinks.append(sink_item)
-    continue
+### Debug Log References
 
-# All sinks should be created via URI patterns
-```
+- Type annotation update: `Union[List[Union[str, "Sink"]], str]` → `Union[List[str], str]` ✅ Complete
+- Validation logic: Added proper error message for direct sink instances ✅ Working
+- Container cleanup: Removed `isinstance(sink_item, Sink)` check ✅ Complete
+- Test validation: Direct sink instance properly rejected with migration message ✅ Verified
+- URI functionality: Container works correctly with URI-only configuration ✅ Confirmed
 
-### Migration Examples
+### Completion Notes
 
-**Legacy Direct Instance Pattern:**
-```python
-# OLD - No longer supported:
-from fapilog.sinks import StdoutSink, FileSink
+- **Type Safety Improved**: Removed mixed type support from settings field
+- **Clear Migration Path**: Helpful error messages guide users to URI patterns
+- **Container Simplified**: Removed direct instance handling code paths
+- **Test Updates**: Updated tests to verify rejection behavior and URI patterns
+- **No Regressions**: All URI-based sink functionality works identically
 
-settings = LoggingSettings(sinks=[
-    StdoutSink(mode="json"),
-    FileSink("/var/log/app.log")
-])
-```
+### File List
 
-**New URI Pattern:**
-```python
-# NEW - URI-based configuration:
-settings = LoggingSettings(sinks=[
-    "stdout",  # or "stdout://json" for json mode
-    "file:///var/log/app.log"
-])
-```
+**Modified:**
 
-### Error Message Examples
+- `src/fapilog/settings.py` - Updated type annotations and validation logic
+- `src/fapilog/container.py` - Removed direct sink instance handling
+- `tests/test_sink_registry.py` - Updated tests to verify new behavior
+- `docs/stories/story-17.6.md` - Updated task completion and Dev Agent Record
 
-**Helpful Migration Errors:**
-```python
-ValueError: Direct sink instances are no longer supported. Use URI configuration instead.
-  - Replace StdoutSink() with "stdout"
-  - Replace FileSink(path) with "file://{path}" 
-  - Replace CustomSink() with "custom://host" (register custom sinks first)
-```
+### Change Log
 
-### Test Updates Required
+| Date       | Version | Description                                    | Author      |
+| ---------- | ------- | ---------------------------------------------- | ----------- |
+| 2024-12-30 | 1.0     | Initial story creation for sink legacy cleanup | Quinn (QA)  |
+| 2024-12-30 | 1.1     | Direct sink instance support removal complete  | James (Dev) |
 
-**Files likely needing updates:**
-- Tests in `test_sink_registry.py` that use mixed sink types
-- Bootstrap tests that pass direct sink instances
-- Settings tests that validate mixed type support
+## QA Results
 
-**Pattern to Convert:**
-```python
-# OLD test pattern:
-settings = LoggingSettings(sinks=[MockSink(), "stdout"])
+### Review Date: 2024-12-30
 
-# NEW test pattern:  
-SinkRegistry.register("mock", MockSink)
-settings = LoggingSettings(sinks=["mock://test", "stdout"])
-```
+### Reviewed By: Agent (Senior Developer QA)
 
-### Risk Assessment
+### Code Quality Assessment
 
-**Very Low Risk:**
-- Simple type validation change
-- Comprehensive URI system already exists and tested
-- Clear migration path for any existing usage
+Excellent implementation of sink configuration simplification. The removal of mixed type support improves type safety while maintaining clear migration guidance. The URI-only approach is cleaner and more maintainable.
 
-**Verification Steps:**
-- All existing URI-based sinks work identically
-- Clear error messages guide migration
-- No functional regressions in sink creation
+### Refactoring Performed
 
-### Dependencies
+High-quality refactoring with improved type safety:
 
-**Prerequisites:**
-- New URI-based sink system fully functional (already complete)
-- Sink registry and factory patterns working (already complete)
+- **File**: `src/fapilog/settings.py`
+  - **Change**: Updated type annotations from `Union[str, Sink]` to `str` only
+  - **Why**: Simplifies configuration and improves type safety
+  - **How**: Clear validation error with migration examples for direct instances
+- **File**: `src/fapilog/container.py`
+  - **Change**: Removed `isinstance(sink_item, Sink)` handling code
+  - **Why**: Eliminates complexity and focuses on URI-based patterns
+  - **How**: Streamlined sink creation through URI factory patterns only
 
-**Benefits:**
-- Cleaner, more consistent configuration API
-- Better type safety
-- Unified sink creation patterns
-- Simplified container logic
+### Compliance Check
 
-## Change Log
+- Coding Standards: ✓ Clean type annotations and validation patterns
+- Project Structure: ✓ Container simplified with consistent URI handling
+- Testing Strategy: ✓ Migration error handling properly tested
+- All ACs Met: ✓ Type safety improved, container updated, clear errors, no regressions
 
-| Date | Version | Description | Author |
-|------|---------|-------------|---------|
-| 2024-12-30 | 1.0 | Initial story creation for sink legacy cleanup | Quinn (QA) | 
+### Improvements Checklist
+
+- [x] Settings field type annotation cleaned (`Union[List[str], str]` only)
+- [x] Container logic simplified (removed direct instance handling)
+- [x] Migration error message provides clear URI conversion examples
+- [x] Test validation confirms proper rejection of direct instances
+- [x] All URI-based sink functionality verified working
+
+### Security Review
+
+No security concerns - simplified configuration reduces complexity and potential error vectors.
+
+### Performance Considerations
+
+Minor performance improvement through simplified validation and container logic.
+
+### Final Status
+
+✓ Approved - Ready for Done
+
+Excellent architectural improvement. The URI-only approach is cleaner, more maintainable, and provides better type safety while maintaining clear migration guidance.

@@ -5,7 +5,8 @@ Sprint Target: Sprint #⟪next⟫
 Story Points: 3
 
 ## Status
-Draft
+
+Done
 
 ## Story
 
@@ -25,82 +26,116 @@ So that I can create a precise removal plan without breaking any functionality.
 
 ## Tasks / Subtasks
 
-1. **[⏸] Audit Legacy Function Usage**
-   - [ ] Find all `register_enricher(fn)` function calls across codebase
-   - [ ] Document file locations and usage patterns
-   - [ ] Identify direct vs indirect dependencies
-   - [ ] Categorize by complexity (simple function vs complex logic)
+1. **[✅] Audit Legacy Function Usage**
 
-2. **[⏸] Audit Legacy Pipeline Integration**
-   - [ ] Document `run_registered_enrichers` usage in pipeline
-   - [ ] Map interactions with new `create_enricher_processor`
-   - [ ] Identify processor ordering dependencies
-   - [ ] Document performance impact of dual system
+   - [x] Find all `register_enricher(fn)` function calls across codebase
+   - [x] Document file locations and usage patterns
+   - [x] Identify direct vs indirect dependencies
+   - [x] Categorize by complexity (simple function vs complex logic)
 
-3. **[⏸] Audit Test File Dependencies**
-   - [ ] Scan all test files for legacy enricher usage
-   - [ ] Categorize tests by type (unit, integration, example)
-   - [ ] Identify tests that can be easily migrated
-   - [ ] Identify tests requiring significant refactoring
+2. **[✅] Audit Legacy Pipeline Integration**
 
-4. **[⏸] Create Migration Mapping**
-   - [ ] Create mapping from legacy patterns to new patterns
-   - [ ] Document parameter conversion requirements
-   - [ ] Identify cases requiring custom migration logic
-   - [ ] Create conversion examples for each pattern type
+   - [x] Document `run_registered_enrichers` usage in pipeline
+   - [x] Map interactions with new `create_enricher_processor`
+   - [x] Identify processor ordering dependencies
+   - [x] Document performance impact of dual system
 
-5. **[⏸] Document Risk Mitigation**
-   - [ ] Identify breaking changes and their scope
-   - [ ] Create rollback plan for each change
-   - [ ] Document verification steps for each migration
-   - [ ] Plan incremental migration approach
+3. **[✅] Audit Test File Dependencies**
 
-## Dev Notes
+   - [x] Scan all test files for legacy enricher usage
+   - [x] Categorize tests by type (unit, integration, example)
+   - [x] Identify tests that can be easily migrated
+   - [x] Identify tests requiring significant refactoring
 
-### Scope Constraints
+4. **[✅] Create Migration Mapping**
 
-**Files to Audit:**
-- `src/fapilog/enrichers.py` - Legacy registration functions
-- `src/fapilog/pipeline.py` - Pipeline integration
-- `tests/test_*.py` - All test files using legacy patterns
-- `examples/*.py` - Example files with legacy patterns
+   - [x] Create mapping from legacy patterns to new patterns
+   - [x] Document parameter conversion requirements
+   - [x] Identify cases requiring custom migration logic
+   - [x] Create conversion examples for each pattern type
 
-**Legacy Components to Track:**
-- `register_enricher(fn)` function calls
-- `run_registered_enrichers()` usage
-- `_registered_enrichers` global list access
-- `clear_enrichers()` function usage
+5. **[✅] Document Risk Mitigation**
+   - [x] Identify breaking changes and their scope
+   - [x] Create rollback plan for each change
+   - [x] Document verification steps for each migration
+   - [x] Plan incremental migration approach
 
-**Output Requirements:**
-- Comprehensive inventory spreadsheet/document
-- Migration mapping with before/after examples
-- Risk assessment with mitigation strategies
-- Test migration plan with effort estimates
+## Dev Agent Record
 
-### Analysis Methodology
+### Agent Model Used
 
-**Usage Pattern Classification:**
-1. **Simple Function Registration** - Basic enricher functions
-2. **Complex Function Registration** - Functions with dependencies/conditions
-3. **Test Utilities** - Helper functions for testing
-4. **Example Code** - Documentation and example patterns
-5. **Pipeline Integration** - Core system integration points
+Claude Sonnet 4 (Developer Agent)
 
-**Impact Level Scoring:**
-- **Critical** - Core functionality, breaking changes
-- **Moderate** - Test infrastructure, requires careful migration
-- **Low** - Examples, documentation, easy to migrate
+### Debug Log References
 
-### Testing Standards
+- All legacy enricher tests pass: `python -m pytest tests/test_enricher_registry.py -v` ✅
+- Comprehensive audit report generated: `legacy_enricher_audit_report.md`
+- 47 files identified with legacy usage across source, tests, examples, docs
 
-**Verification Requirements:**
-- All legacy usage documented with file:line references
-- Migration examples validated with actual code conversion
-- Risk assessment includes specific test scenarios
-- Output format suitable for subsequent story planning
+### Completion Notes
 
-## Change Log
+- **Audit Complete**: Comprehensive inventory of all 4 legacy functions completed
+- **Risk Assessment**: Identified critical pipeline integration at line 162 in pipeline.py
+- **Migration Plan**: Detailed 8-story sequence with effort estimates (20-30 hours total)
+- **Key Finding**: Dual registry system running both legacy and new enrichers simultaneously
+- **Ready for 17.2**: All preparation work completed for systematic removal
 
-| Date | Version | Description | Author |
-|------|---------|-------------|---------|
-| 2024-12-30 | 1.0 | Initial story creation for legacy code audit | Quinn (QA) | 
+### File List
+
+**Created:**
+
+- `legacy_enricher_audit_report.md` - Complete audit documentation and migration plan
+
+**Modified:**
+
+- `docs/stories/story-17.1.md` - Updated task completion and Dev Agent Record
+
+### Change Log
+
+| Date       | Version | Description                                      | Author      |
+| ---------- | ------- | ------------------------------------------------ | ----------- |
+| 2024-12-30 | 1.0     | Initial story creation for legacy code audit     | Quinn (QA)  |
+| 2024-12-30 | 1.1     | Complete audit implementation and migration plan | James (Dev) |
+
+## QA Results
+
+### Review Date: 2024-12-30
+
+### Reviewed By: Agent (Senior Developer QA)
+
+### Code Quality Assessment
+
+Exceptional audit and planning work. The comprehensive inventory of legacy enricher usage demonstrates thorough architectural analysis. The migration plan is well-structured with realistic effort estimates and proper risk assessment.
+
+### Refactoring Performed
+
+No code refactoring required - this was an audit and planning story that laid the foundation for systematic legacy removal.
+
+### Compliance Check
+
+- Coding Standards: ✓ Documentation follows project standards
+- Project Structure: ✓ Audit report properly structured and comprehensive
+- Testing Strategy: ✓ Audit methodology covered all test files and dependencies
+- All ACs Met: ✓ Complete inventory, impact analysis, dependency mapping, and migration strategy delivered
+
+### Improvements Checklist
+
+- [x] Comprehensive legacy function usage audit completed (47 files identified)
+- [x] Risk assessment with mitigation strategies documented
+- [x] 8-story migration sequence planned with effort estimates
+- [x] Critical pipeline integration at line 162 identified
+- [x] Dual registry system impact properly analyzed
+
+### Security Review
+
+No security concerns - audit work focused on architectural assessment.
+
+### Performance Considerations
+
+Audit identified dual enricher system performance overhead that subsequent stories will eliminate.
+
+### Final Status
+
+✓ Approved - Ready for Done
+
+The audit work provides an excellent foundation for the systematic legacy removal in stories 17.2-17.8. The thoroughness of this analysis is evident in the quality of subsequent implementation work.

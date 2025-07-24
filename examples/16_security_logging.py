@@ -34,7 +34,6 @@ from pydantic import BaseModel, Field
 from fapilog import configure_logging
 from fapilog.enrichers import create_user_dependency
 from fapilog.settings import LoggingSettings
-from fapilog.sinks.stdout import StdoutSink
 
 
 class User(BaseModel):
@@ -62,10 +61,11 @@ class SecurityEvent(BaseModel):
     details: Dict[str, Any] = {}
 
 
-# Configure security-focused logger
-sink = StdoutSink(mode="json")
+# Configure security-focused logger using URI pattern
 logger = configure_logging(
-    settings=LoggingSettings(level="INFO", enable_resource_metrics=True), sinks=[sink]
+    settings=LoggingSettings(
+        level="INFO", enable_resource_metrics=True, sinks=["stdout://json"]
+    )
 )
 
 security = HTTPBearer()

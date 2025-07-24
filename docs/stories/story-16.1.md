@@ -44,7 +44,7 @@ Tasks / Technical Checklist
        _instances: Dict[str, Any] = {}
 
        @classmethod
-       def register(cls, name: str, enricher_class: Type[Any], 
+       def register(cls, name: str, enricher_class: Type[Any],
                    description: str = "", priority: int = 100,
                    dependencies: List[str] = None,
                    conditions: Dict[str, Any] = None,
@@ -120,7 +120,7 @@ Tasks / Technical Checklist
        @staticmethod
        def create_enricher_from_uri(uri: str) -> Any:
            """Create an enricher instance from URI configuration.
-           
+
            Example URIs:
            - user_context://api.auth.com/user?timeout=5
            - database://localhost:5432/users?table=user_profiles
@@ -129,18 +129,18 @@ Tasks / Technical Checklist
            """
            parsed = urlparse(uri)
            scheme = parsed.scheme
-           
+
            # Get registered enricher class
            from ._internal.enricher_registry import EnricherRegistry
            metadata = EnricherRegistry.get_metadata(scheme)
-           
+
            if not metadata:
                raise EnricherConfigurationError(
                    f"Unknown enricher scheme: {scheme}",
                    scheme=scheme,
                    available_schemes=list(EnricherRegistry.list_enrichers().keys())
                )
-           
+
            # Extract parameters from URI
            params = {
                'host': parsed.hostname,
@@ -150,10 +150,10 @@ Tasks / Technical Checklist
                'password': parsed.password,
                **dict(parse_qsl(parsed.query))
            }
-           
+
            # Filter out None values and convert types
            filtered_params = {k: v for k, v in params.items() if v is not None}
-           
+
            try:
                return metadata.enricher_class(**filtered_params)
            except Exception as e:
@@ -175,27 +175,27 @@ Tasks / Technical Checklist
        def should_enable_enricher(metadata: EnricherMetadata, context: Dict[str, Any]) -> bool:
            """Check if enricher should be enabled based on conditions."""
            conditions = metadata.conditions
-           
+
            # Environment-based conditions
            if 'environment' in conditions:
                required_env = conditions['environment']
                current_env = context.get('environment', os.getenv('ENVIRONMENT', 'development'))
                if current_env not in required_env:
                    return False
-           
+
            # Log level conditions
            if 'min_level' in conditions:
                min_level = conditions['min_level']
                current_level = context.get('level', 'INFO')
                if not _should_enable_for_level(current_level, min_level):
                    return False
-           
+
            # Custom condition functions
            if 'condition_func' in conditions:
                condition_func = conditions['condition_func']
                if not condition_func(context):
                    return False
-           
+
            return True
    ```
 
@@ -205,12 +205,12 @@ Tasks / Technical Checklist
    def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> List[Any]:
        """Build processor chain with enhanced enricher support."""
        processors = []
-       
+
        # ... existing processors ...
-       
+
        # Enhanced enricher processing
        processors.append(create_enricher_processor(settings))
-       
+
        return processors
 
    def create_enricher_processor(settings: LoggingSettings):
@@ -218,7 +218,7 @@ Tasks / Technical Checklist
        def enricher_processor(logger, method_name, event_dict):
            from ._internal.enricher_registry import EnricherRegistry
            from ._internal.enricher_conditions import EnricherConditions
-           
+
            # Get enabled enrichers based on conditions
            context = {
                'environment': os.getenv('ENVIRONMENT', 'development'),
@@ -226,16 +226,16 @@ Tasks / Technical Checklist
                'method': method_name,
                **event_dict
            }
-           
+
            # Resolve enricher order and dependencies
            enabled_enrichers = []
            for name, metadata in EnricherRegistry.list_enrichers().items():
                if EnricherConditions.should_enable_enricher(metadata, context):
                    enabled_enrichers.append(name)
-           
+
            # Sort by priority and dependencies
            ordered_enrichers = EnricherRegistry.resolve_dependencies(enabled_enrichers)
-           
+
            # Apply enrichers in order
            result = event_dict
            for enricher_name in ordered_enrichers:
@@ -251,9 +251,9 @@ Tasks / Technical Checklist
                        f"Enricher {enricher_name} failed: {e}",
                        exc_info=True
                    )
-           
+
            return result
-       
+
        return enricher_processor
    ```
 
@@ -262,17 +262,17 @@ Tasks / Technical Checklist
    ```python
    class LoggingSettings(BaseSettings):
        # ... existing fields ...
-       
+
        enrichers: List[Union[str, Any]] = Field(
            default_factory=list,
            description="List of enricher URIs or instances to use"
        )
-       
+
        enricher_conditions: Dict[str, Any] = Field(
            default_factory=dict,
            description="Global conditions for enricher enablement"
        )
-       
+
        @field_validator("enrichers", mode="before")
        @classmethod
        def parse_enrichers(cls, v: Any) -> List[Union[str, Any]]:
@@ -289,16 +289,16 @@ Tasks / Technical Checklist
    ```python
    class EnricherConfigurationError(FapilogError):
        """Errors related to enricher configuration."""
-       
-       def __init__(self, message: str, scheme: str = None, 
+
+       def __init__(self, message: str, scheme: str = None,
                    params: Dict[str, Any] = None, **kwargs):
            super().__init__(message, **kwargs)
            self.scheme = scheme
            self.params = params
-   
+
    class EnricherDependencyError(FapilogError):
        """Errors related to enricher dependencies."""
-       
+
        def __init__(self, message: str, enricher: str = None,
                    missing_dependencies: List[str] = None, **kwargs):
            super().__init__(message, **kwargs)
@@ -312,7 +312,7 @@ Tasks / Technical Checklist
    from fapilog import register_enricher_advanced
    import aiohttp
    import redis
-   
+
    @register_enricher_advanced(
        name="user_context",
        description="Fetch user context from authentication API",
@@ -324,7 +324,7 @@ Tasks / Technical Checklist
        def __init__(self, host="localhost", port=8080, timeout=5, **kwargs):
            self.base_url = f"http://{host}:{port}"
            self.timeout = timeout
-       
+
        async def __call__(self, logger, method_name, event_dict):
            user_id = event_dict.get('user_id')
            if user_id:
@@ -342,9 +342,9 @@ Tasks / Technical Checklist
                except Exception as e:
                    # Fail gracefully
                    event_dict['user_context_error'] = str(e)
-           
+
            return event_dict
-   
+
    # Usage examples
    configure_logging(enrichers=[
        "user_context://auth-api.company.com:8080?timeout=3",
@@ -379,6 +379,7 @@ Dev Agent Record
 **Agent Model Used:** Claude Sonnet 4 (Cursor AI Assistant)
 
 **Debug Log References:**
+
 - Enhanced enricher registry implementation in `src/fapilog/_internal/enricher_registry.py`
 - Advanced registration decorator added to `src/fapilog/enrichers.py`
 - URI-based enricher factory in `src/fapilog/_internal/enricher_factory.py`
@@ -386,6 +387,7 @@ Dev Agent Record
 - Comprehensive test suites created for all components
 
 **Completion Notes:**
+
 - Tasks 1-4 completed successfully with full test coverage
 - All core enricher registry functionality implemented
 - URI parsing supports standard RFC-compliant schemes
@@ -394,8 +396,9 @@ Dev Agent Record
 - Error handling implemented with detailed context
 
 **File List:**
+
 - `src/fapilog/_internal/enricher_registry.py` (created)
-- `src/fapilog/_internal/enricher_factory.py` (created)  
+- `src/fapilog/_internal/enricher_factory.py` (created)
 - `src/fapilog/_internal/enricher_conditions.py` (created)
 - `src/fapilog/_internal/uri_validation.py` (created - shared URI validation utility)
 - `src/fapilog/enrichers.py` (modified - added advanced decorator)
@@ -409,6 +412,7 @@ Dev Agent Record
 - `tests/test_uri_validation_shared.py` (created)
 
 **Change Log:**
+
 - Created enhanced enricher registry with metadata, dependency resolution, and priority ordering
 - Implemented URI-based enricher configuration with automatic parameter extraction
 - Added conditional enricher enablement based on environment, log level, and custom conditions
@@ -434,22 +438,28 @@ Definition of Done
 ⟶ PR merged to **main** with reviewer approval and green CI  
 ⟶ `CHANGELOG.md` updated under _Unreleased → Added_
 
-───────────────────────────────────  
+───────────────────────────────────
+
 ## QA Results
 
 ### Review Date: 2024-01-XX
-### Reviewed By: Quinn (Senior Developer QA)
+
+### Reviewed By: Agent (Senior Developer QA)
 
 ### Code Quality Assessment
+
 The implementation demonstrates excellent software architecture with clean separation of concerns, robust error handling, and comprehensive design patterns. Core components are well-architected with proper abstractions and extensibility. However, critical integration components were missing and required completion during review.
 
 ### Refactoring Performed
+
 - **File**: `src/fapilog/settings.py`
+
   - **Change**: Added missing enricher configuration fields (`enrichers`, `enricher_conditions`) with proper validation
   - **Why**: Story requirements specified settings integration for enricher URIs but was not implemented
   - **How**: Implemented field validators following existing patterns for consistent configuration handling
 
-- **File**: `src/fapilog/pipeline.py`  
+- **File**: `src/fapilog/pipeline.py`
+
   - **Change**: Added `create_enricher_processor()` function and integrated enhanced enricher registry into pipeline
   - **Why**: New enricher registry was not integrated with existing pipeline - only old function-based enrichers were processed
   - **How**: Created processor that handles URI-based enricher instantiation, conditional enablement, dependency resolution, and graceful error handling
@@ -460,12 +470,14 @@ The implementation demonstrates excellent software architecture with clean separ
   - **How**: Created test that validates enhanced enrichers work within the pipeline context
 
 ### Compliance Check
+
 - Coding Standards: ✓ [Code follows project patterns and conventions]
 - Project Structure: ✓ [Files properly organized in _internal module structure]
 - Testing Strategy: ✓ [Comprehensive unit tests for all components, 31 total tests passing]
 - All ACs Met: ✓ [All acceptance criteria now fully implemented]
 
 ### Improvements Checklist
+
 [✓] Enhanced enricher registry with metadata and validation support
 [✓] URI-based enricher configuration with parameter extraction  
 [✓] Conditional enricher enablement (environment, log level, feature flags, custom functions)
@@ -479,10 +491,13 @@ The implementation demonstrates excellent software architecture with clean separ
 [ ] Example enrichers with documentation (noted for dev team)
 
 ### Security Review
+
 ✓ **No security concerns found** - Enricher instantiation properly validated, URI parsing uses standard library, error handling doesn't expose sensitive information
 
-### Performance Considerations  
+### Performance Considerations
+
 ✓ **Performance optimized** - Enricher instances cached to avoid recreation, dependency resolution uses efficient topological sort, conditions evaluated once per log event, graceful degradation on failures
 
 ### Final Status
-**✓ Approved - Ready for Done** - All core functionality implemented and tested. Story meets all acceptance criteria with excellent code quality. Minor documentation enhancement opportunity noted but does not block completion. 
+
+**✓ Approved - Ready for Done** - All core functionality implemented and tested. Story meets all acceptance criteria with excellent code quality. Minor documentation enhancement opportunity noted but does not block completion.

@@ -54,8 +54,8 @@ def test_multiple_sinks_example():
             level="DEBUG",
             format="json",
             sinks=[
-                StdoutSink(),
-                StdoutSink(),
+                "stdout://json",
+                "stdout://json",
             ],
         )
 
@@ -83,9 +83,7 @@ def test_custom_sink_example():
         test_settings = LoggingSettings(
             level="INFO",
             format="json",
-            sinks=[
-                StdoutSink(),
-            ],
+            sinks=["stdout://json"],
         )
 
         logger = configure_logging(test_settings)
@@ -157,7 +155,7 @@ def test_security_logging_example():
 
         # Test logging
         test_settings = LoggingSettings(
-            level="INFO", format="json", sinks=[StdoutSink()]
+            level="INFO", format="json", sinks=["stdout://json"]
         )
 
         logger = configure_logging(test_settings)
@@ -187,7 +185,7 @@ async def test_async_logging():
     print("Testing async logging...")
 
     try:
-        settings = LoggingSettings(level="INFO", format="json", sinks=[StdoutSink()])
+        settings = LoggingSettings(level="INFO", format="json", sinks=["stdout://json"])
 
         logger = configure_logging(settings)
 

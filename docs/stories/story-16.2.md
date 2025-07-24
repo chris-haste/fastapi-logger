@@ -46,7 +46,7 @@ Tasks / Technical Checklist
            """Initialize enricher resources (connections, pools, etc.)."""
            if self.is_started:
                return
-           
+
            async with self._lock:
                if not self.is_started:
                    await self._startup()
@@ -56,7 +56,7 @@ Tasks / Technical Checklist
            """Clean up enricher resources."""
            if not self.is_started:
                return
-           
+
            async with self._lock:
                if self.is_started:
                    await self._shutdown()
@@ -86,21 +86,21 @@ Tasks / Technical Checklist
            pass
 
        @abstractmethod
-       async def enrich_async(self, logger: Any, method_name: str, 
+       async def enrich_async(self, logger: Any, method_name: str,
                              event_dict: Dict[str, Any]) -> Dict[str, Any]:
            """Override to implement enrichment logic."""
            pass
 
-       async def __call__(self, logger: Any, method_name: str, 
+       async def __call__(self, logger: Any, method_name: str,
                          event_dict: Dict[str, Any]) -> Dict[str, Any]:
            """Main enricher entry point with error handling."""
            if not self.is_started:
                await self.startup()
-           
+
            if not self.is_healthy:
                # Skip enrichment if unhealthy
                return event_dict
-           
+
            try:
                return await self.enrich_async(logger, method_name, event_dict)
            except Exception as e:
@@ -124,7 +124,7 @@ Tasks / Technical Checklist
    class AsyncEnricherProcessor:
        """Processor that handles both sync and async enrichers."""
 
-       def __init__(self, enrichers: List[Union[Callable, AsyncEnricher]], 
+       def __init__(self, enrichers: List[Union[Callable, AsyncEnricher]],
                    timeout: float = 5.0):
            self.enrichers = enrichers
            self.timeout = timeout
@@ -143,10 +143,10 @@ Tasks / Technical Checklist
            if shutdown_tasks:
                await asyncio.gather(*shutdown_tasks, return_exceptions=True)
 
-       def __call__(self, logger: Any, method_name: str, 
+       def __call__(self, logger: Any, method_name: str,
                    event_dict: Dict[str, Any]) -> Dict[str, Any]:
            """Process event through both sync and async enrichers."""
-           
+
            # Process sync enrichers first
            result = event_dict
            for enricher in self._sync_enrichers:
@@ -189,11 +189,11 @@ Tasks / Technical Checklist
 
            return result
 
-       async def _process_async_enrichers(self, logger: Any, method_name: str, 
+       async def _process_async_enrichers(self, logger: Any, method_name: str,
                                          event_dict: Dict[str, Any]) -> Dict[str, Any]:
            """Process async enrichers concurrently."""
            result = event_dict
-           
+
            # Process async enrichers sequentially to maintain order
            for enricher in self._async_enrichers:
                try:
@@ -202,7 +202,7 @@ Tasks / Technical Checklist
                    import logging
                    enricher_logger = logging.getLogger(__name__)
                    enricher_logger.debug(f"Async enricher {enricher.name} failed: {e}", exc_info=True)
-           
+
            return result
    ```
 
@@ -242,7 +242,7 @@ Tasks / Technical Checklist
            """Set cached value with eviction if needed."""
            async with self._lock:
                current_time = time.time()
-               
+
                # Evict expired entries
                expired_keys = [
                    k for k, (_, ts) in self._cache.items()
@@ -251,13 +251,13 @@ Tasks / Technical Checklist
                for k in expired_keys:
                    del self._cache[k]
                    del self._access_times[k]
-               
+
                # Evict LRU if at capacity
                if len(self._cache) >= self.max_size:
                    lru_key = min(self._access_times.keys(), key=self._access_times.get)
                    del self._cache[lru_key]
                    del self._access_times[lru_key]
-               
+
                self._cache[key] = (value, current_time)
                self._access_times[key] = current_time
 
@@ -265,7 +265,7 @@ Tasks / Technical Checklist
            """Generate cache key from arguments."""
            import hashlib
            import json
-           
+
            # Create deterministic key from arguments
            key_data = {
                'args': args,
@@ -284,17 +284,17 @@ Tasks / Technical Checklist
                    cache_key = key_func(*args, **kwargs)
                else:
                    cache_key = cache.cache_key(*args, **kwargs)
-               
+
                # Try to get from cache
                cached_result = await cache.get(cache_key)
                if cached_result is not None:
                    return cached_result
-               
+
                # Execute function and cache result
                result = await func(*args, **kwargs)
                await cache.set(cache_key, result)
                return result
-           
+
            return wrapper
        return decorator
    ```
@@ -320,7 +320,7 @@ Tasks / Technical Checklist
            self.failure_threshold = failure_threshold
            self.recovery_timeout = recovery_timeout
            self.expected_exception = expected_exception
-           
+
            self.failure_count = 0
            self.last_failure_time: Optional[float] = None
            self.state = CircuitState.CLOSED
@@ -363,7 +363,7 @@ Tasks / Technical Checklist
            async with self._lock:
                self.failure_count += 1
                self.last_failure_time = time.time()
-               
+
                if self.failure_count >= self.failure_threshold:
                    self.state = CircuitState.OPEN
 
@@ -410,7 +410,7 @@ Tasks / Technical Checklist
            """Check database connectivity."""
            if not self.pool:
                return False
-           
+
            try:
                async with self.pool.acquire() as conn:
                    await conn.fetchval("SELECT 1")
@@ -428,10 +428,10 @@ Tasks / Technical Checklist
                        user_id
                    )
                    return dict(row) if row else {}
-           
+
            return await self.circuit_breaker.call(fetch)
 
-       async def enrich_async(self, logger: Any, method_name: str, 
+       async def enrich_async(self, logger: Any, method_name: str,
                              event_dict: Dict[str, Any]) -> Dict[str, Any]:
            """Enrich with user data from database."""
            user_id = event_dict.get('user_id')
@@ -442,7 +442,7 @@ Tasks / Technical Checklist
                # Use cache key from user_id
                cache_key = f"user:{user_id}"
                cached_data = await self.cache.get(cache_key)
-               
+
                if cached_data is not None:
                    event_dict.update(cached_data)
                else:
@@ -486,7 +486,7 @@ Tasks / Technical Checklist
            except Exception:
                return False
 
-       async def enrich_async(self, logger: Any, method_name: str, 
+       async def enrich_async(self, logger: Any, method_name: str,
                              event_dict: Dict[str, Any]) -> Dict[str, Any]:
            """Enrich with data from API service."""
            request_id = event_dict.get('request_id')
@@ -657,9 +657,10 @@ Definition of Done
 ✓ Comprehensive tests added with good coverage  
 ✓ Documentation updated with async patterns  
 ✓ PR merged to **main** with reviewer approval and green CI  
-✓ `CHANGELOG.md` updated under _Unreleased → Added_ 
+✓ `CHANGELOG.md` updated under _Unreleased → Added_
 
-───────────────────────────────────  
+───────────────────────────────────
+
 ## Dev Agent Record
 
 **Agent Model Used:** Claude Sonnet 4  
@@ -678,6 +679,7 @@ Definition of Done
 ### File List
 
 **Created Files:**
+
 - `src/fapilog/_internal/async_enricher.py` - Base async enricher class with lifecycle management
 - `src/fapilog/_internal/async_pipeline.py` - Mixed sync/async enricher processor
 - `src/fapilog/_internal/enricher_cache.py` - Caching layer with TTL and LRU eviction
@@ -687,6 +689,7 @@ Definition of Done
 - `tests/test_async_enrichers.py` - Comprehensive test suite
 
 **Modified Files:**
+
 - `docs/stories/story-16.2.md` - Updated with completion checkboxes and Dev Agent Record
 - `.vulture` - Added async enricher components to whitelist for unused code detection
 
@@ -710,12 +713,13 @@ Definition of Done
 - Added async enricher components to `.vulture` whitelist to resolve unused code detection
 - Auto-fixed linting issues across all new files using ruff
 - All tests passing with proper async/await patterns and error handling
-- ✅ All precommit tests passing (ruff, mypy, vulture, release guardrails) 
+- ✅ All precommit tests passing (ruff, mypy, vulture, release guardrails)
 
 ## QA Results
 
 ### Review Date: 2024-12-30
-### Reviewed By: Quinn (Senior Developer QA)
+
+### Reviewed By: Agent (Senior Developer QA)
 
 ### Code Quality Assessment
 
@@ -725,20 +729,23 @@ While the individual async enricher components are well-implemented with excelle
 
 ### Critical Issues Found
 
-#### 1. **BLOCKING ISSUE: No Pipeline Integration** 
+#### 1. **BLOCKING ISSUE: No Pipeline Integration**
+
 - `AsyncEnricherProcessor` exists but is **never used** in the actual logging system
 - `build_processor_chain()` in `src/fapilog/pipeline.py` doesn't know about async enrichers
 - `create_enricher_processor()` only handles sync enrichers from the registry
 - There's no mechanism to register async enrichers in the production system
 
 #### 2. **Architecture Mismatch**
+
 - `EnricherRegistry` has `async_capable=True` flag but **doesn't use it**
 - Two separate enricher systems now exist with no bridge between them
 - Async enrichers can't be configured via settings or URIs like sync enrichers
 
 #### 3. **Missing Integration Points**
+
 - No integration with `LoggingSettings.enrichers` configuration
-- No URI factory support for async enrichers 
+- No URI factory support for async enrichers
 - Lifecycle manager is never connected to container startup/shutdown
 
 ### Refactoring Performed
@@ -749,14 +756,16 @@ While the individual async enricher components are well-implemented with excelle
 **How**: Dev must implement integration points first
 
 ### Compliance Check
+
 - Coding Standards: ✓ **Excellent** - Clean async patterns, proper error handling
-- Project Structure: ✗ **Missing** - Not integrated into existing architecture  
+- Project Structure: ✗ **Missing** - Not integrated into existing architecture
 - Testing Strategy: ✓ **Excellent** - 22 comprehensive tests, 100% coverage of new code
 - All ACs Met: ✗ **Incomplete** - Async enrichers can't actually be used in production
 
 ### Improvements Checklist
 
 **Critical Integration Tasks (BLOCKING):**
+
 - [ ] **CRITICAL**: Modify `create_enricher_processor()` to detect and handle async enrichers
 - [ ] **CRITICAL**: Add async enricher support to `EnricherRegistry.get_instance()`
 - [ ] **CRITICAL**: Integrate `EnricherLifecycleManager` with `LoggingContainer` startup/shutdown
@@ -764,25 +773,30 @@ While the individual async enricher components are well-implemented with excelle
 - [ ] **CRITICAL**: Update `register_enricher_advanced()` to properly register async enrichers
 
 **Architecture Improvements:**
+
 - [ ] Create unified enricher processor that handles both sync and async in pipeline
 - [ ] Add async enricher configuration to `LoggingSettings`
 - [ ] Implement proper async context handling in main pipeline
 - [ ] Add async enricher examples to documentation
 
 **Code Quality Improvements (Completed):**
+
 - [x] Excellent async patterns with proper lifecycle management
 - [x] Circuit breaker implementation follows industry standards
-- [x] Caching with TTL and LRU eviction properly implemented  
+- [x] Caching with TTL and LRU eviction properly implemented
 - [x] Comprehensive error handling with graceful degradation
 - [x] 22 tests with excellent coverage and edge case handling
 
 ### Security Review
+
 ✓ **Approved** - Proper timeout handling, connection pooling, and error boundaries prevent resource exhaustion
 
-### Performance Considerations  
+### Performance Considerations
+
 ✓ **Excellent** - Circuit breaker prevents cascading failures, caching reduces load, lifecycle management handles resources properly
 
 ### Integration Testing Required
+
 - [ ] Add integration test showing async enrichers working in real pipeline
 - [ ] Test async enricher registration via settings
 - [ ] Test async enricher URI configuration
@@ -790,7 +804,9 @@ While the individual async enricher components are well-implemented with excelle
 - [ ] Test container startup/shutdown with async enrichers
 
 ### Technical Debt
+
 The current implementation creates **significant technical debt** by having two parallel enricher systems:
+
 1. **Legacy system**: `enrichers.py` + `EnricherRegistry` (sync only)
 2. **New system**: `AsyncEnricherProcessor` (isolated, unused)
 
@@ -799,25 +815,29 @@ This needs immediate remediation to prevent maintenance nightmare.
 ### Recommendations
 
 **Immediate Actions Required:**
+
 1. **Stop development** until integration architecture is designed
 2. **Architect unified enricher system** that supports both sync and async
 3. **Plan migration strategy** for existing sync enrichers
 4. **Design configuration API** for async enrichers
 
 **Technical Approach:**
+
 - Extend existing `EnricherRegistry` to properly handle async enrichers
-- Modify `create_enricher_processor()` to support mixed sync/async enrichers  
+- Modify `create_enricher_processor()` to support mixed sync/async enrichers
 - Use composition pattern to wrap `AsyncEnricherProcessor` in sync interface
 - Ensure backward compatibility with existing enricher API
 
 ### Final Status
+
 **❌ CHANGES REQUIRED - Cannot approve for production**
 
 **Reasoning**: While the async enricher implementation quality is excellent, the complete lack of integration with the production logging system makes this unusable. The story acceptance criteria require "full async support for enrichers" but users cannot actually use async enrichers in their applications.
 
-**Next Steps**: 
+**Next Steps**:
+
 1. Dev must implement pipeline integration before re-review
 2. Add integration tests showing real-world usage
 3. Update documentation with async enricher configuration examples
 
-**Estimated Additional Work**: 4-6 hours for proper integration + testing 
+**Estimated Additional Work**: 4-6 hours for proper integration + testing

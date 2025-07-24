@@ -13,7 +13,7 @@ from ._internal.error_handling import (
     handle_configuration_error,
     handle_sink_error,
 )
-from ._internal.queue import QueueWorker, Sink
+from ._internal.queue import QueueWorker
 from ._internal.sink_factory import (
     SinkConfigurationError,
     create_custom_sink_from_uri,
@@ -208,12 +208,7 @@ class LoggingContainer:
         self._sinks = []
 
         for sink_item in self._settings.sinks:
-            # Handle direct Sink instances
-            if isinstance(sink_item, Sink):
-                self._sinks.append(sink_item)
-                continue
-
-            # Handle string URIs (existing logic)
+            # Handle string URIs only
             sink_uri = sink_item
             if sink_uri == "stdout":
                 # Map console_format to StdoutSink mode

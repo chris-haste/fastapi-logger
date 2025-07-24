@@ -26,10 +26,11 @@ class LoggingSettings(BaseSettings):
         default="INFO",
         description="Logging level (DEBUG, INFO, WARN, ERROR, CRITICAL)",
     )
-    sinks: Union[List[Union[str, "Sink"]], str] = Field(
+    sinks: Union[List[str], str] = Field(
         default_factory=lambda: ["stdout"],
-        description="List of sink names/URIs or sink instances for log output "
-        "(comma-separated string or list)",
+        description="List of sink names/URIs for log output "
+        "(comma-separated string or list). "
+        "URI examples: 'stdout', 'file:///path/to/log', 'loki://host:port'",
     )
     json_console: str = Field(
         default="auto",
@@ -155,23 +156,33 @@ class LoggingSettings(BaseSettings):
 
     @field_validator("sinks", mode="before")
     @classmethod
-    def parse_sinks(cls, v: Any) -> List[Union[str, "Sink"]]:
-        """Parse sinks field to support strings and Sink instances."""
+    def parse_sinks(cls, v: Any) -> List[str]:
+        """Parse sinks field to support URI strings only."""
         if isinstance(v, str):
             return [item.strip() for item in v.split(",") if item.strip()]
         if isinstance(v, (list, tuple)):
-            # Support mixed list of strings and Sink instances
+            # Support list of URI strings only
             result = []
             for item in v:
                 if isinstance(item, str):
                     result.append(item.strip())
-                elif Sink is not None and isinstance(item, Sink):
-                    result.append(item)
+                elif (
+                    Sink is not None
+                    and hasattr(item, "write")
+                    and hasattr(item, "__class__")
+                ):
+                    # Direct sink instance detected
+                    raise ValueError(
+                        "Direct sink instances are no longer supported. "
+                        "Use URI configuration instead. "
+                        "Examples: 'stdout' instead of StdoutSink(), "
+                        "'file:///path/to/log' instead of FileSink('/path/to/log')"
+                    )
                 else:
                     # Convert other types to string
                     result.append(str(item))
-            return result  # type: ignore[return-value]
-        return [v]
+            return result
+        return [str(v)]
 
     @field_validator("redact_patterns", mode="before")
     @classmethod

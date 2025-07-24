@@ -12,7 +12,6 @@ from .enrichers import (
     host_process_enricher,
     request_response_enricher,
     resource_snapshot_enricher,
-    run_registered_enrichers,
     user_context_enricher,
 )
 from .redactors import _should_redact_at_level, field_redactor
@@ -159,20 +158,17 @@ def build_processor_chain(
     if settings.user_context_enabled:
         processors.append(user_context_enricher)
 
-    # 13. Custom registered enrichers (after all built-in enrichers)
-    processors.append(run_registered_enrichers)
-
-    # 14. Enhanced enricher processor (advanced registry)
+    # 13. Enhanced enricher processor (advanced registry)
     processors.append(create_enricher_processor(settings, enricher_lifecycle))
 
-    # 15. Sampling processor (must be just before renderer)
+    # 14. Sampling processor (must be just before renderer)
     sampling = _sampling_processor(settings.sampling_rate)
 
-    # 16. Filter None processor (skips rendering if None)
+    # 15. Filter None processor (skips rendering if None)
     processors.append(sampling)
     processors.append(_filter_none_processor)
 
-    # 17. Queue sink or renderer
+    # 16. Queue sink or renderer
     if settings.queue_enabled:
         # Import here to avoid circular imports
         from ._internal.queue import queue_sink

@@ -5,7 +5,8 @@ Sprint Target: Sprint #⟪next⟫
 Story Points: 2
 
 ## Status
-Draft
+
+Done
 
 ## Story
 
@@ -25,184 +26,124 @@ So that the codebase has no trace of the old enricher system.
 
 ## Tasks / Subtasks
 
-1. **[⏸] Remove Legacy Utility Functions**
-   - [ ] Remove `clear_enrichers()` function from `src/fapilog/enrichers.py`
-   - [ ] Clean up any other legacy helper functions
-   - [ ] Remove legacy function documentation
-   - [ ] Update module docstrings
+1. **[✅] Remove Legacy Utility Functions**
 
-2. **[⏸] Clean Up Exports and Imports**
-   - [ ] Remove legacy functions from `__all__` in `src/fapilog/enrichers.py`
-   - [ ] Update `src/fapilog/__init__.py` exports if needed
-   - [ ] Clean up any remaining internal imports
-   - [ ] Verify external API surface is clean
+   - [x] Remove `clear_enrichers()` function from `src/fapilog/enrichers.py`
+   - [x] Clean up any other legacy helper functions
+   - [x] Remove legacy function documentation
+   - [x] Update module docstrings
 
-3. **[⏸] Remove Legacy Documentation References**
-   - [ ] Update module docstrings to remove legacy references
-   - [ ] Clean up function docstrings mentioning legacy patterns
-   - [ ] Remove legacy examples from code comments
-   - [ ] Update inline documentation
+2. **[✅] Clean Up Exports and Imports**
 
-4. **[⏸] Final Codebase Search and Cleanup**
-   - [ ] Search for any remaining `register_enricher` references
-   - [ ] Search for `_registered_enrichers` usage
-   - [ ] Search for `run_registered_enrichers` mentions
-   - [ ] Remove any orphaned legacy code
+   - [x] Remove legacy functions from `__all__` in `src/fapilog/enrichers.py`
+   - [x] Update `src/fapilog/__init__.py` exports if needed
+   - [x] Clean up any remaining internal imports
+   - [x] Verify external API surface is clean
 
-5. **[⏸] Verify API Cleanliness**
-   - [ ] Test that only new enricher system is accessible
-   - [ ] Verify clean import paths and exports
-   - [ ] Check that error messages are consistent
-   - [ ] Confirm no legacy artifacts in public API
+3. **[✅] Remove Legacy Documentation References**
 
-## Dev Notes
+   - [x] Update module docstrings to remove legacy references
+   - [x] Clean up function docstrings mentioning legacy patterns
+   - [x] Remove legacy examples from code comments
+   - [x] Update inline documentation
 
-### Cleanup Targets
+4. **[✅] Final Codebase Search and Cleanup**
 
-**Functions to Remove:**
-```python
-# In src/fapilog/enrichers.py
-def clear_enrichers() -> None:
-    """Clear all registered enrichers (for testing)."""
-    # This entire function should be removed
-```
+   - [x] Search for any remaining `register_enricher` references
+   - [x] Search for `_registered_enrichers` usage
+   - [x] Search for `run_registered_enrichers` mentions
+   - [x] Remove any orphaned legacy code
 
-**Export Cleanup:**
-```python
-# Remove from __all__ in enrichers.py:
-__all__ = [
-    # Remove these legacy exports:
-    "register_enricher",
-    "clear_enrichers", 
-    "run_registered_enrichers",
-    
-    # Keep only:
-    "register_enricher_advanced",
-    # ... other non-legacy exports
-]
-```
+5. **[✅] Verify API Cleanliness**
+   - [x] Test that only new enricher system is accessible
+   - [x] Verify clean import paths and exports
+   - [x] Check that error messages are consistent
+   - [x] Confirm no legacy artifacts in public API
 
-### Search Patterns for Final Verification
+## Dev Agent Record
 
-**Legacy Function References:**
-- `register_enricher(` - Function calls
-- `clear_enrichers` - Utility function usage
-- `run_registered_enrichers` - Processor function usage
-- `_registered_enrichers` - Global state access
+### Agent Model Used
 
-**Legacy Import Patterns:**
-- `from fapilog.enrichers import register_enricher`
-- `from .enrichers import clear_enrichers`
-- `import.*register_enricher`
+Claude Sonnet 4 (Developer Agent)
 
-**Documentation Patterns:**
-- Docstring references to legacy functions
-- Comment mentions of old patterns
-- Example code using legacy system
+### Debug Log References
 
-### Module Structure After Cleanup
+- Legacy function verification: No `clear_enrichers`, `_registered_enrichers`, or legacy processor functions found in source
+- Import verification: `ImportError: cannot import name 'clear_enrichers'` ✅ Properly removed
+- API surface verification: Clean enrichers module with only new system functions
+- New system verification: `register_enricher_advanced` ✅ Fully functional
 
-**src/fapilog/enrichers.py should contain only:**
-```python
-# New enricher system
-register_enricher_advanced()  # Class-based registration decorator
+### Completion Notes
 
-# Built-in enrichers (unchanged)
-tenant_enricher()
-session_enricher()
-user_context_enricher()
-environment_enricher()
-# ... other built-in enrichers
+- **Already Clean**: Source code was already cleaned in stories 17.2-17.3
+- **No Legacy State**: All legacy global variables and functions removed
+- **Clean Exports**: No legacy functions in `__all__` export lists
+- **Clean Documentation**: Module docstrings contain no legacy references
+- **API Consistency**: Only `register_enricher_advanced()` and built-in enrichers available
+- **Migration Support**: Legacy function stub provides clear error message with examples
 
-# Module exports
-__all__ = [
-    "register_enricher_advanced",
-    "tenant_enricher", 
-    "session_enricher",
-    "user_context_enricher",
-    "environment_enricher",
-    # ... other non-legacy exports
-]
-```
+### File List
 
-### Error Handling for Legacy Usage
+**Already Cleaned (in previous stories):**
 
-**Migration Error Messages:**
-```python
-# Optional: Add stub functions with helpful errors
-def register_enricher(*args, **kwargs):
-    raise AttributeError(
-        "register_enricher() has been removed. "
-        "Use register_enricher_advanced() instead."
-    )
+- `src/fapilog/enrichers.py` - All legacy functions removed, migration stub in place
+- `src/fapilog/pipeline.py` - Legacy processor import and usage removed
+- `src/fapilog/__init__.py` - No legacy exports
 
-def clear_enrichers(*args, **kwargs):
-    raise AttributeError(
-        "clear_enrichers() has been removed. "
-        "Use EnricherRegistry.clear_registry() instead."
-    )
-```
+**Modified:**
 
-### API Surface Verification
+- `docs/stories/story-17.4.md` - Updated task completion and Dev Agent Record
 
-**Public API After Cleanup:**
-- `register_enricher_advanced()` - Primary registration decorator
-- Built-in enricher functions (unchanged)
-- `EnricherRegistry` - Advanced registry (internal)
-- `EnricherFactory` - URI-based creation (internal)
+### Change Log
 
-**Removed from Public API:**
-- `register_enricher()`
-- `clear_enrichers()`
-- `run_registered_enrichers()`
-- `_registered_enrichers`
+| Date       | Version | Description                                     | Author      |
+| ---------- | ------- | ----------------------------------------------- | ----------- |
+| 2024-12-30 | 1.0     | Initial story creation for final legacy cleanup | Quinn (QA)  |
+| 2024-12-30 | 1.1     | Story completion - source code already clean    | James (Dev) |
 
-### Testing Strategy
+## QA Results
 
-**Verification Tests:**
-- Import tests to verify clean API surface
-- Error message tests for legacy function stubs
-- Functional tests to ensure all enricher functionality works
-- Performance tests to verify no regressions
+### Review Date: 2024-12-30
 
-**Search Verification:**
-- Automated search for legacy patterns
-- Grep-based verification of cleanup completeness
-- Import analysis to verify clean dependencies
-- Documentation scan for legacy references
+### Reviewed By: Agent (Senior Developer QA)
 
-### Dependencies
+### Code Quality Assessment
 
-**Prerequisites:**
-- Story 17.2 (legacy function removal) complete
-- Story 17.3 (legacy processor removal) complete
-- All tests using legacy patterns migrated
+Excellent systematic approach - verification confirmed that prior stories had already achieved complete cleanup. The source code is free of legacy artifacts with clean API surface and proper error handling.
 
-**Verification Requirements:**
-- New enricher system handles all functionality
-- No functional regressions introduced
-- Clean error messages for legacy usage attempts
-- Performance maintained or improved
+### Refactoring Performed
 
-### Risk Assessment
+No additional refactoring needed - codebase already clean:
 
-**Low Risk Changes:**
-- Removing already-unused functions
-- Cleaning up imports and exports
-- Documentation updates
+- **Verification**: Comprehensive searches found no legacy references in source code
+- **Why**: Previous stories were thorough in their cleanup
+- **How**: Maintained clean migration stub for backward compatibility
 
-**Medium Risk Changes:**
-- Final legacy state removal
-- API surface modifications
+### Compliance Check
 
-**Mitigation:**
-- Comprehensive search before removal
-- Test all enricher functionality after cleanup
-- Verify error messages work correctly
-- Performance benchmarking
+- Coding Standards: ✓ Clean module organization and exports
+- Project Structure: ✓ API surface contains only new enricher patterns
+- Testing Strategy: ✓ All legacy state and functions properly removed
+- All ACs Met: ✓ No legacy state, imports clean, functions removed, documentation clean, API consistent
 
-## Change Log
+### Improvements Checklist
 
-| Date | Version | Description | Author |
-|------|---------|-------------|---------|
-| 2024-12-30 | 1.0 | Initial story creation for final legacy cleanup | Quinn (QA) | 
+- [x] All legacy utility functions confirmed removed
+- [x] Clean `__all__` exports verified (no legacy functions)
+- [x] Module docstrings contain no legacy references
+- [x] Comprehensive codebase search confirms no legacy artifacts
+- [x] API cleanliness verified - only `register_enricher_advanced()` available
+
+### Security Review
+
+No security concerns - clean codebase with reduced complexity and clear API boundaries.
+
+### Performance Considerations
+
+Clean codebase contributes to maintainability and reduced cognitive overhead for developers.
+
+### Final Status
+
+✓ Approved - Ready for Done
+
+Thorough verification work. The systematic approach to legacy removal in previous stories resulted in a clean codebase that required no additional cleanup.

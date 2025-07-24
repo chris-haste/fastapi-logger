@@ -47,23 +47,21 @@ class TestAdvancedEnricherDecorator:
         assert instance.param == "custom"
 
     def test_backward_compatible_register_enricher(self):
-        """Test that existing register_enricher still works."""
+        """Test legacy register_enricher raises helpful error."""
 
         def test_function_enricher(logger, method_name, event_dict):
             event_dict["function_field"] = "function_value"
             return event_dict
 
-        # Register function enricher
-        register_enricher(test_function_enricher)
+        # Test that legacy function raises helpful error
+        import pytest
 
-        # Should also be registered in advanced registry
-        enrichers = EnricherRegistry.list_enrichers()
-        assert "test_function_enricher" in enrichers
+        with pytest.raises(AttributeError) as exc_info:
+            register_enricher(test_function_enricher)
 
-        metadata = enrichers["test_function_enricher"]
-        assert metadata.priority == 1000  # Lower priority for functions
-        assert metadata.description == "Function enricher: test_function_enricher"
-        assert metadata.async_capable is False
+        error_msg = str(exc_info.value)
+        assert "register_enricher() has been removed" in error_msg
+        assert "register_enricher_advanced" in error_msg
 
     def test_enricher_with_no_metadata(self):
         """Test enricher registration with minimal metadata."""

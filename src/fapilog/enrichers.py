@@ -7,7 +7,6 @@ from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Type
 
 from ._internal.context import get_context
-from .exceptions import ConfigurationError
 
 if TYPE_CHECKING:
     import psutil
@@ -74,7 +73,7 @@ def resource_snapshot_enricher(
     """Enrich log events with memory and CPU usage metrics.
 
     This processor adds system resource metrics to every log event:
-    - memory_mb: Resident memory usage of the current process in megabytes (rounded float)
+    - memory_mb: Resident memory usage of the current process in megabytes
     - cpu_percent: Process CPU usage percentage (float, 0.0-100.0)
 
     These fields are only added if not already present in the event_dict,
@@ -332,10 +331,6 @@ def create_user_dependency(get_user_func: Callable[..., Any]) -> Callable[..., A
     return user_dependency
 
 
-# Custom enricher registry
-_registered_enrichers: List[Callable[..., Any]] = []
-
-
 def register_enricher_advanced(
     name: str,
     description: str = "",
@@ -392,98 +387,25 @@ def register_enricher_advanced(
     return decorator
 
 
-def register_enricher(fn: Callable[..., Any]) -> None:
-    """Register a custom enricher function.
-
-    Enhanced version that maintains backward compatibility while adding
-    advanced enricher registry support.
-
-    Custom enrichers are called at the end of the processor chain, after all
-    built-in enrichers. They follow the structlog processor signature:
-    `(logger, method_name, event_dict) -> event_dict`
-
-    Args:
-        fn: The enricher function to register
-
-    Raises:
-        ValueError: If the function doesn't have the correct signature
-    """
-    # Validate function signature
-    import inspect
-
-    sig = inspect.signature(fn)
-    params = list(sig.parameters.keys())
-
-    if len(params) != 3 or params != ["logger", "method_name", "event_dict"]:
-        raise ConfigurationError(
-            f"Enricher function must have signature "
-            f"(logger, method_name, event_dict), got {params}",
-            "enricher_signature",
-            params,
-            "(logger, method_name, event_dict)",
-        )
-
-    # Check if function is already registered (by reference)
-    if fn not in _registered_enrichers:
-        _registered_enrichers.append(fn)
-
-        # Also register in the advanced registry for unified management
-        from ._internal.enricher_registry import EnricherRegistry
-
-        # Create a wrapper class for the function
-        class FunctionEnricherWrapper:
-            def __init__(self):
-                self.fn = fn
-
-            def __call__(self, logger, method_name, event_dict):
-                return self.fn(logger, method_name, event_dict)
-
-        # Register in advanced registry with function name
-        enricher_name = getattr(fn, "__name__", f"function_enricher_{id(fn)}")
-        EnricherRegistry.register(
-            name=enricher_name,
-            enricher_class=FunctionEnricherWrapper,
-            description=f"Function enricher: {enricher_name}",
-            priority=1000,  # Lower priority than class-based enrichers
-            dependencies=[],
-            conditions={},
-            async_capable=False,
-        )
-
-
-def clear_enrichers() -> None:
-    """Clear all registered custom enrichers.
-
-    This is primarily used for test isolation.
-    """
-    _registered_enrichers.clear()
-
-
-def run_registered_enrichers(
-    logger: Any, method_name: str, event_dict: Dict[str, Any]
-) -> Dict[str, Any]:
-    """Run all registered custom enrichers in registration order.
-
-    Args:
-        logger: The logger instance
-        method_name: The logging method name
-        event_dict: The event dictionary to enrich
-
-    Returns:
-        The enriched event dictionary
-    """
-    result = event_dict
-    for enricher in _registered_enrichers:
-        try:
-            result = enricher(logger, method_name, result)
-        except Exception as e:
-            # Log enricher failures for debugging but don't break the logging
-            # chain
-            import logging
-
-            enricher_logger = logging.getLogger(__name__)
-            enricher_logger.debug(
-                f"Enricher {enricher.__name__} failed: {e}",
-                exc_info=True,
-            )
-    return result
+def register_enricher(*args, **kwargs):
+    """Legacy function removed - use register_enricher_advanced instead."""
+    raise AttributeError(
+        "register_enricher() has been removed. "
+        "Please use @register_enricher_advanced() decorator instead.\n"
+        "\nExample migration:\n"
+        "# Before:\n"
+        "def my_enricher(logger, method_name, event_dict):\n"
+        "    event_dict['custom'] = 'value'\n"
+        "    return event_dict\n"
+        "register_enricher(my_enricher)\n"
+        "\n# After:\n"
+        "@register_enricher_advanced(\n"
+        "    name='my_enricher',\n"
+        "    description='Custom enricher',\n"
+        "    priority=1000\n"
+        ")\n"
+        "class MyEnricher:\n"
+        "    def __call__(self, logger, method_name, event_dict):\n"
+        "        event_dict['custom'] = 'value'\n"
+        "        return event_dict"
+    )

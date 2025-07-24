@@ -1,5 +1,6 @@
 """Tests for sink registry and custom sink functionality."""
 
+import warnings
 from typing import Any, Dict
 
 import pytest
@@ -13,6 +14,7 @@ from fapilog._internal.sink_factory import (
 )
 from fapilog._internal.sink_registry import SinkRegistry, register_sink
 from fapilog.bootstrap import configure_logging
+from fapilog.exceptions import ConfigurationError
 from fapilog.settings import LoggingSettings
 
 
@@ -256,11 +258,19 @@ class TestBootstrapIntegration:
         SinkRegistry.register("test", MockSink)
 
     def test_configure_logging_with_sink_instances(self):
-        """Test configure_logging accepts direct sink instances."""
+        """Test configure_logging rejects direct sink instances."""
         test_sink = MockSink(test_param="value")
 
-        logger = configure_logging(sinks=[test_sink])
-        assert logger is not None
+        # Suppress expected Pydantic warnings when testing invalid inputs
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
+            # Should raise ConfigurationError with helpful message
+            with pytest.raises(ConfigurationError) as exc_info:
+                configure_logging(sinks=[test_sink])
+
+        error_msg = str(exc_info.value)
+        assert "Direct sink instances are no longer supported" in error_msg
+        assert "Use URI configuration instead" in error_msg
 
     def test_configure_logging_with_custom_uris(self):
         """Test configure_logging with custom sink URIs."""
@@ -268,10 +278,18 @@ class TestBootstrapIntegration:
         assert logger is not None
 
     def test_configure_logging_mixed_sinks(self):
-        """Test configure_logging with mixed sink types."""
+        """Test configure_logging rejects mixed sink types."""
         test_sink = MockSink()
-        logger = configure_logging(sinks=[test_sink, "stdout"])
-        assert logger is not None
+
+        # Suppress expected Pydantic warnings when testing invalid inputs
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
+            # Should raise ConfigurationError for mixed types with instances
+            with pytest.raises(ConfigurationError) as exc_info:
+                configure_logging(sinks=[test_sink, "stdout"])
+
+        error_msg = str(exc_info.value)
+        assert "Direct sink instances are no longer supported" in error_msg
 
 
 class TestSettingsIntegration:
@@ -282,24 +300,24 @@ class TestSettingsIntegration:
         SinkRegistry.clear()
         SinkRegistry.register("test", MockSink)
 
-    def test_settings_with_sink_instances(self):
-        """Test LoggingSettings accepts sink instances."""
+    def test_settings_rejects_sink_instances(self):
+        """Test LoggingSettings rejects direct sink instances."""
         test_sink = MockSink()
-        settings = LoggingSettings(sinks=[test_sink, "stdout"])
+
+        with pytest.raises(ValueError) as exc_info:
+            LoggingSettings(sinks=[test_sink, "stdout"])
+
+        error_msg = str(exc_info.value)
+        assert "Direct sink instances are no longer supported" in error_msg
+        assert "Use URI configuration instead" in error_msg
+
+    def test_settings_parse_uri_types_only(self):
+        """Test settings parser handles URI strings only."""
+        settings = LoggingSettings(sinks=["stdout", "test://host"])
 
         assert len(settings.sinks) == 2
-        assert settings.sinks[0] is test_sink
-        assert settings.sinks[1] == "stdout"
-
-    def test_settings_parse_mixed_types(self):
-        """Test settings parser handles mixed types."""
-        test_sink = MockSink()
-        settings = LoggingSettings(sinks=[test_sink, "stdout", "test://host"])
-
-        assert len(settings.sinks) == 3
-        assert isinstance(settings.sinks[0], MockSink)
-        assert settings.sinks[1] == "stdout"
-        assert settings.sinks[2] == "test://host"
+        assert settings.sinks[0] == "stdout"
+        assert settings.sinks[1] == "test://host"
 
 
 class TestErrorHandling:
