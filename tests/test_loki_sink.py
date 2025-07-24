@@ -102,10 +102,12 @@ class TestLokiSink:
         dt2 = datetime.datetime.fromisoformat("2024-01-15T10:30:46.456+00:00")
         dt3 = datetime.datetime.fromisoformat("2024-01-15T10:30:47.789+00:00")
 
+        from fapilog._internal.utils import safe_json_serialize
+
         expected_values = [
-            [str(int(dt1.timestamp() * 1_000_000_000)), json.dumps(event1)],
-            [str(int(dt2.timestamp() * 1_000_000_000)), json.dumps(event2)],
-            [str(int(dt3.timestamp() * 1_000_000_000)), json.dumps(event3)],
+            [str(int(dt1.timestamp() * 1_000_000_000)), safe_json_serialize(event1)],
+            [str(int(dt2.timestamp() * 1_000_000_000)), safe_json_serialize(event2)],
+            [str(int(dt3.timestamp() * 1_000_000_000)), safe_json_serialize(event3)],
         ]
 
         assert call_args[1]["json"]["streams"][0]["values"] == expected_values

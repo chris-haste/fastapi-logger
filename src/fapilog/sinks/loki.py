@@ -1,7 +1,7 @@
 """Loki sink implementation for async logging via HTTP push."""
 
 import asyncio
-import json
+import datetime
 import logging
 import time
 from typing import Any, Dict, List, Optional
@@ -15,6 +15,7 @@ except ImportError:
 from .._internal.error_handling import handle_sink_error, retry_with_backoff_async
 from .._internal.metrics import get_metrics_collector
 from .._internal.queue import Sink
+from .._internal.utils import safe_json_serialize
 from ..exceptions import ConfigurationError
 
 logger = logging.getLogger(__name__)
@@ -260,18 +261,19 @@ class LokiSink(Sink):
                     timestamp = event.get("timestamp", time.time())
                     if isinstance(timestamp, str):
                         # Parse ISO timestamp
-                        import datetime
-
                         dt = datetime.datetime.fromisoformat(
                             timestamp.replace("Z", "+00:00")
                         )
                         timestamp_ns = int(dt.timestamp() * 1_000_000_000)
+                    elif isinstance(timestamp, datetime.datetime):
+                        # Handle datetime objects directly
+                        timestamp_ns = int(timestamp.timestamp() * 1_000_000_000)
                     else:
                         # Assume Unix timestamp in seconds
                         timestamp_ns = int(timestamp * 1_000_000_000)
 
-                    # Convert event to JSON string
-                    log_line = json.dumps(event)
+                    # Convert event to JSON string using safe serialization
+                    log_line = safe_json_serialize(event)
 
                     values.append([str(timestamp_ns), log_line])
                 except Exception as e:

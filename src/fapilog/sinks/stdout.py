@@ -1,6 +1,5 @@
 """Stdout sink implementation for async logging."""
 
-import json
 import sys
 import time
 from typing import Any, Dict, Literal
@@ -9,6 +8,7 @@ import structlog
 
 from .._internal.metrics import get_metrics_collector
 from .._internal.queue import Sink
+from .._internal.utils import safe_json_serialize
 
 StdoutMode = Literal["json", "pretty", "auto"]
 
@@ -66,8 +66,8 @@ class StdoutSink(Sink):
                 rendered = self._console_renderer(None, "info", event_dict)
                 print(rendered, file=sys.stdout, flush=True)
             else:
-                # JSON output
-                print(json.dumps(event_dict), file=sys.stdout, flush=True)
+                # JSON output using safe serialization
+                print(safe_json_serialize(event_dict), file=sys.stdout, flush=True)
             success = True
         except Exception as e:
             error_msg = str(e)
