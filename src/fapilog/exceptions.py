@@ -1,6 +1,6 @@
 """Custom exception classes for fapilog error handling."""
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 
 class FapilogError(Exception):
@@ -224,4 +224,40 @@ class ContextError(FapilogError):
             context["context_key"] = context_key
         if operation:
             context["operation"] = operation
+        super().__init__(message, context)
+
+
+class EnricherConfigurationError(FapilogError):
+    """Errors related to enricher configuration."""
+
+    def __init__(
+        self, message: str, scheme: str = None, params: Dict[str, Any] = None, **kwargs
+    ):
+        context = {}
+        if scheme:
+            context["scheme"] = scheme
+        if params:
+            context["params"] = params
+        # Add any additional context from kwargs
+        context.update(kwargs)
+        super().__init__(message, context)
+
+
+class EnricherDependencyError(FapilogError):
+    """Errors related to enricher dependencies."""
+
+    def __init__(
+        self,
+        message: str,
+        enricher: str = None,
+        missing_dependencies: List[str] = None,
+        **kwargs,
+    ):
+        context = {}
+        if enricher:
+            context["enricher"] = enricher
+        if missing_dependencies:
+            context["missing_dependencies"] = missing_dependencies
+        # Add any additional context from kwargs
+        context.update(kwargs)
         super().__init__(message, context)

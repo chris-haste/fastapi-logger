@@ -1,37 +1,12 @@
 """URI testing utilities for sink configuration."""
 
-import re
-import urllib.parse
 from typing import Any, Dict, List, Tuple
 from urllib.parse import parse_qs, urlparse
 
 import pytest
 
 from .._internal.sink_factory import SinkConfigurationError, create_custom_sink_from_uri
-
-
-def validate_uri_scheme(scheme: str) -> bool:
-    """Validate that a URI scheme follows RFC 3986 rules.
-
-    Valid characters: letters, digits, plus (+), period (.), hyphen (-)
-    Must start with a letter.
-
-    Args:
-        scheme: The URI scheme to validate
-
-    Returns:
-        True if valid, False otherwise
-    """
-    if not scheme:
-        return False
-
-    # Must start with a letter
-    if not scheme[0].isalpha():
-        return False
-
-    # Valid characters: letters, digits, +, -, .
-    valid_pattern = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*$")
-    return bool(valid_pattern.match(scheme))
+from .._internal.uri_validation import validate_uri_format
 
 
 def validate_sink_uri(uri: str) -> Dict[str, Any]:
@@ -43,49 +18,8 @@ def validate_sink_uri(uri: str) -> Dict[str, Any]:
     Returns:
         Dictionary with validation results and any issues found
     """
-    result: Dict[str, Any] = {
-        "valid": True,
-        "issues": [],
-        "scheme": None,
-        "parsed": None,
-    }
-
-    try:
-        parsed = urllib.parse.urlparse(uri)
-        result["parsed"] = parsed
-        result["scheme"] = parsed.scheme
-
-        # Check if URI looks like it should have a scheme but Python didn't detect one
-        if not parsed.scheme and "://" in uri:
-            # Extract the part before :// and check if it's an invalid scheme
-            potential_scheme = uri.split("://")[0]
-            if not validate_uri_scheme(potential_scheme):
-                result["valid"] = False
-                result["issues"].append(
-                    f"Invalid URI scheme '{potential_scheme}'. "
-                    "Schemes can only contain letters, digits, +, -, . and must start with a letter. "
-                    "Note: underscores (_) are not allowed in URI schemes."
-                )
-                return result
-
-        if not parsed.scheme:
-            result["valid"] = False
-            result["issues"].append("URI must have a scheme (e.g., postgres://...)")
-            return result
-
-        if not validate_uri_scheme(parsed.scheme):
-            result["valid"] = False
-            result["issues"].append(
-                f"Invalid URI scheme '{parsed.scheme}'. "
-                "Schemes can only contain letters, digits, +, -, . and must start with a letter. "
-                "Note: underscores (_) are not allowed in URI schemes."
-            )
-
-    except Exception as e:
-        result["valid"] = False
-        result["issues"].append(f"Failed to parse URI: {e}")
-
-    return result
+    # Use the shared validation function
+    return validate_uri_format(uri, "sink")
 
 
 def parse_sink_uri(uri: str) -> Dict[str, Any]:

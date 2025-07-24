@@ -172,7 +172,7 @@ class SinkTestFramework:
         Returns:
             True if valid for URI usage
         """
-        from .uri_testing import validate_uri_scheme
+        from .._internal.uri_validation import validate_uri_scheme
 
         if not validate_uri_scheme(sink_name):
             error_msg = (

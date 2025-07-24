@@ -8,6 +8,7 @@ from typing import Any, List, Optional, Set
 
 import structlog
 
+from ._internal.enricher_lifecycle import EnricherLifecycleManager
 from ._internal.error_handling import (
     handle_configuration_error,
     handle_sink_error,
@@ -57,6 +58,9 @@ class LoggingContainer:
         # Metrics components
         self._metrics_collector: Optional[Any] = None
         self._prometheus_exporter: Optional[Any] = None
+
+        # Async enricher lifecycle manager
+        self._enricher_lifecycle: EnricherLifecycleManager = EnricherLifecycleManager()
 
         # Register this container for cleanup
         with _registry_lock:
@@ -294,7 +298,9 @@ class LoggingContainer:
         # Build structlog processor chain using the pipeline
         # The pipeline already handles queue vs non-queue configuration
         processors = build_processor_chain(
-            self._settings, pretty=(console_format == "pretty")
+            self._settings,
+            pretty=(console_format == "pretty"),
+            enricher_lifecycle=self._enricher_lifecycle,
         )
 
         # Configure structlog with appropriate factory based on queue usage
@@ -361,6 +367,12 @@ class LoggingContainer:
     async def shutdown(self) -> None:
         """Shutdown the container gracefully (async version)."""
         with self._lock:
+            # Shutdown async enrichers first
+            try:
+                await self._enricher_lifecycle.shutdown_all()
+            except Exception as e:
+                logger.warning(f"Error during enricher shutdown: {e}")
+
             # Shutdown Prometheus exporter
             if self._prometheus_exporter is not None:
                 try:

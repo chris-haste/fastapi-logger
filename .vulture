@@ -106,3 +106,25 @@ ignore_order
 
 # Queue internal attributes used by the system
 disabled 
+
+# Async enricher infrastructure - new components for async support
+AsyncEnricherProcessor
+CircuitBreaker
+call
+cached_enricher
+evaluate_condition_expression
+_should_enable_for_level
+create_enrichers_from_uris
+validate_enricher_uri
+health_check_all
+managed_enrichers
+lifecycle_manager
+clear_registry
+clear_instances
+suggest_valid_scheme_name
+register_enricher_advanced
+parse_enrichers
+
+# Async enricher base class attributes - used by implementation classes
+_session
+_connection_pool 

@@ -2,11 +2,11 @@
 
 import pytest
 
+from fapilog._internal.uri_validation import validate_uri_scheme
 from fapilog.testing.uri_testing import (
     parse_sink_uri,
     test_uri_parsing,
     validate_sink_uri,
-    validate_uri_scheme,
 )
 
 

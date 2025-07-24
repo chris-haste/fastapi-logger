@@ -2,13 +2,13 @@
 
 from unittest.mock import Mock, patch
 
+from fapilog._internal.uri_validation import validate_uri_scheme
 from fapilog.testing.uri_testing import (
     URITestHelper,
     create_test_uri_cases,
     parse_sink_uri,
     test_uri_parsing,
     validate_sink_uri,
-    validate_uri_scheme,
 )
 
 

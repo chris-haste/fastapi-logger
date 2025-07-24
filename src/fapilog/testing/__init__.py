@@ -19,11 +19,12 @@ Example:
     throughput = await tester.test_throughput(MySink())
 """
 
+from .._internal.uri_validation import validate_uri_scheme
 from .debug import SinkDebugger
 from .mock_sinks import FailingSink, RecordingSink, SlowSink
 from .performance import SinkPerformanceTester
 from .sink_testing import SinkTestFramework
-from .uri_testing import validate_sink_uri, validate_uri_scheme
+from .uri_testing import validate_sink_uri
 
 __all__ = [
     "SinkTestFramework",

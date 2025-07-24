@@ -1,6 +1,6 @@
 """Configuration settings for fapilog."""
 
-from typing import Any, List, Literal, Union
+from typing import Any, Dict, List, Literal, Union
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -136,6 +136,18 @@ class LoggingSettings(BaseSettings):
         description="Host for Prometheus metrics HTTP endpoint (default: 0.0.0.0)",
     )
 
+    # Enricher settings
+    enrichers: Union[List[Union[str, Any]], str] = Field(
+        default_factory=list,
+        description="List of enricher URIs or instances to use "
+        "(comma-separated string or list)",
+    )
+
+    enricher_conditions: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Global conditions for enricher enablement",
+    )
+
     model_config = SettingsConfigDict(
         env_prefix="FAPILOG_",
         case_sensitive=False,
@@ -181,6 +193,16 @@ class LoggingSettings(BaseSettings):
         if isinstance(v, str):
             return [item.strip() for item in v.split(",") if item.strip()]
         return list(v) if isinstance(v, (list, tuple)) else [v]
+
+    @field_validator("enrichers", mode="before")
+    @classmethod
+    def parse_enrichers(cls, v: Any) -> List[Union[str, Any]]:
+        """Parse enrichers field to support strings and instances."""
+        if isinstance(v, str):
+            return [item.strip() for item in v.split(",") if item.strip()]
+        if isinstance(v, (list, tuple)):
+            return list(v)
+        return [v]
 
     @field_validator("redact_level")
     @classmethod

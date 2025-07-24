@@ -271,7 +271,9 @@ class TestSinkTestFrameworkCoverage:
 
     def test_validate_sink_name_for_uri_valid(self):
         """Test valid sink name for URI."""
-        with patch("fapilog.testing.uri_testing.validate_uri_scheme") as mock_validate:
+        with patch(
+            "fapilog._internal.uri_validation.validate_uri_scheme"
+        ) as mock_validate:
             mock_validate.return_value = True
 
             result = self.framework.validate_sink_name_for_uri("valid-sink.name")
@@ -281,7 +283,9 @@ class TestSinkTestFrameworkCoverage:
 
     def test_validate_sink_name_for_uri_invalid(self):
         """Test invalid sink name for URI."""
-        with patch("fapilog.testing.uri_testing.validate_uri_scheme") as mock_validate:
+        with patch(
+            "fapilog._internal.uri_validation.validate_uri_scheme"
+        ) as mock_validate:
             mock_validate.return_value = False
 
             result = self.framework.validate_sink_name_for_uri("invalid_sink_name")

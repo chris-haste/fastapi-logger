@@ -4,7 +4,7 @@ import asyncio
 import os
 import socket
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Callable, Dict, List
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Type
 
 from ._internal.context import get_context
 from .exceptions import ConfigurationError
@@ -336,8 +336,67 @@ def create_user_dependency(get_user_func: Callable[..., Any]) -> Callable[..., A
 _registered_enrichers: List[Callable[..., Any]] = []
 
 
+def register_enricher_advanced(
+    name: str,
+    description: str = "",
+    priority: int = 100,
+    dependencies: List[str] = None,
+    conditions: Dict[str, Any] = None,
+    async_capable: bool = False,
+):
+    """Advanced decorator to register enrichers with metadata.
+
+    Args:
+        name: Unique name for the enricher
+        description: Human-readable description of the enricher
+        priority: Priority for execution order (lower = higher priority)
+        dependencies: List of enricher names this enricher depends on
+        conditions: Conditions for when enricher should be enabled
+        async_capable: Whether this enricher supports async execution
+
+    Returns:
+        Decorator function that registers the enricher class
+
+    Example:
+        @register_enricher_advanced(
+            name="user_context",
+            description="Add user context from API",
+            priority=50,
+            dependencies=["auth"],
+            conditions={"environment": ["production", "staging"]},
+            async_capable=True
+        )
+        class UserContextEnricher:
+            def __init__(self, api_url="localhost", timeout=5):
+                self.api_url = api_url
+                self.timeout = timeout
+
+            def __call__(self, logger, method_name, event_dict):
+                # Enricher logic here
+                return event_dict
+    """
+
+    def decorator(enricher_class: Type[Any]) -> Type[Any]:
+        from ._internal.enricher_registry import EnricherRegistry
+
+        return EnricherRegistry.register(
+            name=name,
+            enricher_class=enricher_class,
+            description=description,
+            priority=priority,
+            dependencies=dependencies,
+            conditions=conditions,
+            async_capable=async_capable,
+        )
+
+    return decorator
+
+
 def register_enricher(fn: Callable[..., Any]) -> None:
     """Register a custom enricher function.
+
+    Enhanced version that maintains backward compatibility while adding
+    advanced enricher registry support.
 
     Custom enrichers are called at the end of the processor chain, after all
     built-in enrichers. They follow the structlog processor signature:
@@ -367,6 +426,29 @@ def register_enricher(fn: Callable[..., Any]) -> None:
     # Check if function is already registered (by reference)
     if fn not in _registered_enrichers:
         _registered_enrichers.append(fn)
+
+        # Also register in the advanced registry for unified management
+        from ._internal.enricher_registry import EnricherRegistry
+
+        # Create a wrapper class for the function
+        class FunctionEnricherWrapper:
+            def __init__(self):
+                self.fn = fn
+
+            def __call__(self, logger, method_name, event_dict):
+                return self.fn(logger, method_name, event_dict)
+
+        # Register in advanced registry with function name
+        enricher_name = getattr(fn, "__name__", f"function_enricher_{id(fn)}")
+        EnricherRegistry.register(
+            name=enricher_name,
+            enricher_class=FunctionEnricherWrapper,
+            description=f"Function enricher: {enricher_name}",
+            priority=1000,  # Lower priority than class-based enrichers
+            dependencies=[],
+            conditions={},
+            async_capable=False,
+        )
 
 
 def clear_enrichers() -> None:
