@@ -135,26 +135,19 @@ class ProcessorTestFramework:
             # Clear registry for clean test
             ProcessorRegistry.clear()
 
-            # Since we're testing function registration, create a dummy function
-            def dummy_processor_function():
-                return processor_class
-
-            # Test registration
-            ProcessorRegistry.register(name, dummy_processor_function)
+            # Test registration with the actual processor class
+            ProcessorRegistry.register(name, processor_class)
 
             # Test retrieval
-            retrieved_function = ProcessorRegistry.get(name)
-            if retrieved_function != dummy_processor_function:
-                err_msg = "Retrieved function does not match registered function"
+            retrieved_class = ProcessorRegistry.get(name)
+            if retrieved_class != processor_class:
+                err_msg = "Retrieved class does not match registered class"
                 self.errors.append(ValueError(err_msg))
                 return False
 
             # Test listing includes the processor
             all_processors = ProcessorRegistry.list()
-            if (
-                name not in all_processors
-                or all_processors[name] != dummy_processor_function
-            ):
+            if name not in all_processors or all_processors[name] != processor_class:
                 err_msg = "Processor not found in registry listing"
                 self.errors.append(ValueError(err_msg))
                 return False

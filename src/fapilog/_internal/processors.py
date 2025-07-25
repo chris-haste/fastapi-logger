@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from ..redactors import _should_redact_at_level
 from .processor import Processor
+from .processor_registry import ProcessorRegistry
 
 
 class RedactionProcessor(Processor):
@@ -132,3 +133,9 @@ class FilterNoneProcessor(Processor):
         if event_dict is None:
             return None
         return event_dict
+
+
+# Register built-in processors in the ProcessorRegistry
+ProcessorRegistry.register("redaction", RedactionProcessor)
+ProcessorRegistry.register("sampling", SamplingProcessor)
+ProcessorRegistry.register("filter_none", FilterNoneProcessor)
