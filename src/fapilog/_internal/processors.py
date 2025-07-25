@@ -6,8 +6,8 @@ import random
 import re
 import threading
 import time
+from typing import Any, Dict, List, Optional
 
-# No typing imports needed for Python 3.11 compatibility
 from ..exceptions import ProcessorConfigurationError
 from ..redactors import _should_redact_at_level
 from .processor import Processor
@@ -19,10 +19,10 @@ class RedactionProcessor(Processor):
 
     def __init__(
         self,
-        patterns=None,
+        patterns: Optional[List[str]] = None,
         redact_level: str = "INFO",
-        **config,
-    ):
+        **config: Any,
+    ) -> None:
         """Initialize redaction processor.
 
         Args:
@@ -32,7 +32,7 @@ class RedactionProcessor(Processor):
         """
         self.patterns = patterns or []
         self.redact_level = redact_level
-        self.compiled_patterns = []
+        self.compiled_patterns: List[re.Pattern[str]] = []
         super().__init__(patterns=patterns, redact_level=redact_level, **config)
 
     async def _start_impl(self) -> None:
@@ -57,7 +57,9 @@ class RedactionProcessor(Processor):
         if not isinstance(self.redact_level, str):
             raise ValueError("redact_level must be a string")
 
-    def process(self, logger, method_name: str, event_dict):
+    def process(
+        self, logger: Any, method_name: str, event_dict: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Redact sensitive information from log entries."""
         # Check if redaction should be applied based on log level
         event_level = event_dict.get("level", "INFO")
@@ -69,7 +71,7 @@ class RedactionProcessor(Processor):
 
         return self._redact_recursive(event_dict)
 
-    def _redact_recursive(self, data):
+    def _redact_recursive(self, data: Any) -> Any:
         """Recursively redact values in nested structures."""
         if isinstance(data, dict):
             redacted_dict = data.copy()
@@ -88,7 +90,7 @@ class RedactionProcessor(Processor):
 class SamplingProcessor(Processor):
     """Processor that drops events probabilistically for sampling."""
 
-    def __init__(self, rate: float = 1.0, **config):
+    def __init__(self, rate: float = 1.0, **config: Any) -> None:
         """Initialize sampling processor.
 
         Args:
@@ -106,7 +108,9 @@ class SamplingProcessor(Processor):
         if not 0.0 <= self.rate <= 1.0:
             raise ValueError("rate must be between 0.0 and 1.0")
 
-    def process(self, logger, method_name: str, event_dict):
+    def process(
+        self, logger: Any, method_name: str, event_dict: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Sample log events based on the configured rate."""
         if self.rate >= 1.0:
             return event_dict
@@ -119,7 +123,7 @@ class SamplingProcessor(Processor):
 class FilterNoneProcessor(Processor):
     """Processor that filters out None events."""
 
-    def __init__(self, **config):
+    def __init__(self, **config: Any) -> None:
         """Initialize filter processor.
 
         Args:
@@ -127,7 +131,9 @@ class FilterNoneProcessor(Processor):
         """
         super().__init__(**config)
 
-    def process(self, logger, method_name: str, event_dict):
+    def process(
+        self, logger: Any, method_name: str, event_dict: Optional[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
         """Filter out None events."""
         if event_dict is None:
             return None
@@ -143,8 +149,8 @@ class ThrottleProcessor(Processor):
         window_seconds: int = 60,
         key_field: str = "source",
         strategy: str = "drop",
-        **config,
-    ):
+        **config: Any,
+    ) -> None:
         """Initialize throttle processor.
 
         Args:
@@ -158,7 +164,7 @@ class ThrottleProcessor(Processor):
         self.window_seconds = window_seconds
         self.key_field = key_field
         self.strategy = strategy
-        self._rate_tracker = {}
+        self._rate_tracker: Dict[str, List[float]] = {}
         self._lock = threading.Lock()
         self._sample_rate = 0.1  # For sample strategy
         super().__init__(
@@ -185,7 +191,9 @@ class ThrottleProcessor(Processor):
         if self.strategy not in ["drop", "sample"]:
             raise ProcessorConfigurationError("strategy must be 'drop' or 'sample'")
 
-    def process(self, logger, method_name: str, event_dict):
+    def process(
+        self, logger: Any, method_name: str, event_dict: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Apply throttling rules to event."""
         key = self._extract_key(event_dict)
         current_time = time.time()
@@ -197,7 +205,7 @@ class ThrottleProcessor(Processor):
                 self._record_event(key, current_time)
                 return event_dict
 
-    def _extract_key(self, event_dict):
+    def _extract_key(self, event_dict: Dict[str, Any]) -> str:
         """Extract throttling key from event."""
         return str(event_dict.get(self.key_field, "default"))
 
@@ -213,7 +221,9 @@ class ThrottleProcessor(Processor):
         event_count = len(self._rate_tracker.get(key, []))
         return event_count >= self.max_rate
 
-    def _apply_strategy(self, event_dict, key: str):
+    def _apply_strategy(
+        self, event_dict: Dict[str, Any], key: str
+    ) -> Optional[Dict[str, Any]]:
         """Apply throttling strategy."""
         if self.strategy == "drop":
             return None
@@ -260,7 +270,7 @@ class ThrottleProcessor(Processor):
                 if key not in self._rate_tracker:  # Was removed in cleanup
                     keys_to_remove.append(key)
 
-    def get_current_rates(self):
+    def get_current_rates(self) -> Dict[str, int]:
         """Get current event rates for all tracked keys.
 
         Returns:
@@ -285,11 +295,11 @@ class DeduplicationProcessor(Processor):
     def __init__(
         self,
         window_seconds: int = 300,
-        dedupe_fields=None,
+        dedupe_fields: Optional[List[str]] = None,
         max_cache_size: int = 10000,
         hash_algorithm: str = "md5",
-        **config,
-    ):
+        **config: Any,
+    ) -> None:
         """Initialize deduplication processor.
 
         Args:
@@ -307,7 +317,9 @@ class DeduplicationProcessor(Processor):
             self.dedupe_fields = dedupe_fields
         self.max_cache_size = max_cache_size
         self.hash_algorithm = hash_algorithm
-        self._event_cache = {}  # signature -> (timestamp, count)
+        self._event_cache: Dict[
+            str, tuple[float, int]
+        ] = {}  # signature -> (timestamp, count)
         self._lock = threading.Lock()
         super().__init__(
             window_seconds=window_seconds,
@@ -345,7 +357,9 @@ class DeduplicationProcessor(Processor):
                 "hash_algorithm must be 'md5', 'sha1', or 'sha256'"
             )
 
-    def process(self, logger, method_name: str, event_dict):
+    def process(
+        self, logger: Any, method_name: str, event_dict: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Apply deduplication to event."""
         signature = self._generate_signature(event_dict)
         current_time = time.time()
@@ -359,7 +373,7 @@ class DeduplicationProcessor(Processor):
                 self._cleanup_expired_entries(current_time)
                 return event_dict
 
-    def _generate_signature(self, event_dict):
+    def _generate_signature(self, event_dict: Dict[str, Any]) -> str:
         """Generate unique signature for event based on dedupe_fields."""
         signature_data = {}
         for field in self.dedupe_fields:
@@ -423,7 +437,7 @@ class DeduplicationProcessor(Processor):
             del self._event_cache[signature]
 
     @property
-    def cache_stats(self):
+    def cache_stats(self) -> Dict[str, int]:
         """Get cache statistics for monitoring."""
         with self._lock:
             total_events = sum(count for _, count in self._event_cache.values())
@@ -441,3 +455,136 @@ ProcessorRegistry.register("sampling", SamplingProcessor)
 ProcessorRegistry.register("filter_none", FilterNoneProcessor)
 ProcessorRegistry.register("throttle", ThrottleProcessor)
 ProcessorRegistry.register("deduplication", DeduplicationProcessor)
+
+
+class ValidationProcessor(Processor):
+    """Processor that validates log events based on configurable rules."""
+
+    def __init__(
+        self,
+        validation_mode: str = "lenient",
+        required_fields: Optional[List[str]] = None,
+        field_types: Optional[Dict[str, str]] = None,
+        **config: Any,
+    ) -> None:
+        """Initialize validation processor.
+
+        Args:
+            validation_mode: Validation mode ('strict', 'lenient', 'fix')
+            required_fields: List of required field names
+            field_types: Dict mapping field names to expected types
+            **config: Additional configuration parameters
+        """
+        self.validation_mode = validation_mode
+        self.required_fields = required_fields or []
+        self.field_types = field_types or {}
+        self._validation_stats = {
+            "total_events": 0,
+            "valid_events": 0,
+            "invalid_events": 0,
+            "fixed_events": 0,
+        }
+        super().__init__(
+            validation_mode=validation_mode,
+            required_fields=required_fields,
+            field_types=field_types,
+            **config,
+        )
+
+    def validate_config(self) -> None:
+        """Validate validation configuration."""
+        if self.validation_mode not in ["strict", "lenient", "fix"]:
+            raise ProcessorConfigurationError(
+                "validation_mode must be 'strict', 'lenient', or 'fix'"
+            )
+
+        if not isinstance(self.required_fields, list):
+            raise ProcessorConfigurationError("required_fields must be a list")
+
+        if not isinstance(self.field_types, dict):
+            raise ProcessorConfigurationError("field_types must be a dictionary")
+
+    def process(
+        self, logger: Any, method_name: str, event_dict: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """Validate log event based on configuration."""
+        self._validation_stats["total_events"] += 1
+
+        # Check required fields
+        for field in self.required_fields:
+            if field not in event_dict:
+                if self.validation_mode == "strict":
+                    self._validation_stats["invalid_events"] += 1
+                    return None
+                elif self.validation_mode == "fix":
+                    event_dict[field] = None
+                    self._validation_stats["fixed_events"] += 1
+
+        # Check field types
+        for field, expected_type in self.field_types.items():
+            if field in event_dict:
+                value = event_dict[field]
+                if not self._check_type(value, expected_type):
+                    if self.validation_mode == "strict":
+                        self._validation_stats["invalid_events"] += 1
+                        return None
+                    elif self.validation_mode == "fix":
+                        event_dict[field] = self._fix_type(value, expected_type)
+                        self._validation_stats["fixed_events"] += 1
+
+        self._validation_stats["valid_events"] += 1
+        return event_dict
+
+    def _check_type(self, value: Any, expected_type: str) -> bool:
+        """Check if value matches expected type."""
+        type_map = {
+            "str": str,
+            "int": int,
+            "float": float,
+            "bool": bool,
+            "list": list,
+            "dict": dict,
+        }
+
+        if expected_type not in type_map:
+            return True
+
+        return isinstance(value, type_map[expected_type])
+
+    def _fix_type(self, value: Any, expected_type: str) -> Any:
+        """Fix value to match expected type."""
+        try:
+            if expected_type == "str":
+                return str(value)
+            elif expected_type == "int":
+                return int(value)
+            elif expected_type == "float":
+                return float(value)
+            elif expected_type == "bool":
+                return bool(value)
+            elif expected_type == "list":
+                return [value] if not isinstance(value, list) else value
+            elif expected_type == "dict":
+                return {"value": value} if not isinstance(value, dict) else value
+        except (ValueError, TypeError):
+            pass
+        return value
+
+    @property
+    def validation_stats(self) -> Dict[str, Any]:
+        """Get validation statistics."""
+        total = self._validation_stats["total_events"]
+        if total == 0:
+            return {**self._validation_stats, "success_rate": 0.0}
+
+        success_rate = self._validation_stats["valid_events"] / total
+        return {**self._validation_stats, "success_rate": success_rate}
+
+
+# Register all processors including ValidationProcessor
+ProcessorRegistry.register("redaction", RedactionProcessor)
+ProcessorRegistry.register("sampling", SamplingProcessor)
+ProcessorRegistry.register("filter_none", FilterNoneProcessor)
+ProcessorRegistry.register("throttle", ThrottleProcessor)
+ProcessorRegistry.register("deduplication", DeduplicationProcessor)
+ProcessorRegistry.register("validation", ValidationProcessor)
