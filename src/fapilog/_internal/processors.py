@@ -1,5 +1,7 @@
 """Concrete processor implementations for fapilog structured logging."""
 
+import hashlib
+import json
 import random
 import re
 import threading
@@ -287,8 +289,169 @@ class ThrottleProcessor(Processor):
         return rates
 
 
+class DeduplicationProcessor(Processor):
+    """Remove duplicate log events within time window."""
+
+    def __init__(
+        self,
+        window_seconds: int = 300,
+        dedupe_fields: Optional[List[str]] = None,
+        max_cache_size: int = 10000,
+        hash_algorithm: str = "md5",
+        **config: Any,
+    ) -> None:
+        """Initialize deduplication processor.
+
+        Args:
+            window_seconds: Time window for deduplication in seconds
+            dedupe_fields: Fields to use for generating event signature
+            max_cache_size: Maximum number of signatures to keep in cache
+            hash_algorithm: Algorithm for hashing signatures ('md5', 'sha1', 'sha256')
+            **config: Additional configuration parameters
+        """
+        self.window_seconds = window_seconds
+        # Handle None vs empty list properly
+        if dedupe_fields is None:
+            self.dedupe_fields = ["event", "level", "hostname"]
+        else:
+            self.dedupe_fields = dedupe_fields
+        self.max_cache_size = max_cache_size
+        self.hash_algorithm = hash_algorithm
+        self._event_cache: Dict[
+            str, tuple[float, int]
+        ] = {}  # signature -> (timestamp, count)
+        self._lock = threading.Lock()
+        super().__init__(
+            window_seconds=window_seconds,
+            dedupe_fields=dedupe_fields,
+            max_cache_size=max_cache_size,
+            hash_algorithm=hash_algorithm,
+            **config,
+        )
+
+    def validate_config(self) -> None:
+        """Validate deduplication configuration."""
+        if not isinstance(self.window_seconds, int) or self.window_seconds <= 0:
+            raise ProcessorConfigurationError(
+                "window_seconds must be a positive integer"
+            )
+
+        if not isinstance(self.max_cache_size, int) or self.max_cache_size <= 0:
+            raise ProcessorConfigurationError(
+                "max_cache_size must be a positive integer"
+            )
+
+        # Check both None and empty list cases
+        if not self.dedupe_fields:
+            raise ProcessorConfigurationError(
+                "dedupe_fields cannot be empty and must be a list"
+            )
+
+        if not isinstance(self.dedupe_fields, list):
+            raise ProcessorConfigurationError(
+                "dedupe_fields cannot be empty and must be a list"
+            )
+
+        if self.hash_algorithm not in ["md5", "sha1", "sha256"]:
+            raise ProcessorConfigurationError(
+                "hash_algorithm must be 'md5', 'sha1', or 'sha256'"
+            )
+
+    def process(
+        self, logger: Any, method_name: str, event_dict: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """Apply deduplication to event."""
+        signature = self._generate_signature(event_dict)
+        current_time = time.time()
+
+        with self._lock:
+            if self._is_duplicate(signature, current_time):
+                self._update_duplicate_count(signature, current_time)
+                return None  # Drop duplicate
+            else:
+                self._record_new_event(signature, current_time)
+                self._cleanup_expired_entries(current_time)
+                return event_dict
+
+    def _generate_signature(self, event_dict: Dict[str, Any]) -> str:
+        """Generate unique signature for event based on dedupe_fields."""
+        signature_data = {}
+        for field in self.dedupe_fields:
+            if field in event_dict:
+                signature_data[field] = event_dict[field]
+
+        # Create deterministic string representation
+        signature_str = json.dumps(signature_data, sort_keys=True)
+
+        # Hash for efficiency
+        if self.hash_algorithm == "md5":
+            return hashlib.md5(signature_str.encode()).hexdigest()
+        elif self.hash_algorithm == "sha1":
+            return hashlib.sha1(signature_str.encode()).hexdigest()
+        else:  # sha256
+            return hashlib.sha256(signature_str.encode()).hexdigest()
+
+    def _is_duplicate(self, signature: str, current_time: float) -> bool:
+        """Check if event is a duplicate within window."""
+        if signature not in self._event_cache:
+            return False
+
+        last_seen, _ = self._event_cache[signature]
+        return (current_time - last_seen) <= self.window_seconds
+
+    def _update_duplicate_count(self, signature: str, current_time: float) -> None:
+        """Update count for duplicate event."""
+        if signature in self._event_cache:
+            _, count = self._event_cache[signature]
+            self._event_cache[signature] = (current_time, count + 1)
+
+    def _record_new_event(self, signature: str, current_time: float) -> None:
+        """Record new unique event."""
+        self._event_cache[signature] = (current_time, 1)
+
+        # Enforce cache size limit
+        if len(self._event_cache) > self.max_cache_size:
+            self._evict_oldest_entries()
+
+    def _cleanup_expired_entries(self, current_time: float) -> None:
+        """Remove expired entries from cache."""
+        expired_keys = []
+        for signature, (timestamp, _) in self._event_cache.items():
+            if (current_time - timestamp) > self.window_seconds:
+                expired_keys.append(signature)
+
+        for key in expired_keys:
+            del self._event_cache[key]
+
+    def _evict_oldest_entries(self) -> None:
+        """Evict oldest entries when cache is full."""
+        # Remove 10% of oldest entries
+        sorted_entries = sorted(
+            self._event_cache.items(),
+            key=lambda x: x[1][0],  # Sort by timestamp
+        )
+
+        evict_count = max(1, len(sorted_entries) // 10)
+        for i in range(evict_count):
+            signature, _ = sorted_entries[i]
+            del self._event_cache[signature]
+
+    @property
+    def cache_stats(self) -> Dict[str, int]:
+        """Get cache statistics for monitoring."""
+        with self._lock:
+            total_events = sum(count for _, count in self._event_cache.values())
+            return {
+                "unique_signatures": len(self._event_cache),
+                "total_events_seen": total_events,
+                "cache_size": len(self._event_cache),
+                "max_cache_size": self.max_cache_size,
+            }
+
+
 # Register built-in processors in the ProcessorRegistry
 ProcessorRegistry.register("redaction", RedactionProcessor)
 ProcessorRegistry.register("sampling", SamplingProcessor)
 ProcessorRegistry.register("filter_none", FilterNoneProcessor)
 ProcessorRegistry.register("throttle", ThrottleProcessor)
+ProcessorRegistry.register("deduplication", DeduplicationProcessor)
