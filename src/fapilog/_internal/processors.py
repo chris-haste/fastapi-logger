@@ -6,8 +6,8 @@ import random
 import re
 import threading
 import time
-from typing import Any
 
+# No typing imports needed for Python 3.11 compatibility
 from ..exceptions import ProcessorConfigurationError
 from ..redactors import _should_redact_at_level
 from .processor import Processor
@@ -21,8 +21,8 @@ class RedactionProcessor(Processor):
         self,
         patterns=None,
         redact_level: str = "INFO",
-        **config: Any,
-    ) -> None:
+        **config,
+    ):
         """Initialize redaction processor.
 
         Args:
@@ -57,7 +57,7 @@ class RedactionProcessor(Processor):
         if not isinstance(self.redact_level, str):
             raise ValueError("redact_level must be a string")
 
-    def process(self, logger: Any, method_name: str, event_dict):
+    def process(self, logger, method_name: str, event_dict):
         """Redact sensitive information from log entries."""
         # Check if redaction should be applied based on log level
         event_level = event_dict.get("level", "INFO")
@@ -69,7 +69,7 @@ class RedactionProcessor(Processor):
 
         return self._redact_recursive(event_dict)
 
-    def _redact_recursive(self, data: Any) -> Any:
+    def _redact_recursive(self, data):
         """Recursively redact values in nested structures."""
         if isinstance(data, dict):
             redacted_dict = data.copy()
@@ -88,7 +88,7 @@ class RedactionProcessor(Processor):
 class SamplingProcessor(Processor):
     """Processor that drops events probabilistically for sampling."""
 
-    def __init__(self, rate: float = 1.0, **config: Any) -> None:
+    def __init__(self, rate: float = 1.0, **config):
         """Initialize sampling processor.
 
         Args:
@@ -106,7 +106,7 @@ class SamplingProcessor(Processor):
         if not 0.0 <= self.rate <= 1.0:
             raise ValueError("rate must be between 0.0 and 1.0")
 
-    def process(self, logger: Any, method_name: str, event_dict):
+    def process(self, logger, method_name: str, event_dict):
         """Sample log events based on the configured rate."""
         if self.rate >= 1.0:
             return event_dict
@@ -119,7 +119,7 @@ class SamplingProcessor(Processor):
 class FilterNoneProcessor(Processor):
     """Processor that filters out None events."""
 
-    def __init__(self, **config: Any) -> None:
+    def __init__(self, **config):
         """Initialize filter processor.
 
         Args:
@@ -127,7 +127,7 @@ class FilterNoneProcessor(Processor):
         """
         super().__init__(**config)
 
-    def process(self, logger: Any, method_name: str, event_dict):
+    def process(self, logger, method_name: str, event_dict):
         """Filter out None events."""
         if event_dict is None:
             return None
@@ -143,8 +143,8 @@ class ThrottleProcessor(Processor):
         window_seconds: int = 60,
         key_field: str = "source",
         strategy: str = "drop",
-        **config: Any,
-    ) -> None:
+        **config,
+    ):
         """Initialize throttle processor.
 
         Args:
@@ -185,7 +185,7 @@ class ThrottleProcessor(Processor):
         if self.strategy not in ["drop", "sample"]:
             raise ProcessorConfigurationError("strategy must be 'drop' or 'sample'")
 
-    def process(self, logger: Any, method_name: str, event_dict):
+    def process(self, logger, method_name: str, event_dict):
         """Apply throttling rules to event."""
         key = self._extract_key(event_dict)
         current_time = time.time()
@@ -288,8 +288,8 @@ class DeduplicationProcessor(Processor):
         dedupe_fields=None,
         max_cache_size: int = 10000,
         hash_algorithm: str = "md5",
-        **config: Any,
-    ) -> None:
+        **config,
+    ):
         """Initialize deduplication processor.
 
         Args:
@@ -345,7 +345,7 @@ class DeduplicationProcessor(Processor):
                 "hash_algorithm must be 'md5', 'sha1', or 'sha256'"
             )
 
-    def process(self, logger: Any, method_name: str, event_dict):
+    def process(self, logger, method_name: str, event_dict):
         """Apply deduplication to event."""
         signature = self._generate_signature(event_dict)
         current_time = time.time()
