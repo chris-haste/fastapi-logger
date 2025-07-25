@@ -3,13 +3,29 @@
 import pytest
 
 from fapilog._internal.pii_patterns import auto_redact_pii_processor
+from fapilog._internal.processors import RedactionProcessor
 from fapilog.exceptions import RedactionError
-from fapilog.pipeline import _redact_processor
 from fapilog.redactors import (
     _get_log_level_numeric,
     _should_redact_at_level,
     field_redactor,
 )
+
+
+def _create_redact_processor(patterns, redact_level="INFO"):
+    """Helper function to create redaction processor function for testing."""
+    processor = RedactionProcessor(patterns=patterns, redact_level=redact_level)
+    # Manually compile patterns for synchronous testing
+    import re
+
+    processor.compiled_patterns = [
+        re.compile(pattern, re.IGNORECASE) for pattern in patterns
+    ]
+
+    def processor_function(logger, method_name, event_dict):
+        return processor.process(logger, method_name, event_dict)
+
+    return processor_function
 
 
 class TestLogLevelHelpers:
@@ -70,7 +86,7 @@ class TestPatternRedactionLevel:
     def test_debug_log_not_redacted(self):
         """Test that DEBUG logs bypass pattern redaction when redact_level is INFO."""
         patterns = [r"password", r"token"]
-        processor = _redact_processor(patterns, redact_level="INFO")
+        processor = _create_redact_processor(patterns, redact_level="INFO")
 
         event_dict = {
             "level": "DEBUG",
@@ -88,7 +104,7 @@ class TestPatternRedactionLevel:
     def test_info_log_redacted(self):
         """Test that INFO logs are redacted when redact_level is INFO."""
         patterns = [r"password", r"token"]
-        processor = _redact_processor(patterns, redact_level="INFO")
+        processor = _create_redact_processor(patterns, redact_level="INFO")
 
         event_dict = {
             "level": "INFO",
@@ -106,7 +122,7 @@ class TestPatternRedactionLevel:
     def test_custom_redact_level(self):
         """Test pattern redaction with custom redact level (ERROR)."""
         patterns = [r"password"]
-        processor = _redact_processor(patterns, redact_level="ERROR")
+        processor = _create_redact_processor(patterns, redact_level="ERROR")
 
         # INFO < ERROR - should not redact
         event_dict_info = {"level": "INFO", "password": "secret123"}
@@ -121,7 +137,7 @@ class TestPatternRedactionLevel:
     def test_missing_level_defaults_to_redact(self):
         """Test that events without level field default to being redacted."""
         patterns = [r"password"]
-        processor = _redact_processor(patterns, redact_level="INFO")
+        processor = _create_redact_processor(patterns, redact_level="INFO")
 
         event_dict = {"message": "User login", "password": "secret123"}
 
@@ -267,7 +283,9 @@ class TestLevelRedactionIntegration:
     def test_all_redactors_respect_level(self):
         """Test that all redaction processors respect the same log level setting."""
         # Pattern-based redaction
-        pattern_processor = _redact_processor([r"password"], redact_level="WARNING")
+        pattern_processor = _create_redact_processor(
+            [r"password"], redact_level="WARNING"
+        )
 
         # Field-based redaction
         field_processor = field_redactor(["api_key"], redact_level="WARNING")
@@ -307,7 +325,7 @@ class TestLevelRedactionIntegration:
     def test_different_redact_levels(self):
         """Test processors with different redact levels."""
         # Pattern redaction at INFO level
-        pattern_processor = _redact_processor([r"password"], redact_level="INFO")
+        pattern_processor = _create_redact_processor([r"password"], redact_level="INFO")
 
         # Field redaction at ERROR level
         field_processor = field_redactor(["api_key"], redact_level="ERROR")

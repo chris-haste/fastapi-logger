@@ -100,10 +100,13 @@ def test_sampling_processor():
 
 def test_redaction_processor_no_patterns():
     """Test redaction processor with no patterns (identity function)."""
-    from fapilog.pipeline import _redact_processor
+    from fapilog._internal.processors import RedactionProcessor
 
     # Test with empty patterns
-    processor = _redact_processor([])
+    processor_obj = RedactionProcessor(patterns=[])
+
+    def processor(logger, method_name, event_dict):
+        return processor_obj.process(logger, method_name, event_dict)
 
     # Should return the event_dict unchanged
     event_dict = {"key": "value", "password": "secret123"}
@@ -113,10 +116,19 @@ def test_redaction_processor_no_patterns():
 
 def test_redaction_processor_with_patterns():
     """Test redaction processor with patterns."""
-    from fapilog.pipeline import _redact_processor
+    import re
+
+    from fapilog._internal.processors import RedactionProcessor
 
     # Test with patterns
-    processor = _redact_processor(["password", "secret"])
+    processor_obj = RedactionProcessor(patterns=["password", "secret"])
+    # Manually compile patterns for testing
+    processor_obj.compiled_patterns = [
+        re.compile(pattern, re.IGNORECASE) for pattern in ["password", "secret"]
+    ]
+
+    def processor(logger, method_name, event_dict):
+        return processor_obj.process(logger, method_name, event_dict)
 
     # Test redaction of string values
     event_dict = {
@@ -136,9 +148,18 @@ def test_redaction_processor_with_patterns():
 
 def test_redaction_processor_nested_dict():
     """Test redaction processor with nested dictionaries."""
-    from fapilog.pipeline import _redact_processor
+    import re
 
-    processor = _redact_processor(["password", "secret"])
+    from fapilog._internal.processors import RedactionProcessor
+
+    processor_obj = RedactionProcessor(patterns=["password", "secret"])
+    # Manually compile patterns for testing
+    processor_obj.compiled_patterns = [
+        re.compile(pattern, re.IGNORECASE) for pattern in ["password", "secret"]
+    ]
+
+    def processor(logger, method_name, event_dict):
+        return processor_obj.process(logger, method_name, event_dict)
 
     event_dict = {
         "user": "john",
@@ -156,9 +177,12 @@ def test_redaction_processor_nested_dict():
 
 def test_sampling_processor_full_rate():
     """Test sampling processor with 100% rate (identity function)."""
-    from fapilog.pipeline import _sampling_processor
+    from fapilog._internal.processors import SamplingProcessor
 
-    processor = _sampling_processor(1.0)
+    processor_obj = SamplingProcessor(rate=1.0)
+
+    def processor(logger, method_name, event_dict):
+        return processor_obj.process(logger, method_name, event_dict)
 
     event_dict = {"key": "value"}
     result = processor(None, "info", event_dict)
@@ -167,13 +191,18 @@ def test_sampling_processor_full_rate():
 
 def test_filter_none_processor():
     """Test filter none processor."""
-    from fapilog.pipeline import _filter_none_processor
+    from fapilog._internal.processors import FilterNoneProcessor
+
+    processor_obj = FilterNoneProcessor()
+
+    def processor(logger, method_name, event_dict):
+        return processor_obj.process(logger, method_name, event_dict)
 
     # Test with None
-    result = _filter_none_processor(None, "info", None)
+    result = processor(None, "info", None)
     assert result is None
 
     # Test with valid dict
     event_dict = {"key": "value"}
-    result = _filter_none_processor(None, "info", event_dict)
+    result = processor(None, "info", event_dict)
     assert result == event_dict
