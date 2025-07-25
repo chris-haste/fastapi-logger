@@ -6,7 +6,7 @@ import random
 import re
 import threading
 import time
-from typing import Any, Dict, List, Optional, Pattern
+from typing import Any
 
 from ..exceptions import ProcessorConfigurationError
 from ..redactors import _should_redact_at_level
@@ -19,7 +19,7 @@ class RedactionProcessor(Processor):
 
     def __init__(
         self,
-        patterns: Optional[List[str]] = None,
+        patterns=None,
         redact_level: str = "INFO",
         **config: Any,
     ) -> None:
@@ -32,7 +32,7 @@ class RedactionProcessor(Processor):
         """
         self.patterns = patterns or []
         self.redact_level = redact_level
-        self.compiled_patterns: List[Pattern[str]] = []
+        self.compiled_patterns = []
         super().__init__(patterns=patterns, redact_level=redact_level, **config)
 
     async def _start_impl(self) -> None:
@@ -57,9 +57,7 @@ class RedactionProcessor(Processor):
         if not isinstance(self.redact_level, str):
             raise ValueError("redact_level must be a string")
 
-    def process(
-        self, logger: Any, method_name: str, event_dict: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def process(self, logger: Any, method_name: str, event_dict):
         """Redact sensitive information from log entries."""
         # Check if redaction should be applied based on log level
         event_level = event_dict.get("level", "INFO")
@@ -108,9 +106,7 @@ class SamplingProcessor(Processor):
         if not 0.0 <= self.rate <= 1.0:
             raise ValueError("rate must be between 0.0 and 1.0")
 
-    def process(
-        self, logger: Any, method_name: str, event_dict: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+    def process(self, logger: Any, method_name: str, event_dict):
         """Sample log events based on the configured rate."""
         if self.rate >= 1.0:
             return event_dict
@@ -131,9 +127,7 @@ class FilterNoneProcessor(Processor):
         """
         super().__init__(**config)
 
-    def process(
-        self, logger: Any, method_name: str, event_dict: Optional[Dict[str, Any]]
-    ) -> Optional[Dict[str, Any]]:
+    def process(self, logger: Any, method_name: str, event_dict):
         """Filter out None events."""
         if event_dict is None:
             return None
@@ -191,9 +185,7 @@ class ThrottleProcessor(Processor):
         if self.strategy not in ["drop", "sample"]:
             raise ProcessorConfigurationError("strategy must be 'drop' or 'sample'")
 
-    def process(
-        self, logger: Any, method_name: str, event_dict: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+    def process(self, logger: Any, method_name: str, event_dict):
         """Apply throttling rules to event."""
         key = self._extract_key(event_dict)
         current_time = time.time()
@@ -205,7 +197,7 @@ class ThrottleProcessor(Processor):
                 self._record_event(key, current_time)
                 return event_dict
 
-    def _extract_key(self, event_dict: Dict[str, Any]) -> str:
+    def _extract_key(self, event_dict):
         """Extract throttling key from event."""
         return str(event_dict.get(self.key_field, "default"))
 
@@ -221,9 +213,7 @@ class ThrottleProcessor(Processor):
         event_count = len(self._rate_tracker.get(key, []))
         return event_count >= self.max_rate
 
-    def _apply_strategy(
-        self, event_dict: Dict[str, Any], key: str
-    ) -> Optional[Dict[str, Any]]:
+    def _apply_strategy(self, event_dict, key: str):
         """Apply throttling strategy."""
         if self.strategy == "drop":
             return None
@@ -270,7 +260,7 @@ class ThrottleProcessor(Processor):
                 if key not in self._rate_tracker:  # Was removed in cleanup
                     keys_to_remove.append(key)
 
-    def get_current_rates(self) -> Dict[str, int]:
+    def get_current_rates(self):
         """Get current event rates for all tracked keys.
 
         Returns:
@@ -295,7 +285,7 @@ class DeduplicationProcessor(Processor):
     def __init__(
         self,
         window_seconds: int = 300,
-        dedupe_fields: Optional[List[str]] = None,
+        dedupe_fields=None,
         max_cache_size: int = 10000,
         hash_algorithm: str = "md5",
         **config: Any,
@@ -355,9 +345,7 @@ class DeduplicationProcessor(Processor):
                 "hash_algorithm must be 'md5', 'sha1', or 'sha256'"
             )
 
-    def process(
-        self, logger: Any, method_name: str, event_dict: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+    def process(self, logger: Any, method_name: str, event_dict):
         """Apply deduplication to event."""
         signature = self._generate_signature(event_dict)
         current_time = time.time()
@@ -371,7 +359,7 @@ class DeduplicationProcessor(Processor):
                 self._cleanup_expired_entries(current_time)
                 return event_dict
 
-    def _generate_signature(self, event_dict: Dict[str, Any]) -> str:
+    def _generate_signature(self, event_dict):
         """Generate unique signature for event based on dedupe_fields."""
         signature_data = {}
         for field in self.dedupe_fields:
@@ -435,7 +423,7 @@ class DeduplicationProcessor(Processor):
             del self._event_cache[signature]
 
     @property
-    def cache_stats(self) -> Dict[str, int]:
+    def cache_stats(self):
         """Get cache statistics for monitoring."""
         with self._lock:
             total_events = sum(count for _, count in self._event_cache.values())
