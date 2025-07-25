@@ -6,7 +6,7 @@ import random
 import re
 import threading
 import time
-from typing import Any, Dict, List, Optional, Pattern, Tuple
+from typing import Any, Dict, List, Optional, Pattern
 
 from ..exceptions import ProcessorConfigurationError
 from ..redactors import _should_redact_at_level
@@ -164,7 +164,7 @@ class ThrottleProcessor(Processor):
         self.window_seconds = window_seconds
         self.key_field = key_field
         self.strategy = strategy
-        self._rate_tracker: Dict[str, List[float]] = {}
+        self._rate_tracker = {}
         self._lock = threading.Lock()
         self._sample_rate = 0.1  # For sample strategy
         super().__init__(
@@ -317,9 +317,7 @@ class DeduplicationProcessor(Processor):
             self.dedupe_fields = dedupe_fields
         self.max_cache_size = max_cache_size
         self.hash_algorithm = hash_algorithm
-        self._event_cache: Dict[
-            str, Tuple[float, int]
-        ] = {}  # signature -> (timestamp, count)
+        self._event_cache = {}  # signature -> (timestamp, count)
         self._lock = threading.Lock()
         super().__init__(
             window_seconds=window_seconds,
