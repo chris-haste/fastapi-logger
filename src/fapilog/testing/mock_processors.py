@@ -78,7 +78,7 @@ class RecordingProcessor(Processor):
         Returns:
             Dictionary with processing statistics
         """
-        level_counts = {}
+        level_counts: Dict[str, int] = {}
         for event in self.recorded_events:
             level = event.get("level", "unknown")
             level_counts[level] = level_counts.get(level, 0) + 1
@@ -86,7 +86,7 @@ class RecordingProcessor(Processor):
         return {
             "total_events": len(self.recorded_events),
             "process_count": self._process_count,
-            "level_counts": level_counts,
+            "level_counts": level_counts,  # type: ignore[dict-item]
         }
 
 
@@ -244,7 +244,9 @@ class TransformProcessor(Processor):
             **config: Configuration parameters
         """
         super().__init__(**config)
-        self.transform_func = transform_func or (lambda x: x)
+        self.transform_func = (
+            transform_func if transform_func is not None else (lambda x: x)  # type: ignore[truthy-function]
+        )
         self._transformation_count = 0
 
     def process(
@@ -543,5 +545,5 @@ class FilteringProcessor(Processor):
             "total_processed": total,
             "passed": self._passed_count,
             "filtered": self._filtered_count,
-            "pass_rate_percent": pass_rate,
+            "pass_rate_percent": float(pass_rate),  # type: ignore[dict-item]
         }

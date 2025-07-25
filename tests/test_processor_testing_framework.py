@@ -64,7 +64,7 @@ class InvalidSignatureProcessor(Processor):
     def __init__(self, **config: Any) -> None:
         super().__init__(**config)
 
-    def process(self, wrong_params: str) -> Dict[str, Any]:  # Wrong signature
+    def process(self, wrong_params: str) -> Dict[str, Any]:  # type: ignore[override]
         return {}
 
 
@@ -79,10 +79,10 @@ class NonAsyncMethodsProcessor(Processor):
     ) -> Dict[str, Any]:
         return event_dict
 
-    def start(self) -> None:  # Should be async
+    def start(self) -> None:  # type: ignore[override]  # Should be async
         pass
 
-    def stop(self) -> None:  # Should be async
+    def stop(self) -> None:  # type: ignore[override]  # Should be async
         pass
 
 

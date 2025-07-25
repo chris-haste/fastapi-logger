@@ -12,7 +12,7 @@ from .._internal.processor_error_handling import safe_processor_execution
 class ProcessorPerformanceTester:
     """Test performance characteristics of custom processors."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.metrics: Dict[str, Any] = {}
         self._test_events: List[Dict[str, Any]] = []
 
@@ -200,9 +200,9 @@ class ProcessorPerformanceTester:
             import psutil
         except ImportError:
             return {
-                "error": "psutil not available for memory testing",
-                "peak_memory_mb": 0,
-                "memory_growth_mb": 0,
+                "error": "psutil not available for memory testing",  # type: ignore[dict-item]
+                "peak_memory_mb": 0.0,
+                "memory_growth_mb": 0.0,
             }
 
         # Start processor if needed
@@ -256,9 +256,9 @@ class ProcessorPerformanceTester:
             import psutil
         except ImportError:
             return {
-                "error": "psutil not available for CPU testing",
-                "avg_cpu_percent": 0,
-                "peak_cpu_percent": 0,
+                "error": "psutil not available for CPU testing",  # type: ignore[dict-item]
+                "avg_cpu_percent": 0.0,
+                "peak_cpu_percent": 0.0,
             }
 
         # Start processor if needed
@@ -493,7 +493,7 @@ class ProcessorPerformanceTester:
         if not results:
             return {"error": "No results to compare"}
 
-        comparison = {
+        comparison: Dict[str, Any] = {
             "metric": metric_name,
             "processors": {},
             "best_performer": None,

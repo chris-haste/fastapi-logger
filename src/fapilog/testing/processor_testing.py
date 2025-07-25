@@ -427,11 +427,11 @@ class ProcessorTestFramework:
         except Exception as e:
             self.errors.append(e)
             return {
-                "throughput_eps": 0,
-                "avg_latency_ms": 0,
-                "total_duration_seconds": 0,
+                "throughput_eps": 0.0,
+                "avg_latency_ms": 0.0,
+                "total_duration_seconds": 0.0,
                 "event_count": 0,
-                "error": str(e),
+                "error": str(e),  # type: ignore[dict-item]
             }
 
     def clear_state(self) -> None:

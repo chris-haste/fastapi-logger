@@ -139,4 +139,16 @@ _test_events
 ignore_order
 
 # Queue internal attributes used by the system
-disabled 
+disabled
+
+# Mock processor methods - used by external developers for testing
+get_timing_stats
+get_transformation_count
+get_filter_stats
+
+# Processor performance testing methods - used by external developers
+export_results
+compare_processors
+
+# Processor testing framework methods - used by external developers
+run_comprehensive_test_suite 
