@@ -169,4 +169,12 @@ ThrottleProcessor._cleanup_old_entries  # Background cleanup method for memory m
 ThrottleProcessor.get_current_rates  # Monitoring method for observability
 
 # DeduplicationProcessor API methods - may be called by external monitoring systems
-DeduplicationProcessor.cache_stats  # Property for monitoring cache statistics 
+DeduplicationProcessor.cache_stats  # Property for monitoring cache statistics
+
+# ValidationProcessor API methods - used by external developers for monitoring
+ValidationProcessor.validation_stats  # Property for monitoring validation statistics
+
+# ValidationProcessor settings - used for configuration
+enable_validation  # LoggingSettings field for enabling validation
+validation_required_fields  # LoggingSettings field for specifying required fields
+validation_field_types  # LoggingSettings field for specifying field types 

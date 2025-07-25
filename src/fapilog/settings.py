@@ -1,6 +1,6 @@
 """Configuration settings for fapilog."""
 
-from typing import Any, List, Literal, Union
+from typing import Any, Dict, List, Literal, Union
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -157,6 +157,25 @@ class LoggingSettings(BaseSettings):
         default="md5",
         description="Hash algorithm for signatures: md5, sha1, sha256",
     )
+
+    # Validation configuration
+    enable_validation: bool = Field(
+        default=False,
+        description="Enable log event validation",
+    )
+    validation_mode: str = Field(
+        default="lenient",
+        description="Validation mode: strict, lenient, fix",
+    )
+    validation_required_fields: Union[List[str], str] = Field(
+        default_factory=lambda: ["timestamp", "level", "event"],
+        description="Required fields for log events",
+    )
+    validation_field_types: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Expected types for specific fields",
+    )
+
     # Metrics settings
     metrics_enabled: bool = Field(
         default=False,
