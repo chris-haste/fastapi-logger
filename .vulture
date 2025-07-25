@@ -53,6 +53,17 @@ validate_processor_configuration
 safe_processor_lifecycle_operation
 _handle_processor_chain_error
 
+# Processor testing framework - used by external developers
+ProcessorTestFramework
+RecordingProcessor
+FailingProcessor
+SlowProcessor
+TransformProcessor
+ConditionalFailingProcessor
+BatchingProcessor
+FilteringProcessor
+ProcessorPerformanceTester
+
 # Middleware functions used by FastAPI
 add_trace_exception_handler
 trace_exception_handler
