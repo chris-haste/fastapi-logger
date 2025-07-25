@@ -6,7 +6,7 @@ import random
 import re
 import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Pattern, Tuple
 
 from ..exceptions import ProcessorConfigurationError
 from ..redactors import _should_redact_at_level
@@ -32,7 +32,7 @@ class RedactionProcessor(Processor):
         """
         self.patterns = patterns or []
         self.redact_level = redact_level
-        self.compiled_patterns: List[re.Pattern[str]] = []
+        self.compiled_patterns: List[Pattern[str]] = []
         super().__init__(patterns=patterns, redact_level=redact_level, **config)
 
     async def _start_impl(self) -> None:
@@ -318,7 +318,7 @@ class DeduplicationProcessor(Processor):
         self.max_cache_size = max_cache_size
         self.hash_algorithm = hash_algorithm
         self._event_cache: Dict[
-            str, tuple[float, int]
+            str, Tuple[float, int]
         ] = {}  # signature -> (timestamp, count)
         self._lock = threading.Lock()
         super().__init__(
