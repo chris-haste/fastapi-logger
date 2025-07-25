@@ -7,6 +7,7 @@ from typing import Any, Optional
 import structlog
 
 from ._internal.context import get_trace_id as get_current_trace_id
+from ._internal.processor_registry import register_processor
 from ._internal.queue import Sink
 from ._internal.sink_registry import SinkRegistry, register_sink
 from .bootstrap import configure_logging
@@ -68,6 +69,7 @@ __all__ = [
     "Sink",
     "SinkRegistry",
     "register_sink",
+    "register_processor",
     "__version__",
 ]
 
