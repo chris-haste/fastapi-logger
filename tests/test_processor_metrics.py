@@ -1,6 +1,5 @@
 """Tests for processor metrics functionality."""
 
-import sys
 import threading
 import time
 from typing import Any, Dict, Optional
@@ -31,32 +30,18 @@ class TestProcessorMetrics:
         metrics = ProcessorMetrics()
         assert metrics._metrics == {}
 
-        # Debug information for CI troubleshooting
-        print(f"DEBUG: metrics._lock type: {type(metrics._lock)}")
-        print(f"DEBUG: threading.Lock type: {type(threading.Lock())}")
-        print(f"DEBUG: threading.Lock class: {threading.Lock}")
-        print(f"DEBUG: Python version: {sys.version}")
-        print(f"DEBUG: threading module: {threading}")
-
-        # Check if _lock is actually a lock-like object
-        assert hasattr(metrics._lock, "acquire"), (
-            f"_lock missing acquire method, type: {type(metrics._lock)}"
-        )
-        assert hasattr(metrics._lock, "release"), (
-            f"_lock missing release method, type: {type(metrics._lock)}"
-        )
-
-        # Try alternative isinstance check
+        # Cross-platform compatible threading.Lock check
+        # Some Python versions/environments don't support isinstance(obj, threading.Lock)
         try:
             assert isinstance(metrics._lock, threading.Lock)
-        except TypeError as e:
-            print(f"DEBUG: isinstance error: {e}")
-            # Alternative check - verify it's a lock-like object
+        except TypeError:
+            # Fallback for environments where threading.Lock is not a direct class
             lock_type = type(threading.Lock())
-            print(f"DEBUG: Actual lock instance type: {lock_type}")
-            assert isinstance(metrics._lock, lock_type), (
-                f"Expected lock type {lock_type}, got {type(metrics._lock)}"
-            )
+            assert isinstance(metrics._lock, lock_type)
+
+        # Verify lock functionality
+        assert hasattr(metrics._lock, "acquire")
+        assert hasattr(metrics._lock, "release")
 
     def test_record_processor_execution_success(self):
         """Test recording successful processor execution."""
