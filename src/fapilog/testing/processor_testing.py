@@ -119,15 +119,11 @@ class ProcessorTestFramework:
             processor_class: Processor class to register
 
         Returns:
-            True if registration and retrieval work correctly, or True if registry doesn't exist
+            True if registration and retrieval work correctly
         """
         try:
-            # Try to import ProcessorRegistry - it may not exist in this version
-            try:
-                from .._internal.processor_registry import ProcessorRegistry
-            except ImportError:
-                # ProcessorRegistry doesn't exist, skip this test
-                return True
+            # Import ProcessorRegistry
+            from .._internal.processor_registry import ProcessorRegistry
 
             # Clear any existing registration and backup
             original_processors = ProcessorRegistry._processors.copy()
@@ -136,6 +132,7 @@ class ProcessorTestFramework:
             ProcessorRegistry.clear()
 
             # Test registration with the actual processor class
+
             ProcessorRegistry.register(name, processor_class)
 
             # Test retrieval

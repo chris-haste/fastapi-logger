@@ -19,9 +19,9 @@ This example focuses on business logging across multiple sink destinations.
 
 import asyncio
 import os
-import tempfile
 import time
 from contextlib import asynccontextmanager
+from tempfile import NamedTemporaryFile
 from typing import Any, Dict, List
 
 from fastapi import FastAPI, HTTPException
@@ -41,8 +41,12 @@ class OrderRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
-    # Create temporary log file for this example
-    log_file_path = tempfile.mktemp(suffix=".log", prefix="fapilog_multi_sink_")
+    # Create secure temporary log file for this example
+    # Using NamedTemporaryFile with delete=False for secure temporary file creation
+    with NamedTemporaryFile(
+        mode="w+", suffix=".log", prefix="fapilog_multi_sink_", delete=False
+    ) as temp_file:
+        log_file_path = temp_file.name
 
     # Configure multiple sinks via settings
     settings = LoggingSettings(

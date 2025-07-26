@@ -329,6 +329,7 @@ class TestProcessorTestFramework:
         framework = ProcessorTestFramework()
 
         # Since the registry now exists, this should test actual registration
+
         result = framework.test_processor_registration("test", SimpleTestProcessor)
         assert result is True  # Should return True when registration succeeds
 
