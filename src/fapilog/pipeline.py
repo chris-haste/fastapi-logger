@@ -28,28 +28,12 @@ from .redactors import field_redactor
 from .settings import LoggingSettings
 
 
-def _processor_to_function(processor: Processor) -> Any:
-    """Convert a processor instance to a function for structlog chain.
-
-    Args:
-        processor: The processor instance to convert
-
-    Returns:
-        A function that can be used in the structlog processor chain
-    """
-
-    def processor_function(logger: Any, method_name: str, event_dict: Any) -> Any:
-        return processor.process(logger, method_name, event_dict)
-
-    return processor_function
-
-
-def _wrap_processor_with_error_handling(
+def _create_safe_processor(
     processor: Processor,
     fallback_strategy: str = "pass_through",
     retry_count: int = 0,
 ) -> Any:
-    """Wrap processor with error handling and graceful degradation.
+    """Create a safe processor wrapper with error handling and graceful degradation.
 
     Args:
         processor: The processor instance to wrap
@@ -60,7 +44,7 @@ def _wrap_processor_with_error_handling(
         retry_count: Number of retries on failure (0 = no retries)
 
     Returns:
-        A wrapped processor function with error handling
+        A wrapped processor function with error handling that can be used in structlog chain
     """
     return create_safe_processor_wrapper(processor, fallback_strategy, retry_count)
 
@@ -103,10 +87,6 @@ def _handle_processor_chain_error(
     }
 
 
-# Legacy function-based processors have been replaced with class-based processors
-# Located in src/fapilog/_internal/processors.py
-
-
 def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> List[Any]:
     """Build the default processor chain for structlog.
 
@@ -142,9 +122,7 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
         patterns=settings.redact_patterns, redact_level=settings.redact_level
     )
     processors.append(
-        _wrap_processor_with_error_handling(
-            redaction_processor, fallback_strategy="pass_through"
-        )
+        _create_safe_processor(redaction_processor, fallback_strategy="pass_through")
     )
 
     # 8. Field redaction processor (field names)
@@ -194,9 +172,7 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
             strategy=settings.throttle_strategy,
         )
         processors.append(
-            _wrap_processor_with_error_handling(
-                throttle_processor, fallback_strategy="pass_through"
-            )
+            _create_safe_processor(throttle_processor, fallback_strategy="pass_through")
         )
 
     # 15. Deduplication processor - class-based with error handling (if enabled)
@@ -208,25 +184,19 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
             hash_algorithm=settings.dedupe_hash_algorithm,
         )
         processors.append(
-            _wrap_processor_with_error_handling(
-                dedupe_processor, fallback_strategy="pass_through"
-            )
+            _create_safe_processor(dedupe_processor, fallback_strategy="pass_through")
         )
 
     # 16. Sampling processor - class-based with error handling
     sampling_processor = SamplingProcessor(rate=settings.sampling_rate)
     processors.append(
-        _wrap_processor_with_error_handling(
-            sampling_processor, fallback_strategy="pass_through"
-        )
+        _create_safe_processor(sampling_processor, fallback_strategy="pass_through")
     )
 
     # 17. Filter None processor - class-based with error handling
     filter_processor = FilterNoneProcessor()
     processors.append(
-        _wrap_processor_with_error_handling(
-            filter_processor, fallback_strategy="pass_through"
-        )
+        _create_safe_processor(filter_processor, fallback_strategy="pass_through")
     )
 
     # 16. Queue sink or renderer
