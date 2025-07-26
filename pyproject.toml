@@ -342,6 +342,19 @@ ignore_names = [
     "parse_validation_field_types",
     "ValidationProcessor",
     "validation_stats",
+    # Processor metrics settings and methods
+    "enable_processor_metrics",
+    "processor_metrics_include_enrichers",
+    "processor_metrics_reset_interval",
+    "validate_processor_metrics_reset_interval",
+    "ProcessorMetrics",
+    "get_processor_metrics",
+    "wrap_processor_with_metrics",
+    "wrap_function_processor_with_metrics",
+    "get_processor_performance_stats",
+    "get_processor_health_status",
+    "reset_processor_metrics",
+    "get_processor_summary",
 ]
 ignore_decorators = [
     "pytest.fixture",
