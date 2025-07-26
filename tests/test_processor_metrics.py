@@ -1,5 +1,6 @@
 """Tests for processor metrics functionality."""
 
+import sys
 import threading
 import time
 from typing import Any, Dict, Optional
@@ -29,7 +30,33 @@ class TestProcessorMetrics:
         """Test ProcessorMetrics initialization."""
         metrics = ProcessorMetrics()
         assert metrics._metrics == {}
-        assert isinstance(metrics._lock, threading.Lock)
+
+        # Debug information for CI troubleshooting
+        print(f"DEBUG: metrics._lock type: {type(metrics._lock)}")
+        print(f"DEBUG: threading.Lock type: {type(threading.Lock())}")
+        print(f"DEBUG: threading.Lock class: {threading.Lock}")
+        print(f"DEBUG: Python version: {sys.version}")
+        print(f"DEBUG: threading module: {threading}")
+
+        # Check if _lock is actually a lock-like object
+        assert hasattr(metrics._lock, "acquire"), (
+            f"_lock missing acquire method, type: {type(metrics._lock)}"
+        )
+        assert hasattr(metrics._lock, "release"), (
+            f"_lock missing release method, type: {type(metrics._lock)}"
+        )
+
+        # Try alternative isinstance check
+        try:
+            assert isinstance(metrics._lock, threading.Lock)
+        except TypeError as e:
+            print(f"DEBUG: isinstance error: {e}")
+            # Alternative check - verify it's a lock-like object
+            lock_type = type(threading.Lock())
+            print(f"DEBUG: Actual lock instance type: {lock_type}")
+            assert isinstance(metrics._lock, lock_type), (
+                f"Expected lock type {lock_type}, got {type(metrics._lock)}"
+            )
 
     def test_record_processor_execution_success(self):
         """Test recording successful processor execution."""
