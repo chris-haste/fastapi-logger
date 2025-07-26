@@ -1,7 +1,7 @@
 """Processor registry for custom processors in fapilog.
 
 This module provides a global registry for custom processors, allowing developers to
-register custom processor implementations and use them by name.
+register custom processor implementations for use in the logging pipeline.
 """
 
 from typing import Dict, Optional, Type
@@ -78,6 +78,7 @@ def register_processor(name: str):
     Example:
         @register_processor("custom_redaction")
         class CustomRedactionProcessor(Processor):
+
             ...
     """
 

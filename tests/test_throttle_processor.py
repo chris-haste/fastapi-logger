@@ -25,7 +25,12 @@ class TestThrottleProcessor:
         assert processor.strategy == "sample"
         assert processor._sample_rate == 0.1
         assert isinstance(processor._rate_tracker, dict)
-        assert isinstance(processor._lock, threading.Lock)
+        # Cross-platform compatibility for threading.Lock isinstance check
+        try:
+            assert isinstance(processor._lock, threading.Lock)
+        except TypeError:
+            # Fallback for environments where Lock is not a direct class
+            assert isinstance(processor._lock, type(threading.Lock()))
 
     def test_throttle_processor_default_values(self):
         """Test ThrottleProcessor with default configuration."""

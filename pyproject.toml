@@ -56,6 +56,7 @@ dev = [
     "pre-commit>=3.0.0",
     "vulture>=2.10.0",
     "build>=1.0.0",
+    "jsonschema==4.25.0",
 ]
 docs = [
     "sphinx>=5.0.0",
@@ -152,6 +153,7 @@ dependencies = [
     "httpx>=0.27.0",
     "psutil>=5.9",
     "uvicorn>=0.20.0",
+    "jsonschema==4.25.0",
 ]
 default-script = "test"
 
@@ -185,7 +187,7 @@ ignore = [
 "examples/*" = ["B904"]
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 warn_return_any = false
 warn_unused_configs = false
 disallow_untyped_defs = false
@@ -330,6 +332,32 @@ ignore_names = [
     # Loki sink attributes
     "_last_flush",
     "_flush_task",
+    # Validation processor settings and methods
+    "enable_validation",
+    "validation_required_fields", 
+    "validation_field_types",
+    "validation_mode",
+    "validate_validation_mode",
+    "parse_validation_required_fields",
+    "parse_validation_field_types",
+    "ValidationProcessor",
+    "validation_stats",
+    # Processor metrics settings and methods
+    "enable_processor_metrics",
+    "processor_metrics_include_enrichers",
+    "processor_metrics_reset_interval",
+    "validate_processor_metrics_reset_interval",
+    "ProcessorMetrics",
+    "get_processor_metrics",
+    "wrap_processor_with_metrics",
+    "wrap_function_processor_with_metrics",
+    "get_processor_performance_stats",
+    "get_processor_health_status",
+    "reset_processor_metrics",
+    "get_processor_summary",
+    # Processor registry
+    "ProcessorRegistry",
+    "register_processor",
 ]
 ignore_decorators = [
     "pytest.fixture",
