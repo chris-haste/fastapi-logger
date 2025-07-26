@@ -56,6 +56,7 @@ dev = [
     "pre-commit>=3.0.0",
     "vulture>=2.10.0",
     "build>=1.0.0",
+    "jsonschema>=4.0.0",
 ]
 docs = [
     "sphinx>=5.0.0",
@@ -152,6 +153,7 @@ dependencies = [
     "httpx>=0.27.0",
     "psutil>=5.9",
     "uvicorn>=0.20.0",
+    "jsonschema>=4.0.0",
 ]
 default-script = "test"
 
@@ -330,6 +332,16 @@ ignore_names = [
     # Loki sink attributes
     "_last_flush",
     "_flush_task",
+    # Validation processor settings and methods
+    "enable_validation",
+    "validation_required_fields", 
+    "validation_field_types",
+    "validation_mode",
+    "validate_validation_mode",
+    "parse_validation_required_fields",
+    "parse_validation_field_types",
+    "ValidationProcessor",
+    "validation_stats",
 ]
 ignore_decorators = [
     "pytest.fixture",

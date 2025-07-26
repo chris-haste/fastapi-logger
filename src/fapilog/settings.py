@@ -1,6 +1,6 @@
 """Configuration settings for fapilog."""
 
-from typing import Any, List, Literal, Union
+from typing import Any, Dict, List, Literal, Union
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -134,6 +134,23 @@ class LoggingSettings(BaseSettings):
     metrics_prometheus_host: str = Field(
         default="0.0.0.0",
         description="Host for Prometheus metrics HTTP endpoint (default: 0.0.0.0)",
+    )
+    # Validation settings
+    enable_validation: bool = Field(
+        default=False,
+        description="Enable log event validation (default: False)",
+    )
+    validation_mode: str = Field(
+        default="lenient",
+        description="Validation mode: strict, lenient, fix (default: lenient)",
+    )
+    validation_required_fields: Union[List[str], str] = Field(
+        default_factory=lambda: ["timestamp", "level", "event"],
+        description="Required fields for log events (comma-separated or list)",
+    )
+    validation_field_types: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Expected types for specific fields (field -> type mapping)",
     )
 
     model_config = SettingsConfigDict(
@@ -306,3 +323,37 @@ class LoggingSettings(BaseSettings):
                 f"one of {valid_list}",
             )
         return v.lower()
+
+    @field_validator("validation_mode")
+    @classmethod
+    def validate_validation_mode(cls, v: str) -> str:
+        valid_modes = {"strict", "lenient", "fix"}
+        if v.lower() not in valid_modes:
+            valid_list = ", ".join(sorted(valid_modes))
+            raise ConfigurationError(
+                f"Invalid validation_mode '{v}'. Must be one of: {valid_list}",
+                "validation_mode",
+                v,
+                f"one of {valid_list}",
+            )
+        return v.lower()
+
+    @field_validator("validation_required_fields", mode="before")
+    @classmethod
+    def parse_validation_required_fields(cls, v: Any) -> List[str]:
+        if isinstance(v, str):
+            return [item.strip() for item in v.split(",") if item.strip()]
+        return list(v) if isinstance(v, (list, tuple)) else [v]
+
+    @field_validator("validation_field_types", mode="before")
+    @classmethod
+    def parse_validation_field_types(cls, v: Any) -> Dict[str, str]:
+        if isinstance(v, str):
+            # Parse comma-separated key:value pairs
+            result = {}
+            for item in v.split(","):
+                if ":" in item:
+                    key, value = item.split(":", 1)
+                    result[key.strip()] = value.strip()
+            return result
+        return dict(v) if isinstance(v, dict) else {}
