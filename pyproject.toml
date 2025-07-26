@@ -355,6 +355,9 @@ ignore_names = [
     "get_processor_health_status",
     "reset_processor_metrics",
     "get_processor_summary",
+    # Processor registry
+    "ProcessorRegistry",
+    "register_processor",
 ]
 ignore_decorators = [
     "pytest.fixture",
