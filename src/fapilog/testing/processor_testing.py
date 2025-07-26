@@ -119,15 +119,11 @@ class ProcessorTestFramework:
             processor_class: Processor class to register
 
         Returns:
-            True if registration and retrieval work correctly, or True if registry doesn't exist
+            True if registration and retrieval work correctly
         """
         try:
-            # Try to import ProcessorRegistry - it may not exist in this version
-            try:
-                from .._internal.processor_registry import ProcessorRegistry
-            except ImportError:
-                # ProcessorRegistry doesn't exist, skip this test
-                return True
+            # Import ProcessorRegistry
+            from .._internal.processor_registry import ProcessorRegistry
 
             # Clear any existing registration and backup
             original_processors = ProcessorRegistry._processors.copy()
@@ -135,26 +131,19 @@ class ProcessorTestFramework:
             # Clear registry for clean test
             ProcessorRegistry.clear()
 
-            # Since we're testing function registration, create a dummy function
-            def dummy_processor_function():
-                return processor_class
-
             # Test registration
-            ProcessorRegistry.register(name, dummy_processor_function)
+            ProcessorRegistry.register(name, processor_class)
 
             # Test retrieval
-            retrieved_function = ProcessorRegistry.get(name)
-            if retrieved_function != dummy_processor_function:
-                err_msg = "Retrieved function does not match registered function"
+            retrieved_class = ProcessorRegistry.get(name)
+            if retrieved_class != processor_class:
+                err_msg = "Retrieved class does not match registered class"
                 self.errors.append(ValueError(err_msg))
                 return False
 
             # Test listing includes the processor
             all_processors = ProcessorRegistry.list()
-            if (
-                name not in all_processors
-                or all_processors[name] != dummy_processor_function
-            ):
+            if name not in all_processors or all_processors[name] != processor_class:
                 err_msg = "Processor not found in registry listing"
                 self.errors.append(ValueError(err_msg))
                 return False

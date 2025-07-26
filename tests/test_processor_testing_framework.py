@@ -324,13 +324,13 @@ class TestProcessorTestFramework:
                 for msg in error_messages
             )
 
-    def test_test_processor_registration_no_registry(self):
-        """Test processor registration when registry doesn't exist."""
+    def test_test_processor_registration_with_registry(self):
+        """Test processor registration with the processor registry."""
         framework = ProcessorTestFramework()
 
-        # Since the registry doesn't exist anymore, this should always return True
+        # Now that the registry exists, this should work properly
         result = framework.test_processor_registration("test", SimpleTestProcessor)
-        assert result is True  # Should return True when registry doesn't exist
+        assert result is True  # Should return True when registration succeeds
 
     @pytest.mark.asyncio
     async def test_test_processor_lifecycle_success(self):
