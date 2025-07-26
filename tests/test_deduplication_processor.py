@@ -28,7 +28,12 @@ class TestDeduplicationProcessor:
         assert processor.max_cache_size == 5000
         assert processor.hash_algorithm == "sha256"
         assert isinstance(processor._event_cache, dict)
-        assert isinstance(processor._lock, threading.Lock)
+        # Cross-platform compatibility for threading.Lock isinstance check
+        try:
+            assert isinstance(processor._lock, threading.Lock)
+        except TypeError:
+            # Fallback for environments where Lock is not a direct class
+            assert isinstance(processor._lock, type(threading.Lock()))
 
     def test_deduplication_processor_default_values(self):
         """Test DeduplicationProcessor with default configuration."""
