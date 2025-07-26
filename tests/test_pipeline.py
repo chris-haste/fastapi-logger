@@ -105,12 +105,9 @@ def test_redaction_processor_no_patterns():
     # Test with empty patterns
     processor_obj = RedactionProcessor(patterns=[])
 
-    def processor(logger, method_name, event_dict):
-        return processor_obj.process(logger, method_name, event_dict)
-
     # Should return the event_dict unchanged
     event_dict = {"key": "value", "password": "secret123"}
-    result = processor(None, "info", event_dict)
+    result = processor_obj.process(None, "info", event_dict)
     assert result == event_dict
 
 
@@ -127,9 +124,6 @@ def test_redaction_processor_with_patterns():
         re.compile(pattern, re.IGNORECASE) for pattern in ["password", "secret"]
     ]
 
-    def processor(logger, method_name, event_dict):
-        return processor_obj.process(logger, method_name, event_dict)
-
     # Test redaction of string values
     event_dict = {
         "user": "john",
@@ -137,13 +131,14 @@ def test_redaction_processor_with_patterns():
         "token": "abc123",
         "message": "contains secret info",
     }
-    result = processor(None, "info", event_dict)
+    result = processor_obj.process(None, "info", event_dict)
 
     # Check that sensitive values are redacted
     assert result["user"] == "john"  # Should not be redacted
     assert result["password"] == "[REDACTED]"  # Should be redacted
     assert result["token"] == "abc123"  # No pattern match
-    assert result["message"] == "[REDACTED]"  # Contains "secret"
+    # Contains "secret"
+    assert result["message"] == "[REDACTED]"
 
 
 def test_redaction_processor_nested_dict():
@@ -158,15 +153,12 @@ def test_redaction_processor_nested_dict():
         re.compile(pattern, re.IGNORECASE) for pattern in ["password", "secret"]
     ]
 
-    def processor(logger, method_name, event_dict):
-        return processor_obj.process(logger, method_name, event_dict)
-
     event_dict = {
         "user": "john",
         "credentials": {"password": "secret123", "username": "john"},
         "message": "contains secret info",
     }
-    result = processor(None, "info", event_dict)
+    result = processor_obj.process(None, "info", event_dict)
 
     # Check that nested sensitive values are redacted
     assert result["user"] == "john"
@@ -181,11 +173,8 @@ def test_sampling_processor_full_rate():
 
     processor_obj = SamplingProcessor(rate=1.0)
 
-    def processor(logger, method_name, event_dict):
-        return processor_obj.process(logger, method_name, event_dict)
-
     event_dict = {"key": "value"}
-    result = processor(None, "info", event_dict)
+    result = processor_obj.process(None, "info", event_dict)
     assert result == event_dict
 
 
@@ -195,14 +184,16 @@ def test_filter_none_processor():
 
     processor_obj = FilterNoneProcessor()
 
-    def processor(logger, method_name, event_dict):
-        return processor_obj.process(logger, method_name, event_dict)
-
-    # Test with None
-    result = processor(None, "info", None)
+    # Test with None event (should be filtered out)
+    result = processor_obj.process(None, "info", None)
     assert result is None
 
-    # Test with valid dict
-    event_dict = {"key": "value"}
-    result = processor(None, "info", event_dict)
+    # Test with valid event (should pass through)
+    event_dict = {"key": "value", "null_field": None, "empty": ""}
+    result = processor_obj.process(None, "info", event_dict)
+
+    # Should pass through unchanged
     assert result == event_dict
+    assert result["key"] == "value"
+    assert result["null_field"] is None
+    assert result["empty"] == ""

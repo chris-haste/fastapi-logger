@@ -31,7 +31,6 @@ Processor
 RedactionProcessor
 SamplingProcessor
 FilterNoneProcessor
-_processor_to_function
 is_started
 
 # HTTPX patch functions for trace propagation
