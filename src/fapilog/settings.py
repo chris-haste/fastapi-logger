@@ -152,6 +152,19 @@ class LoggingSettings(BaseSettings):
         default_factory=dict,
         description="Expected types for specific fields (field -> type mapping)",
     )
+    # Processor metrics settings
+    enable_processor_metrics: bool = Field(
+        default=False,
+        description="Enable processor performance metrics collection (default: False)",
+    )
+    processor_metrics_include_enrichers: bool = Field(
+        default=True,
+        description="Include enrichers in processor metrics (default: True)",
+    )
+    processor_metrics_reset_interval: int = Field(
+        default=3600,
+        description="Interval to reset processor metrics in seconds (0 = never)",
+    )
 
     model_config = SettingsConfigDict(
         env_prefix="FAPILOG_",
@@ -357,3 +370,15 @@ class LoggingSettings(BaseSettings):
                     result[key.strip()] = value.strip()
             return result
         return dict(v) if isinstance(v, dict) else {}
+
+    @field_validator("processor_metrics_reset_interval")
+    @classmethod
+    def validate_processor_metrics_reset_interval(cls, v: int) -> int:
+        if v < 0:
+            raise ConfigurationError(
+                "Processor metrics reset interval must be non-negative",
+                "processor_metrics_reset_interval",
+                v,
+                "non-negative integer",
+            )
+        return v
