@@ -4,7 +4,7 @@ from typing import Any, Dict
 
 import pytest
 
-from fapilog._internal.processor import FunctionProcessor, Processor
+from fapilog._internal.processor import Processor
 from fapilog._internal.processors import (
     FilterNoneProcessor,
     RedactionProcessor,
@@ -125,53 +125,6 @@ class TestProcessorBase:
         assert result["level"] == "INFO"
         assert result["message"] == "test"
         assert result["processed_by"] == "process_test"
-
-
-class TestFunctionProcessor:
-    """Test the FunctionProcessor wrapper."""
-
-    def test_function_processor_wrapping(self):
-        """Test wrapping function-based processors."""
-
-        def test_function(logger, method_name, event_dict):
-            event_dict["function_called"] = True
-            event_dict["method"] = method_name
-            return event_dict
-
-        processor = FunctionProcessor(test_function)
-        event_dict = {"level": "INFO", "message": "test"}
-
-        result = processor.process(None, "info", event_dict)
-        assert result["function_called"] is True
-        assert result["method"] == "info"
-        assert result["level"] == "INFO"
-        assert result["message"] == "test"
-
-    def test_function_processor_config_ignored(self):
-        """Test that function processors ignore config validation."""
-
-        def simple_function(logger, method_name, event_dict):
-            return event_dict
-
-        # Should not raise any validation errors
-        processor = FunctionProcessor(simple_function, any_config="ignored")
-        assert processor.config["any_config"] == "ignored"
-
-    @pytest.mark.asyncio
-    async def test_function_processor_lifecycle(self):
-        """Test function processor lifecycle methods."""
-
-        def simple_function(logger, method_name, event_dict):
-            return event_dict
-
-        processor = FunctionProcessor(simple_function)
-
-        # Lifecycle methods should work without errors
-        await processor.start()
-        assert processor.is_started
-
-        await processor.stop()
-        assert not processor.is_started
 
 
 class TestRedactionProcessor:
@@ -424,28 +377,3 @@ class TestProcessorIntegration:
         assert result["processed_by"] == "step3"  # Last processor wins
         assert result["level"] == "INFO"
         assert result["message"] == "original"
-
-    def test_mixed_processor_types(self):
-        """Test mixing class-based and function-based processors."""
-
-        def legacy_function(logger, method_name, event_dict):
-            event_dict["legacy_processed"] = True
-            return event_dict
-
-        processors = [
-            ConcreteProcessor("class_proc"),
-            FunctionProcessor(legacy_function),
-            FilterNoneProcessor(),
-        ]
-
-        event_dict = {"level": "INFO", "message": "test"}
-
-        # Process through mixed chain
-        result = event_dict
-        for processor in processors:
-            result = processor.process(None, "info", result)
-
-        assert result["processed_by"] == "class_proc"
-        assert result["legacy_processed"] is True
-        assert result["level"] == "INFO"
-        assert result["message"] == "test"

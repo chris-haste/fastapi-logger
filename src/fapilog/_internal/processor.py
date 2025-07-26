@@ -1,7 +1,7 @@
 """Processor base class and interface for fapilog structured logging."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Optional
 
 
 class Processor(ABC):
@@ -97,44 +97,3 @@ class Processor(ABC):
             True if the processor has been started, False otherwise
         """
         return self._started
-
-
-class FunctionProcessor(Processor):
-    """Wrapper for function-based processors to maintain backward compatibility.
-
-    This allows existing function-based processors to work with the new
-    class-based processor interface without modification.
-    """
-
-    def __init__(self, func: Callable[..., Any], **config: Any) -> None:
-        """Initialize function processor wrapper.
-
-        Args:
-            func: The processor function to wrap
-            **config: Configuration parameters (not used by function processors)
-        """
-        self.func = func
-        super().__init__(**config)
-
-    def process(
-        self, logger: Any, method_name: str, event_dict: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
-        """Execute the wrapped function.
-
-        Args:
-            logger: The logger instance
-            method_name: The logging method name
-            event_dict: The event dictionary to process
-
-        Returns:
-            The result of the wrapped function
-        """
-        return self.func(logger, method_name, event_dict)
-
-    def validate_config(self) -> None:
-        """Validate configuration.
-
-        Function processors don't require configuration validation since
-        they wrap existing functions that don't use the config system.
-        """
-        pass

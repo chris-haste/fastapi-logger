@@ -28,7 +28,6 @@ clear_enrichers
 
 # Processor base classes and implementations - used by external developers
 Processor
-FunctionProcessor
 RedactionProcessor
 SamplingProcessor
 FilterNoneProcessor

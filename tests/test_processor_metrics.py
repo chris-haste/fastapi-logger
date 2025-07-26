@@ -11,7 +11,6 @@ from fapilog._internal.processor import Processor
 from fapilog._internal.processor_metrics import (
     ProcessorMetrics,
     get_processor_metrics,
-    wrap_function_processor_with_metrics,
     wrap_processor_with_metrics,
 )
 from fapilog.monitoring import (
@@ -268,40 +267,6 @@ class TestProcessorWrappers:
         assert stats["failed_executions"] == 1
         assert stats["failure_rate"] == 100.0
         assert "Mock processor error" in stats["error_counts"]
-
-    def test_wrap_function_processor_with_metrics_success(self):
-        """Test wrapping function processor with metrics."""
-        # Reset global metrics
-        from fapilog._internal.processor_metrics import _processor_metrics
-
-        if _processor_metrics:
-            _processor_metrics.reset_stats()
-
-        def mock_function(logger, method_name, event_dict):
-            return {"function_processed": True, **event_dict}
-
-        wrapped = wrap_function_processor_with_metrics(mock_function, "MockFunction")
-
-        event_dict = {"level": "INFO", "message": "test"}
-        result = wrapped(None, "info", event_dict)
-
-        assert result["function_processed"] is True
-        assert result["level"] == "INFO"
-
-        metrics = get_processor_metrics()
-        stats = metrics.get_processor_stats("MockFunction")
-        assert stats["total_executions"] == 1
-        assert stats["successful_executions"] == 1
-
-    def test_wrap_function_processor_with_none_event(self):
-        """Test wrapping function processor with None event."""
-
-        def mock_function(logger, method_name, event_dict):
-            return event_dict
-
-        wrapped = wrap_function_processor_with_metrics(mock_function, "MockFunction")
-        result = wrapped(None, "info", None)
-        assert result is None
 
     def test_event_size_calculation(self):
         """Test event size calculation in metrics."""
