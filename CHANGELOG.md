@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Removed
+
+- **BREAKING**: Removed `FunctionProcessor` backward compatibility wrapper
+  - Function-based processors are no longer supported
+  - All processors must now inherit from the `Processor` base class
+  - Removed `FunctionProcessor` class from `src/fapilog/_internal/processor.py`
+  - Removed related test cases and mixed processor type tests
+  - This change simplifies the processor interface and removes technical debt
+
 ## [0.2.0] - 2024-12-19
 
 ### Added
