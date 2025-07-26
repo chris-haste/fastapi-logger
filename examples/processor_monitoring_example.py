@@ -79,7 +79,7 @@ def example_basic_monitoring():
     settings = LoggingSettings(
         enable_processor_metrics=True,
         level="INFO",
-        enable_sinks=["stdout"],
+        sinks=["stdout"],
     )
 
     configure_logging(settings=settings)
@@ -112,7 +112,7 @@ def example_health_monitoring():
     settings = LoggingSettings(
         enable_processor_metrics=True,
         level="INFO",
-        enable_sinks=["stdout"],
+        sinks=["stdout"],
     )
 
     configure_logging(settings=settings)
@@ -142,7 +142,7 @@ def example_custom_processor_monitoring():
     settings = LoggingSettings(
         enable_processor_metrics=True,
         level="INFO",
-        enable_sinks=["stdout"],
+        sinks=["stdout"],
         processor_metrics_include_enrichers=True,
     )
 
@@ -215,7 +215,7 @@ def example_performance_thresholds():
     settings = LoggingSettings(
         enable_processor_metrics=True,
         level="INFO",
-        enable_sinks=["stdout"],
+        sinks=["stdout"],
     )
 
     logger = configure_logging(settings=settings)
@@ -292,7 +292,7 @@ def example_metrics_reset_and_intervals():
         enable_processor_metrics=True,
         processor_metrics_reset_interval=5,  # Reset every 5 seconds
         level="INFO",
-        enable_sinks=["stdout"],
+        sinks=["stdout"],
     )
 
     configure_logging(settings=settings)
@@ -345,7 +345,7 @@ async def example_async_monitoring():
     settings = LoggingSettings(
         enable_processor_metrics=True,
         level="INFO",
-        enable_sinks=["stdout"],
+        sinks=["stdout"],
     )
 
     configure_logging(settings=settings)
@@ -381,9 +381,9 @@ async def example_async_monitoring():
 
     final_summary = get_processor_summary()
     print("\nAsync monitoring complete:")
-    print(f"  Total processors: {final_summary['total_processors']}")
-    print(f"  Total executions: {final_summary['total_executions']}")
-    print(f"  Average latency: {final_summary['average_latency_ms']:.2f}ms")
+    print(f"  Total processors: {final_summary.get('total_processors', 0)}")
+    print(f"  Total executions: {final_summary.get('total_executions', 0)}")
+    print(f"  Average latency: {final_summary.get('average_latency_ms', 0):.2f}ms")
 
 
 def main():
