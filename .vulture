@@ -166,4 +166,7 @@ SinkTester.test_sink_integration
 # src/fapilog/_internal/processors.py
 # ThrottleProcessor API methods - may be called by external monitoring/background tasks
 ThrottleProcessor._cleanup_old_entries  # Background cleanup method for memory management
-ThrottleProcessor.get_current_rates  # Monitoring method for observability 
+ThrottleProcessor.get_current_rates  # Monitoring method for observability
+
+# DeduplicationProcessor API methods - may be called by external monitoring systems
+DeduplicationProcessor.cache_stats  # Property for monitoring cache statistics 

@@ -135,6 +135,28 @@ class LoggingSettings(BaseSettings):
         default="drop",
         description="Throttling strategy: drop, sample",
     )
+
+    # Deduplication configuration
+    enable_deduplication: bool = Field(
+        default=False,
+        description="Enable log deduplication to remove duplicates",
+    )
+    dedupe_window_seconds: int = Field(
+        default=300,
+        description="Deduplication window in seconds",
+    )
+    dedupe_fields: List[str] = Field(
+        default_factory=lambda: ["event", "level", "hostname"],
+        description="Fields to use for deduplication signature",
+    )
+    dedupe_max_cache_size: int = Field(
+        default=10000,
+        description="Maximum deduplication cache size",
+    )
+    dedupe_hash_algorithm: str = Field(
+        default="md5",
+        description="Hash algorithm for signatures: md5, sha1, sha256",
+    )
     # Metrics settings
     metrics_enabled: bool = Field(
         default=False,

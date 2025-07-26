@@ -10,6 +10,7 @@ from ._internal.processor_error_handling import (
     create_safe_processor_wrapper,
 )
 from ._internal.processors import (
+    DeduplicationProcessor,
     FilterNoneProcessor,
     RedactionProcessor,
     SamplingProcessor,
@@ -198,7 +199,21 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
             )
         )
 
-    # 15. Sampling processor - class-based with error handling
+    # 15. Deduplication processor - class-based with error handling (if enabled)
+    if settings.enable_deduplication:
+        dedupe_processor = DeduplicationProcessor(
+            window_seconds=settings.dedupe_window_seconds,
+            dedupe_fields=settings.dedupe_fields,
+            max_cache_size=settings.dedupe_max_cache_size,
+            hash_algorithm=settings.dedupe_hash_algorithm,
+        )
+        processors.append(
+            _wrap_processor_with_error_handling(
+                dedupe_processor, fallback_strategy="pass_through"
+            )
+        )
+
+    # 16. Sampling processor - class-based with error handling
     sampling_processor = SamplingProcessor(rate=settings.sampling_rate)
     processors.append(
         _wrap_processor_with_error_handling(
@@ -206,7 +221,7 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
         )
     )
 
-    # 16. Filter None processor - class-based with error handling
+    # 17. Filter None processor - class-based with error handling
     filter_processor = FilterNoneProcessor()
     processors.append(
         _wrap_processor_with_error_handling(
