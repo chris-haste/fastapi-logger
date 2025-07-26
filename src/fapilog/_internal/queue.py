@@ -3,7 +3,6 @@
 import asyncio
 import logging
 import random as rnd
-import threading
 import time
 from typing import Any, Dict, List, Literal, Optional
 
@@ -17,42 +16,6 @@ from .error_handling import (
 from .metrics import get_metrics_collector
 
 logger = logging.getLogger(__name__)
-
-# Thread-local storage for current container context
-_thread_local = threading.local()
-
-
-# Removed _is_internal_call as it's no longer needed
-
-
-def set_current_container(container: Any) -> None:
-    """Set the current container for this thread.
-
-    Args:
-        container: The LoggingContainer instance to use for queue operations
-    """
-    _thread_local.container = container
-
-
-def get_current_container() -> Optional[Any]:
-    """Get the current container for this thread.
-
-    Returns:
-        The LoggingContainer instance or None if not set
-    """
-    return getattr(_thread_local, "container", None)
-
-
-def get_current_queue_worker() -> Optional["QueueWorker"]:
-    """Get the queue worker from the current container.
-
-    Returns:
-        The QueueWorker instance or None if no container/worker available
-    """
-    container = get_current_container()
-    if container is not None:
-        return getattr(container, "queue_worker", None)
-    return None
 
 
 class Sink:
@@ -503,40 +466,14 @@ class QueueWorker:
             raise handle_queue_error(e, "enqueue", queue_state) from e
 
 
-# Legacy global queue worker functions for backward compatibility
-_global_queue_worker: Optional[QueueWorker] = None
-
-
-def get_queue_worker() -> Optional[QueueWorker]:
-    """Get the global queue worker instance.
-
-    Returns:
-        The global QueueWorker instance or None
-    """
-    # First try to get from current container, fall back to global
-    worker = get_current_queue_worker()
-    if worker is not None:
-        return worker
-    return _global_queue_worker
-
-
-def set_queue_worker(worker: Optional[QueueWorker]) -> None:
-    """Set the global queue worker instance.
-
-    Args:
-        worker: The QueueWorker instance to set
-    """
-    global _global_queue_worker
-    _global_queue_worker = worker
-
-
 def queue_sink(
     logger: Any, method_name: str, event_dict: Dict[str, Any]
 ) -> Optional[Dict[str, Any]]:
     """Queue sink processor for structlog.
 
     This processor enqueues log events into the async queue instead of
-    writing them directly to sinks.
+    writing them directly to sinks. It only works with container-provided
+    queue workers.
 
     Args:
         logger: The structlog logger instance
@@ -546,14 +483,17 @@ def queue_sink(
     Returns:
         None to prevent further processing, or the event_dict if queuing failed
     """
-    # Try to get worker from current container first, then fall back to global
-    worker = get_current_queue_worker()
-    if worker is None:
-        worker = _global_queue_worker
+    # Import here to avoid circular import
+    from ..container import get_current_container
 
+    container = get_current_container()
+    if container is None:
+        # No container available - return event_dict for further processing
+        return event_dict
+
+    worker = getattr(container, "queue_worker", None)
     if worker is None:
-        # No queue worker available - this should only happen in non-queue mode
-        # Return event_dict for further processing (renderer)
+        # No queue worker available - return event_dict for further processing
         return event_dict
 
     # When we have a queue worker, we should ALWAYS either queue or drop
@@ -615,11 +555,14 @@ async def queue_sink_async(
     logger: Any, method_name: str, event_dict: Dict[str, Any]
 ) -> Optional[Dict[str, Any]]:
     """Async version of queue_sink for use in async contexts."""
-    # Try to get worker from current container first, then fall back to global
-    worker = get_current_queue_worker()
-    if worker is None:
-        worker = _global_queue_worker
+    # Import here to avoid circular import
+    from ..container import get_current_container
 
+    container = get_current_container()
+    if container is None:
+        return event_dict
+
+    worker = getattr(container, "queue_worker", None)
     if worker is None:
         return event_dict
 

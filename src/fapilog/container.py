@@ -31,6 +31,31 @@ logger = logging.getLogger(__name__)
 _container_registry: Set[weakref.ReferenceType["LoggingContainer"]] = set()
 _registry_lock = threading.Lock()
 
+# Current container access without thread-local storage
+_current_container: Optional["LoggingContainer"] = None
+_current_container_lock = threading.RLock()
+
+
+def set_current_container(container: Optional["LoggingContainer"]) -> None:
+    """Set the current container instance.
+
+    Args:
+        container: The LoggingContainer instance to set as current
+    """
+    global _current_container
+    with _current_container_lock:
+        _current_container = container
+
+
+def get_current_container() -> Optional["LoggingContainer"]:
+    """Get the current container instance.
+
+    Returns:
+        The current LoggingContainer instance or None if not set
+    """
+    with _current_container_lock:
+        return _current_container
+
 
 class LoggingContainer:
     """Container that manages all logging dependencies and lifecycle.
@@ -287,8 +312,6 @@ class LoggingContainer:
     def _configure_structlog(self, console_format: str, log_level: str) -> None:
         """Configure structlog with processor chain."""
         # Set this container as the current context for queue operations
-        from ._internal.queue import set_current_container
-
         set_current_container(self)
 
         # Build structlog processor chain using the pipeline
