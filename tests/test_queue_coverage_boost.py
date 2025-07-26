@@ -9,13 +9,10 @@ import structlog
 from fapilog._internal.queue import (
     QueueWorker,
     Sink,
-    get_current_queue_worker,
-    get_queue_worker,
     queue_sink,
     queue_sink_async,
-    set_current_container,
-    set_queue_worker,
 )
+from fapilog.container import set_current_container
 
 
 class TestQueueWorker:
@@ -220,7 +217,6 @@ class TestQueueSinkFunctions:
 
     def setup_method(self):
         """Reset state before each test."""
-        set_queue_worker(None)
         set_current_container(None)
 
     def test_queue_sink_with_container_worker(self):
@@ -251,7 +247,10 @@ class TestQueueSinkFunctions:
         mock_worker._running = False
         mock_worker.overflow_strategy = "drop"
 
-        set_queue_worker(mock_worker)
+        # Create a mock container with the worker
+        mock_container = Mock()
+        mock_container.queue_worker = mock_worker
+        set_current_container(mock_container)
 
         # Mock no running loop
         with patch("asyncio.get_running_loop", side_effect=RuntimeError):
@@ -265,7 +264,10 @@ class TestQueueSinkFunctions:
         mock_worker._running = False
         mock_worker.overflow_strategy = "drop"
 
-        set_queue_worker(mock_worker)
+        # Create a mock container with the worker
+        mock_container = Mock()
+        mock_container.queue_worker = mock_worker
+        set_current_container(mock_container)
 
         # Mock closed loop
         mock_loop = Mock()
@@ -283,7 +285,10 @@ class TestQueueSinkFunctions:
         mock_worker.overflow_strategy = "block"
         mock_worker.queue.put_nowait = Mock(side_effect=asyncio.QueueFull)
 
-        set_queue_worker(mock_worker)
+        # Create a mock container with the worker
+        mock_container = Mock()
+        mock_container.queue_worker = mock_worker
+        set_current_container(mock_container)
 
         # Block strategy in sync context should drop when full
         with pytest.raises(structlog.DropEvent):
@@ -298,7 +303,10 @@ class TestQueueSinkFunctions:
         mock_worker.sampling_rate = 0.0  # Sample out everything
         mock_worker.queue.put_nowait = Mock()
 
-        set_queue_worker(mock_worker)
+        # Create a mock container with the worker
+        mock_container = Mock()
+        mock_container.queue_worker = mock_worker
+        set_current_container(mock_container)
 
         # Should drop due to sampling
         with pytest.raises(structlog.DropEvent):
@@ -322,55 +330,11 @@ class TestQueueSinkFunctions:
         mock_worker = Mock()
         mock_worker.enqueue = AsyncMock(return_value=False)
 
-        set_queue_worker(mock_worker)
+        # Create a mock container with the worker
+        mock_container = Mock()
+        mock_container.queue_worker = mock_worker
+        set_current_container(mock_container)
 
         result = await queue_sink_async(None, "info", {"test": "event"})
 
         assert result is None
-
-
-class TestQueueUtilityFunctions:
-    """Test queue utility functions."""
-
-    def test_set_get_current_container(self):
-        """Test setting and getting current container."""
-        mock_container = Mock()
-        mock_container.queue_worker = Mock()
-
-        set_current_container(mock_container)
-
-        worker = get_current_queue_worker()
-        assert worker is mock_container.queue_worker
-
-    def test_get_current_queue_worker_no_container(self):
-        """Test getting queue worker when no container."""
-        set_current_container(None)
-
-        worker = get_current_queue_worker()
-        assert worker is None
-
-    def test_get_current_queue_worker_no_worker_attr(self):
-        """Test getting queue worker when container has no worker."""
-        mock_container = Mock(spec=[])  # No queue_worker attribute
-        set_current_container(mock_container)
-
-        worker = get_current_queue_worker()
-        assert worker is None
-
-    def test_get_queue_worker_priority(self):
-        """Test that get_queue_worker prioritizes container worker."""
-        container_worker = Mock()
-        global_worker = Mock()
-
-        mock_container = Mock()
-        mock_container.queue_worker = container_worker
-        set_current_container(mock_container)
-        set_queue_worker(global_worker)
-
-        worker = get_queue_worker()
-        assert worker is container_worker  # Should prefer container worker
-
-        # Clean up
-        set_current_container(None)
-        worker = get_queue_worker()
-        assert worker is global_worker  # Should fall back to global

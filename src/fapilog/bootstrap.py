@@ -59,11 +59,6 @@ def configure_logging(
         app=app,
     )
 
-    # Update global queue worker for backward compatibility
-    from ._internal.queue import set_queue_worker
-
-    set_queue_worker(container.queue_worker)
-
     return result
 
 
