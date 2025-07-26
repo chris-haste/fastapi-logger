@@ -105,13 +105,35 @@ class LoggingSettings(BaseSettings):
         description="Enable user context enrichment in log entries (default: True)",
     )
     enable_auto_redact_pii: bool = Field(
-        default=True,
-        description="Enable automatic PII detection and redaction (default: True)",
+        default=False,
+        description="Enable automatic PII detection and redaction using built-in patterns",
     )
     custom_pii_patterns: List[str] = Field(
         default_factory=lambda: [],
-        description="List of custom regex patterns for PII detection "
+        description="Custom PII patterns to add to the default set "
         "(comma-separated or list)",
+    )
+
+    # Throttling configuration
+    enable_throttling: bool = Field(
+        default=False,
+        description="Enable log throttling to prevent flooding",
+    )
+    throttle_max_rate: int = Field(
+        default=100,
+        description="Maximum events per window per key",
+    )
+    throttle_window_seconds: int = Field(
+        default=60,
+        description="Throttling window in seconds",
+    )
+    throttle_key_field: str = Field(
+        default="source",
+        description="Field to use as throttling key",
+    )
+    throttle_strategy: str = Field(
+        default="drop",
+        description="Throttling strategy: drop, sample",
     )
     # Metrics settings
     metrics_enabled: bool = Field(

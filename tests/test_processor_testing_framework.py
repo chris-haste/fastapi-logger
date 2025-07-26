@@ -325,10 +325,11 @@ class TestProcessorTestFramework:
             )
 
     def test_test_processor_registration_with_registry(self):
-        """Test processor registration with the processor registry."""
+        """Test processor registration when registry exists."""
         framework = ProcessorTestFramework()
 
-        # Now that the registry exists, this should work properly
+        # Since the registry now exists, this should test actual registration
+
         result = framework.test_processor_registration("test", SimpleTestProcessor)
         assert result is True  # Should return True when registration succeeds
 

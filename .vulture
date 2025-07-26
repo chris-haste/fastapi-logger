@@ -152,3 +152,18 @@ compare_processors
 
 # Processor testing framework methods - used by external developers
 run_comprehensive_test_suite 
+
+# src/fapilog/testing/sink_testing.py
+# SinkTester is intentionally similar to ProcessorTester
+SinkTester.test_sink_lifecycle  # Similar to processor testing
+SinkTester.test_sink_configuration
+SinkTester.test_sink_error_handling
+SinkTester.test_sink_async_operations
+SinkTester.test_sink_registration
+SinkTester.test_sink_context_manager
+SinkTester.test_sink_integration
+
+# src/fapilog/_internal/processors.py
+# ThrottleProcessor API methods - may be called by external monitoring/background tasks
+ThrottleProcessor._cleanup_old_entries  # Background cleanup method for memory management
+ThrottleProcessor.get_current_rates  # Monitoring method for observability 

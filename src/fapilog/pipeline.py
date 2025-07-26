@@ -13,6 +13,7 @@ from ._internal.processors import (
     FilterNoneProcessor,
     RedactionProcessor,
     SamplingProcessor,
+    ThrottleProcessor,
 )
 from .enrichers import (
     body_size_enricher,
@@ -183,7 +184,21 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
     # 13. Custom registered enrichers (after all built-in enrichers)
     processors.append(run_registered_enrichers)
 
-    # 14. Sampling processor - class-based with error handling
+    # 14. Throttling processor - class-based with error handling (if enabled)
+    if settings.enable_throttling:
+        throttle_processor = ThrottleProcessor(
+            max_rate=settings.throttle_max_rate,
+            window_seconds=settings.throttle_window_seconds,
+            key_field=settings.throttle_key_field,
+            strategy=settings.throttle_strategy,
+        )
+        processors.append(
+            _wrap_processor_with_error_handling(
+                throttle_processor, fallback_strategy="pass_through"
+            )
+        )
+
+    # 15. Sampling processor - class-based with error handling
     sampling_processor = SamplingProcessor(rate=settings.sampling_rate)
     processors.append(
         _wrap_processor_with_error_handling(
@@ -191,7 +206,7 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
         )
     )
 
-    # 15. Filter None processor - class-based with error handling
+    # 16. Filter None processor - class-based with error handling
     filter_processor = FilterNoneProcessor()
     processors.append(
         _wrap_processor_with_error_handling(

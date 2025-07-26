@@ -76,8 +76,9 @@ def register_processor(name: str):
         Decorator function that registers the processor
 
     Example:
-        @register_processor("custom_validator")
-        class CustomValidationProcessor(Processor):
+        @register_processor("custom_redaction")
+        class CustomRedactionProcessor(Processor):
+
             ...
     """
 

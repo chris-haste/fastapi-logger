@@ -131,7 +131,8 @@ class ProcessorTestFramework:
             # Clear registry for clean test
             ProcessorRegistry.clear()
 
-            # Test registration
+            # Test registration with the actual processor class
+
             ProcessorRegistry.register(name, processor_class)
 
             # Test retrieval
