@@ -319,6 +319,8 @@ ignore_names = [
     "enqueue",
     
     "reset_logging",
+    # Cache monitoring methods (public API for observability)
+    "get_cache_stats",
     # Enricher functions
     "create_user_dependency",
     "register_enricher",
