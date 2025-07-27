@@ -310,7 +310,8 @@ ignore_names = [
     "reset_request_metadata",
     "reset_response_metadata",
     # Queue and async functions
-    "queue_sink_async",
+    "enqueue",
+    
     "reset_logging",
     # Enricher functions
     "create_user_dependency",

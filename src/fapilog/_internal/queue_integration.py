@@ -97,27 +97,3 @@ def queue_sink(
             raise structlog.DropEvent
         except asyncio.QueueFull:
             raise structlog.DropEvent from None
-
-
-async def queue_sink_async(
-    logger: Any, method_name: str, event_dict: Dict[str, Any]
-) -> Optional[Dict[str, Any]]:
-    """Async version of queue_sink for use in async contexts."""
-    # Import here to avoid circular import
-    from ..container import get_current_container
-
-    container = get_current_container()
-    if container is None:
-        return event_dict
-
-    worker = getattr(container, "queue_worker", None)
-    if worker is None:
-        return event_dict
-
-    # Try to enqueue the event
-    enqueued = await worker.enqueue(event_dict)
-    if not enqueued:
-        # Queue is full or shutting down, drop the event silently
-        return None
-
-    return None  # Prevent further processing

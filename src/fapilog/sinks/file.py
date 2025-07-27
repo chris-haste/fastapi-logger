@@ -1,8 +1,8 @@
 """File sink implementation for async logging with rotation support."""
 
+import asyncio
 import logging
 import logging.handlers
-import threading
 import time
 from pathlib import Path
 from typing import Any, Dict
@@ -30,6 +30,7 @@ class FileSink(Sink):
             max_bytes: Maximum file size before rotation (default: 10 MB)
             backup_count: Number of backup files to keep (default: 5)
         """
+        super().__init__()
         self.file_path = Path(file_path)
         self.max_bytes = max_bytes
         self.backup_count = backup_count
@@ -51,8 +52,13 @@ class FileSink(Sink):
         self._logger.addHandler(self._handler)
         self._logger.propagate = False  # Prevent double logging
 
-        # Thread lock for thread-safe writing
-        self._lock = threading.Lock()
+        # Async lock for async-safe writing (FIXED: was threading.Lock)
+        self._lock = asyncio.Lock()
+
+    def _write_and_flush(self, record: logging.LogRecord) -> None:
+        """Write log record and flush handler (sync helper for executor)."""
+        self._logger.handle(record)
+        self._handler.flush()
 
     async def write(self, event_dict: Dict[str, Any]) -> None:
         """Write a log event to the file.
@@ -80,10 +86,12 @@ class FileSink(Sink):
                 exc_info=None,
             )
 
-            # Thread-safe writing with immediate flush
-            with self._lock:
-                self._logger.handle(record)
-                self._handler.flush()
+            # Async-safe writing with immediate flush
+            # (FIXED: was blocking with threading.Lock)
+            async with self._lock:
+                # File operations should run in executor to avoid blocking
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, lambda: self._write_and_flush(record))
             success = True
         except Exception as e:
             error_msg = str(e)
