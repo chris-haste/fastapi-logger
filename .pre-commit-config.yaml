@@ -21,7 +21,7 @@ repos:
     rev: v2.14
     hooks:
       - id: vulture
-        args: [src/, tests/, .vulture]
+        args: [src/, tests/]
 
   # Release guardrails check
   - repo: local

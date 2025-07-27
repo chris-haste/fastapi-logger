@@ -1,13 +1,13 @@
 """Default processor pipeline for fapilog structured logging."""
 
-from typing import Any, Dict, List
+from typing import Any, List
 
 import structlog
 
 from ._internal.pii_patterns import DEFAULT_PII_PATTERNS, auto_redact_pii_processor
 from ._internal.processor import Processor
 from ._internal.processor_error_handling import (
-    create_safe_processor_wrapper,
+    create_simple_processor_wrapper,
 )
 from ._internal.processors import (
     DeduplicationProcessor,
@@ -30,61 +30,16 @@ from .settings import LoggingSettings
 
 def _create_safe_processor(
     processor: Processor,
-    fallback_strategy: str = "pass_through",
-    retry_count: int = 0,
 ) -> Any:
-    """Create a safe processor wrapper with error handling and graceful degradation.
+    """Create a simple processor wrapper with fail-fast error handling.
 
     Args:
         processor: The processor instance to wrap
-        fallback_strategy: Strategy for handling failures
-            - "pass_through": Return original event_dict on failure
-            - "drop": Return None to drop the event
-            - "fallback_value": Return a safe default event structure
-        retry_count: Number of retries on failure (0 = no retries)
 
     Returns:
-        A wrapped processor function with error handling that can be used in structlog chain
+        A wrapped processor function with simplified error handling that can be used in structlog chain
     """
-    return create_safe_processor_wrapper(processor, fallback_strategy, retry_count)
-
-
-def _handle_processor_chain_error(
-    processor_name: str,
-    error: Exception,
-    event_dict: Dict[str, Any],
-) -> Dict[str, Any]:
-    """Handle errors in processor chain with fallback behavior.
-
-    Args:
-        processor_name: Name of the processor that failed
-        error: The exception that occurred
-        event_dict: The original event dictionary
-
-    Returns:
-        Fallback event dictionary
-    """
-    from ._internal.processor_error_handling import handle_processor_error
-
-    # Handle the error with context
-    handle_processor_error(
-        error,
-        processor_name,
-        context={
-            "event_keys": list(event_dict.keys()) if event_dict else [],
-            "chain_position": "unknown",
-        },
-        operation="chain_processing",
-    )
-
-    # Return a safe fallback event
-    return {
-        "level": event_dict.get("level", "ERROR"),
-        "message": "Processor chain error occurred",
-        "processor_error": True,
-        "failed_processor": processor_name,
-        "original_message": event_dict.get("message", "unknown"),
-    }
+    return create_simple_processor_wrapper(processor)
 
 
 def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> List[Any]:
@@ -121,9 +76,7 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
     redaction_processor = RedactionProcessor(
         patterns=settings.redact_patterns, redact_level=settings.redact_level
     )
-    processors.append(
-        _create_safe_processor(redaction_processor, fallback_strategy="pass_through")
-    )
+    processors.append(_create_safe_processor(redaction_processor))
 
     # 8. Field redaction processor (field names)
     processors.append(
@@ -171,9 +124,7 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
             key_field=settings.throttle_key_field,
             strategy=settings.throttle_strategy,
         )
-        processors.append(
-            _create_safe_processor(throttle_processor, fallback_strategy="pass_through")
-        )
+        processors.append(_create_safe_processor(throttle_processor))
 
     # 15. Deduplication processor - class-based with error handling (if enabled)
     if settings.enable_deduplication:
@@ -183,21 +134,15 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
             max_cache_size=settings.dedupe_max_cache_size,
             hash_algorithm=settings.dedupe_hash_algorithm,
         )
-        processors.append(
-            _create_safe_processor(dedupe_processor, fallback_strategy="pass_through")
-        )
+        processors.append(_create_safe_processor(dedupe_processor))
 
     # 16. Sampling processor - class-based with error handling
     sampling_processor = SamplingProcessor(rate=settings.sampling_rate)
-    processors.append(
-        _create_safe_processor(sampling_processor, fallback_strategy="pass_through")
-    )
+    processors.append(_create_safe_processor(sampling_processor))
 
     # 17. Filter None processor - class-based with error handling
     filter_processor = FilterNoneProcessor()
-    processors.append(
-        _create_safe_processor(filter_processor, fallback_strategy="pass_through")
-    )
+    processors.append(_create_safe_processor(filter_processor))
 
     # 16. Queue sink or renderer
     if settings.queue_enabled:

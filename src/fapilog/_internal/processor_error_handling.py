@@ -1,11 +1,10 @@
 """Error handling utilities for processors in fapilog."""
 
 import logging
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Union
 
 from ..exceptions import (
     ProcessorConfigurationError,
-    ProcessorError,
     ProcessorExecutionError,
     ProcessorRegistrationError,
 )
@@ -20,30 +19,36 @@ def handle_processor_error(
     processor_name: str,
     context: Optional[Dict[str, Any]] = None,
     operation: str = "execution",
-) -> ProcessorError:
-    """Handle processor errors with context.
+) -> Union[
+    ProcessorExecutionError,
+    ProcessorConfigurationError,
+    ProcessorRegistrationError,
+]:
+    """
+    Create appropriate processor error with structured context.
 
     Args:
-        error: The original exception
+        error: The original exception that was raised
         processor_name: Name of the processor that failed
-        context: Additional context information
-        operation: Operation that failed
+        context: Additional context about the failure
+        operation: Type of operation that failed
 
     Returns:
-        ProcessorError with proper context
+        Appropriate ProcessorError subclass instance
     """
-    error_context = {
-        "operation": operation,
-        "original_error": str(error),
-    }
+    error_context: Dict[str, Any] = {"operation": operation}
 
     if context:
         # Filter out sensitive information from context
-        safe_context = {
-            k: v
-            for k, v in context.items()
-            if k not in ["password", "token", "secret", "key", "api_key", "credential"]
-        }
+        sensitive_keys = [
+            "password",
+            "token",
+            "secret",
+            "key",
+            "api_key",
+            "credential",
+        ]
+        safe_context = {k: v for k, v in context.items() if k not in sensitive_keys}
         error_context.update(safe_context)
 
     message = f"Processor {operation} failed for {processor_name}: {error}"
@@ -61,68 +66,61 @@ def handle_processor_error(
         )
 
 
-def safe_processor_execution(
+def simple_processor_execution(
     processor: Processor,
     logger_instance: Any,
     method_name: str,
     event_dict: Dict[str, Any],
-    fallback_strategy: str = "pass_through",
 ) -> Optional[Dict[str, Any]]:
-    """Execute processor with comprehensive error handling.
+    """Execute processor with fail-fast error handling.
 
     Args:
         processor: The processor instance to execute
-        logger_instance: Logger instance for the event
-        method_name: Logging method name
-        event_dict: Event dictionary to process
-        fallback_strategy: Strategy for handling failures
-            - "pass_through": Return original event_dict on failure
-            - "drop": Return None to drop the event
-            - "fallback_value": Return a safe default event structure
+        logger_instance: Logger instance for capturing errors
+        method_name: Name of the method being called
+        event_dict: The event dictionary to process
 
     Returns:
-        Processed event dict, original event dict, None, or fallback structure
+        - Processed event dictionary or None if processor drops the event
+        - Original event is returned on failure for graceful degradation
     """
     processor_name = processor.__class__.__name__
 
     try:
+        # Allow processors to return None (SamplingProcessor drops events)
         return processor.process(logger_instance, method_name, event_dict)
     except Exception as e:
-        # Create context about the event being processed
-        event_context = {
-            "event_keys": list(event_dict.keys()) if event_dict else [],
-            "method_name": method_name,
-            "fallback_strategy": fallback_strategy,
-        }
+        # Log warning and return original event for graceful degradation
+        logger.warning(
+            f"Processor {processor_name} failed during {method_name}, "
+            f"continuing with original event. Error: {e}"
+        )
+        return event_dict
 
-        # Handle the error with context
-        handle_processor_error(e, processor_name, event_context, "process")
 
-        # Apply fallback strategy
-        if fallback_strategy == "pass_through":
-            logger.warning(
-                f"Processor {processor_name} failed, passing through original event"
-            )
-            return event_dict
-        elif fallback_strategy == "drop":
-            logger.warning(f"Processor {processor_name} failed, dropping event")
-            return None
-        elif fallback_strategy == "fallback_value":
-            logger.warning(
-                f"Processor {processor_name} failed, using fallback event structure"
-            )
-            return {
-                "level": event_dict.get("level", "ERROR"),
-                "message": "Processor execution failed",
-                "processor_error": True,
-                "original_message": event_dict.get("message", "unknown"),
-            }
-        else:
-            # Invalid fallback strategy, default to pass_through
-            logger.error(
-                f"Invalid fallback strategy '{fallback_strategy}', using pass_through"
-            )
-            return event_dict
+def create_simple_processor_wrapper(
+    processor: Processor,
+) -> Callable[[Any, str, Dict[str, Any]], Optional[Dict[str, Any]]]:
+    """Create a simple wrapper for processor execution with fail-fast error handling.
+
+    Args:
+        processor: The processor to wrap
+
+    Returns:
+        A wrapped processor function with simplified error handling
+    """
+
+    def wrapped_processor(
+        logger_instance: Any,
+        method_name: str,
+        event_dict: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """Wrapped processor with fail-fast error handling."""
+        return simple_processor_execution(
+            processor, logger_instance, method_name, event_dict
+        )
+
+    return wrapped_processor
 
 
 def log_processor_error_with_context(
@@ -139,100 +137,6 @@ def log_processor_error_with_context(
     """
     # Use the established error logging pattern
     log_error_with_context(error, context, level)
-
-
-def create_safe_processor_wrapper(
-    processor: Processor,
-    fallback_strategy: str = "pass_through",
-    retry_count: int = 0,
-) -> Callable[[Any, str, Dict[str, Any]], Optional[Dict[str, Any]]]:
-    """Create a safe wrapper for processor execution.
-
-    Args:
-        processor: The processor to wrap
-        fallback_strategy: Strategy for handling failures
-        retry_count: Number of retries on failure (0 = no retries)
-
-    Returns:
-        A wrapped processor function with error handling
-    """
-    processor_name = processor.__class__.__name__
-
-    def wrapped_processor(
-        logger_instance: Any, method_name: str, event_dict: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
-        """Wrapped processor with error handling and retry logic."""
-        attempts = retry_count + 1
-
-        for attempt in range(attempts):
-            try:
-                return processor.process(logger_instance, method_name, event_dict)
-            except Exception as e:
-                is_last_attempt = attempt == attempts - 1
-
-                # Create context for this attempt
-                context = {
-                    "attempt": attempt + 1,
-                    "max_attempts": attempts,
-                    "is_last_attempt": is_last_attempt,
-                    "event_keys": list(event_dict.keys()) if event_dict else [],
-                    "method_name": method_name,
-                }
-
-                if is_last_attempt:
-                    # Final failure, apply fallback strategy
-                    handle_processor_error(e, processor_name, context, "process")
-                    return _apply_fallback_strategy(
-                        event_dict, fallback_strategy, processor_name
-                    )
-                else:
-                    # Log the retry attempt
-                    logger.debug(
-                        f"Processor {processor_name} failed on attempt {attempt + 1}, "
-                        f"retrying..."
-                    )
-
-        return None  # Should never reach here
-
-    return wrapped_processor
-
-
-def _apply_fallback_strategy(
-    event_dict: Dict[str, Any], strategy: str, processor_name: str
-) -> Optional[Dict[str, Any]]:
-    """Apply the specified fallback strategy.
-
-    Args:
-        event_dict: Original event dictionary
-        strategy: Fallback strategy to apply
-        processor_name: Name of the failed processor
-
-    Returns:
-        Result based on fallback strategy
-    """
-    if strategy == "pass_through":
-        logger.warning(
-            f"Processor {processor_name} failed, passing through original event"
-        )
-        return event_dict
-    elif strategy == "drop":
-        logger.warning(f"Processor {processor_name} failed, dropping event")
-        return None
-    elif strategy == "fallback_value":
-        logger.warning(
-            f"Processor {processor_name} failed, using fallback event structure"
-        )
-        return {
-            "level": event_dict.get("level", "ERROR"),
-            "message": "Processor execution failed",
-            "processor_error": True,
-            "processor_name": processor_name,
-            "original_message": event_dict.get("message", "unknown"),
-        }
-    else:
-        # Invalid strategy, default to pass_through
-        logger.error(f"Invalid fallback strategy '{strategy}', using pass_through")
-        return event_dict
 
 
 def validate_processor_configuration(

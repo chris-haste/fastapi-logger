@@ -58,8 +58,15 @@ from .mock_sinks import (
     SlowSink,
 )
 from .performance import SinkPerformanceTester
-from .processor_performance import ProcessorPerformanceTester
-from .processor_testing import ProcessorTestFramework
+from .processor_performance import run_processor_performance_suite
+from .processor_testing import (
+    ProcessorTestResult,
+    benchmark_processor_performance,
+    run_processor_edge_cases,
+    run_processor_with_events,
+    stress_test_processor,
+    validate_processor_behavior,
+)
 from .sink_testing import SinkTestFramework
 from .uri_testing import validate_sink_uri, validate_uri_scheme
 
@@ -85,5 +92,11 @@ __all__ = [
     "ConditionalFailingProcessor",
     "BatchingProcessor",
     "FilteringProcessor",
-    "ProcessorPerformanceTester",
+    "run_processor_performance_suite",
+    "ProcessorTestResult",
+    "run_processor_with_events",
+    "validate_processor_behavior",
+    "stress_test_processor",
+    "run_processor_edge_cases",
+    "benchmark_processor_performance",
 ]
