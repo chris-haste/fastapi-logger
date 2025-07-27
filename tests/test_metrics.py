@@ -12,7 +12,7 @@ from fapilog._internal.metrics import (
     QueueMetrics,
     set_metrics_collector,
 )
-from fapilog._internal.queue import QueueWorker
+from fapilog._internal.queue_worker import QueueWorker
 from fapilog.monitoring import (
     PrometheusExporter,
     get_metrics_dict,

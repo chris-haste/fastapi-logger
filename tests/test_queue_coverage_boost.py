@@ -7,14 +7,11 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 import structlog
 
-from fapilog._internal.queue import (
-    QueueWorker,
-    Sink,
-    queue_sink,
-    queue_sink_async,
-)
+from fapilog._internal.queue_integration import queue_sink, queue_sink_async
+from fapilog._internal.queue_worker import QueueWorker
 from fapilog.container import set_current_container
 from fapilog.exceptions import QueueError
+from fapilog.sinks import Sink
 
 
 class FailingSink(Sink):
@@ -55,7 +52,7 @@ class TestSinkMetricsOnException:
         sink = MetricsTestSink(should_fail=True)
 
         # Mock metrics collector
-        mock_path = "fapilog._internal.queue.get_metrics_collector"
+        mock_path = "fapilog.sinks.base.get_metrics_collector"
         with patch(mock_path) as mock_get_metrics:
             mock_metrics = Mock()
             mock_get_metrics.return_value = mock_metrics
@@ -79,7 +76,7 @@ class TestSinkMetricsOnException:
         sink = MetricsTestSink(should_fail=True)
 
         # Mock no metrics collector
-        mock_path = "fapilog._internal.queue.get_metrics_collector"
+        mock_path = "fapilog._internal.queue_worker.get_metrics_collector"
         with patch(mock_path, return_value=None):
             # Should still propagate exception even without metrics
             with pytest.raises(ValueError, match="Metrics test failure"):
@@ -240,7 +237,7 @@ class TestProcessEventExceptionHandling:
         bad_sink = FailingSink(ValueError("Sink failure"))
         worker = QueueWorker(sinks=[good_sink, bad_sink])
 
-        mock_path = "fapilog._internal.queue.log_error_with_context"
+        mock_path = "fapilog._internal.queue_worker.log_error_with_context"
         with patch(mock_path) as mock_log_error:
             with pytest.raises(QueueError):
                 await worker._process_event({"test": "event"})
@@ -258,7 +255,7 @@ class TestProcessEventExceptionHandling:
         failing_sink = FailingSink()
         worker = QueueWorker(sinks=[failing_sink], max_retries=1, retry_delay=0.01)
 
-        mock_path = "fapilog._internal.queue.handle_queue_error"
+        mock_path = "fapilog._internal.queue_worker.handle_queue_error"
         with patch(mock_path, side_effect=QueueError("Retry failed")):
             with pytest.raises(QueueError, match="Retry failed"):
                 await worker._process_event({"test": "event"})
@@ -438,7 +435,7 @@ class TestOverflowStrategySampling:
         container.queue_worker = worker
         set_current_container(container)
 
-        with patch("fapilog._internal.queue.rnd.random", return_value=0.5):
+        with patch("fapilog._internal.queue_integration.rnd.random", return_value=0.5):
             with pytest.raises(structlog.DropEvent):
                 queue_sink(Mock(), "info", {"test": "event"})
 

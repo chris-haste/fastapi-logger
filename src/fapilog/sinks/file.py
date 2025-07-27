@@ -9,9 +9,9 @@ from typing import Any, Dict
 from urllib.parse import parse_qs, urlparse
 
 from .._internal.metrics import get_metrics_collector
-from .._internal.queue import Sink
 from .._internal.utils import safe_json_serialize
 from ..exceptions import ConfigurationError
+from .base import Sink
 
 
 class FileSink(Sink):

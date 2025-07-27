@@ -147,7 +147,7 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
     # 16. Queue sink or renderer
     if settings.queue_enabled:
         # Import here to avoid circular imports
-        from ._internal.queue import queue_sink
+        from ._internal.queue_integration import queue_sink
 
         processors.append(queue_sink)
     else:

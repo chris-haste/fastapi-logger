@@ -5,8 +5,8 @@ from unittest.mock import patch
 
 import pytest
 
-from fapilog._internal.queue import Sink
 from fapilog._internal.sink_registry import SinkRegistry
+from fapilog.sinks import Sink
 from fapilog.testing.sink_testing import SinkTestFramework
 
 

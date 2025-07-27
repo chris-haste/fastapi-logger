@@ -9,7 +9,7 @@ from .exceptions import ConfigurationError
 
 # Forward declaration to avoid circular imports
 try:
-    from ._internal.queue import Sink
+    from .sinks import Sink
 except ImportError:
     # During imports, Sink might not be available yet
     Sink = None

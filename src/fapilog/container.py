@@ -12,7 +12,7 @@ from ._internal.error_handling import (
     handle_configuration_error,
     handle_sink_error,
 )
-from ._internal.queue import QueueWorker, Sink
+from ._internal.queue_worker import QueueWorker
 from ._internal.sink_factory import (
     SinkConfigurationError,
     create_custom_sink_from_uri,
@@ -21,6 +21,7 @@ from .httpx_patch import HttpxTracePropagation
 from .middleware import TraceIDMiddleware
 from .pipeline import build_processor_chain
 from .settings import LoggingSettings
+from .sinks import Sink
 from .sinks.file import create_file_sink_from_uri
 from .sinks.loki import create_loki_sink_from_uri
 from .sinks.stdout import StdoutSink

@@ -7,7 +7,7 @@ supporting both built-in and custom registered sinks.
 import urllib.parse
 from typing import Any, Dict
 
-from .queue import Sink
+from ..sinks import Sink
 from .sink_registry import SinkRegistry
 
 

@@ -19,8 +19,8 @@ import json
 from typing import Any, Dict
 
 from fapilog import configure_logging
-from fapilog._internal.queue import Sink
 from fapilog._internal.sink_registry import SinkRegistry, register_sink
+from fapilog.sinks.base import Sink
 
 
 @register_sink("postgres")

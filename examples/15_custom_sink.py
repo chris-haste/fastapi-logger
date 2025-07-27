@@ -25,8 +25,8 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from fapilog import configure_logging, log
-from fapilog._internal.queue import Sink
 from fapilog.settings import LoggingSettings
+from fapilog.sinks.base import Sink
 
 
 class UserAction(BaseModel):
@@ -262,9 +262,7 @@ def demonstrate_custom_sink_usage():
     """Demonstrate how to use custom sinks with fapilog."""
     print("=== Custom Sink Usage ===")
     print("This example shows how to create and use custom sinks.")
-    print(
-        "Custom sinks should implement the Sink interface from fapilog._internal.queue"
-    )
+    print("Custom sinks should implement the Sink interface from fapilog.sinks.base")
     print()
 
     # Note: In a real application, you would register custom sinks

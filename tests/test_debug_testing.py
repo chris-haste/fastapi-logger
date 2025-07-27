@@ -3,8 +3,8 @@
 from typing import Any, Dict
 from unittest.mock import patch
 
-from fapilog._internal.queue import Sink
 from fapilog._internal.sink_registry import SinkRegistry
+from fapilog.sinks import Sink
 from fapilog.testing.debug import SinkDebugger
 
 

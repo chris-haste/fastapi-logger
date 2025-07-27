@@ -244,7 +244,7 @@ If you were previously relying on internal global state (not recommended), you'l
 
 ```python
 # This was never recommended but might exist in some code
-from fapilog._internal.queue import get_queue_worker
+from fapilog._internal.queue_worker import QueueWorker
 worker = get_queue_worker()  # Global state access
 ```
 
