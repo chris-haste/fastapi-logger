@@ -222,11 +222,17 @@ addopts = [
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-fail-under=90",
+    "--disable-warnings",
+    "-W ignore::RuntimeWarning",
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
     "asyncio: marks tests as asyncio tests",
+]
+filterwarnings = [
+    "ignore::RuntimeWarning",
+    "ignore:coroutine.*was never awaited:RuntimeWarning",
 ]
 
 [tool.vulture]
@@ -344,6 +350,8 @@ ignore_names = [
     "parse_validation_required_fields",
     "parse_validation_field_types",
     "ValidationProcessor",
+    # Async methods used in tests
+    "cache_stats_async",
     "validation_stats",
     # Processor metrics settings and methods
     "enable_processor_metrics",
