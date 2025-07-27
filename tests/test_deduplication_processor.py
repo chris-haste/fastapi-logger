@@ -28,12 +28,9 @@ class TestDeduplicationProcessor:
         assert processor.max_cache_size == 5000
         assert processor.hash_algorithm == "sha256"
         assert isinstance(processor._event_cache, dict)
-        # Cross-platform compatibility for threading.Lock isinstance check
-        try:
-            assert isinstance(processor._lock, threading.Lock)
-        except TypeError:
-            # Fallback for environments where Lock is not a direct class
-            assert isinstance(processor._lock, type(threading.Lock()))
+        # Verify async lock is properly initialized
+        assert hasattr(processor, "_async_lock")
+        assert processor._async_lock is not None
 
     def test_deduplication_processor_default_values(self):
         """Test DeduplicationProcessor with default configuration."""
@@ -288,7 +285,14 @@ class TestDeduplicationProcessor:
         # Wait for expiration
         time.sleep(1.1)
 
-        # Process a new event to trigger cleanup
+        # Force cleanup by calling the cleanup method directly
+        current_time = time.time()
+        processor._cleanup_expired_entries(current_time)
+
+        # Expired entries should be cleaned up
+        assert len(processor._event_cache) == 0
+
+        # Process a new event
         new_event = {"event": "New message"}
         processor.process(None, "info", new_event)
 

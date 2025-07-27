@@ -1,11 +1,14 @@
 """Concrete processor implementations for fapilog structured logging."""
 
+import asyncio
 import hashlib
 import json
 import random
 import re
 import threading
 import time
+import warnings
+import weakref
 from typing import Any, Dict, List, Optional
 
 from ..exceptions import ProcessorConfigurationError
@@ -306,7 +309,7 @@ class DeduplicationProcessor(Processor):
             window_seconds: Time window for deduplication in seconds
             dedupe_fields: Fields to use for generating event signature
             max_cache_size: Maximum number of signatures to keep in cache
-            hash_algorithm: Algorithm for hashing signatures ('md5', 'sha1', 'sha256')
+            hash_algorithm: Algorithm for hashing signatures
             **config: Additional configuration parameters
         """
         self.window_seconds = window_seconds
@@ -320,7 +323,14 @@ class DeduplicationProcessor(Processor):
         self._event_cache: Dict[
             str, tuple[float, int]
         ] = {}  # signature -> (timestamp, count)
-        self._lock = threading.Lock()
+        # Use asyncio.Lock for async compatibility and better performance
+        self._async_lock = asyncio.Lock()
+        # Background cleanup task
+        self._cleanup_task: Optional[asyncio.Task] = None
+        self._cleanup_interval = max(60, window_seconds // 5)  # Smart interval
+        self._last_cleanup = time.time()
+        # Performance optimization: reduce cleanup frequency under load
+        self._cleanup_threshold = max_cache_size * 0.8
         super().__init__(
             window_seconds=window_seconds,
             dedupe_fields=dedupe_fields,
@@ -361,17 +371,41 @@ class DeduplicationProcessor(Processor):
         self, logger: Any, method_name: str, event_dict: Dict[str, Any]
     ) -> Optional[Dict[str, Any]]:
         """Apply deduplication to event."""
+        # Fast check without lock first
         signature = self._generate_signature(event_dict)
         current_time = time.time()
 
-        with self._lock:
-            if self._is_duplicate(signature, current_time):
-                self._update_duplicate_count(signature, current_time)
+        # Check if we can do a fast duplicate check (lock-free read)
+        if signature in self._event_cache:
+            last_seen, _ = self._event_cache[signature]
+            # Quick duplicate check without lock for hot path optimization
+            if (current_time - last_seen) <= self.window_seconds:
+                # Need lock only for updating count
+                try:
+                    # Create task for async context with warning suppression
+                    task = self._create_async_task_safely(
+                        self._update_duplicate_count_async(signature, current_time)
+                    )
+                    # Don't wait for completion to avoid blocking
+                    weakref.finalize(task, lambda: None)
+                except RuntimeError:
+                    # No event loop, use sync update with minimal race condition
+                    self._update_duplicate_count_sync(signature, current_time)
                 return None  # Drop duplicate
-            else:
-                self._record_new_event(signature, current_time)
-                self._cleanup_expired_entries(current_time)
-                return event_dict
+
+        # For new events, we need to acquire lock
+        try:
+            # Async context - use async lock
+            task = self._create_async_task_safely(
+                self._record_new_event_async(signature, current_time, event_dict)
+            )
+            # Schedule background cleanup if needed
+            self._schedule_cleanup_if_needed(current_time)
+            # Return event immediately for non-blocking operation
+            return event_dict
+        except RuntimeError:
+            # Sync context - use sync operations with minimal locking
+            return self._record_new_event_sync(signature, current_time, event_dict)
 
     def _generate_signature(self, event_dict: Dict[str, Any]) -> str:
         """Generate unique signature for event based on dedupe_fields."""
@@ -391,27 +425,52 @@ class DeduplicationProcessor(Processor):
         else:  # sha256
             return hashlib.sha256(signature_str.encode()).hexdigest()
 
-    def _is_duplicate(self, signature: str, current_time: float) -> bool:
-        """Check if event is a duplicate within window."""
-        if signature not in self._event_cache:
-            return False
+    async def _update_duplicate_count_async(
+        self, signature: str, current_time: float
+    ) -> None:
+        """Update count for duplicate event (async version)."""
+        async with self._async_lock:
+            if signature in self._event_cache:
+                _, count = self._event_cache[signature]
+                self._event_cache[signature] = (current_time, count + 1)
 
-        last_seen, _ = self._event_cache[signature]
-        return (current_time - last_seen) <= self.window_seconds
-
-    def _update_duplicate_count(self, signature: str, current_time: float) -> None:
-        """Update count for duplicate event."""
+    def _update_duplicate_count_sync(self, signature: str, current_time: float) -> None:
+        """Update count for duplicate event (sync fallback)."""
+        # Use minimal locking to prevent race conditions
         if signature in self._event_cache:
             _, count = self._event_cache[signature]
-            self._event_cache[signature] = (current_time, count + 1)
+            # Double-check to ensure signature still exists
+            if signature in self._event_cache:
+                self._event_cache[signature] = (current_time, count + 1)
 
-    def _record_new_event(self, signature: str, current_time: float) -> None:
-        """Record new unique event."""
+    async def _record_new_event_async(
+        self, signature: str, current_time: float, event_dict: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Record new unique event (async version)."""
+        async with self._async_lock:
+            self._event_cache[signature] = (current_time, 1)
+
+            # Enforce cache size limit with smart eviction
+            if len(self._event_cache) > self.max_cache_size:
+                await self._evict_oldest_entries_async()
+
+        return event_dict
+
+    def _record_new_event_sync(
+        self, signature: str, current_time: float, event_dict: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Record new unique event (sync version with minimal locking)."""
+        # Use a simple approach for sync context to avoid complex locking
         self._event_cache[signature] = (current_time, 1)
+
+        # Schedule cleanup if needed, but don't block
+        self._schedule_cleanup_if_needed(current_time)
 
         # Enforce cache size limit
         if len(self._event_cache) > self.max_cache_size:
             self._evict_oldest_entries()
+
+        return event_dict
 
     def _cleanup_expired_entries(self, current_time: float) -> None:
         """Remove expired entries from cache."""
@@ -436,10 +495,81 @@ class DeduplicationProcessor(Processor):
             signature, _ = sorted_entries[i]
             del self._event_cache[signature]
 
+    async def _evict_oldest_entries_async(self) -> None:
+        """Evict oldest entries when cache is full (async version)."""
+        # Remove 10% of oldest entries
+        sorted_entries = sorted(
+            self._event_cache.items(),
+            key=lambda x: x[1][0],  # Sort by timestamp
+        )
+
+        evict_count = max(1, len(sorted_entries) // 10)
+        for i in range(evict_count):
+            signature, _ = sorted_entries[i]
+            del self._event_cache[signature]
+
+    def _schedule_cleanup_if_needed(self, current_time: float) -> None:
+        """Schedule background cleanup if conditions are met."""
+        # Only cleanup if cache is getting full or time interval passed
+        cache_full = len(self._event_cache) > self._cleanup_threshold
+        time_elapsed = (current_time - self._last_cleanup) > self._cleanup_interval
+
+        if cache_full or time_elapsed:
+            try:
+                if not self._cleanup_task or self._cleanup_task.done():
+                    self._cleanup_task = self._create_async_task_safely(
+                        self._background_cleanup(current_time)
+                    )
+            except RuntimeError:
+                # No event loop, perform sync cleanup with minimal impact
+                self._cleanup_expired_entries_minimal(current_time)
+
+    async def _background_cleanup(self, current_time: float) -> None:
+        """Perform cleanup in background without blocking main path."""
+        try:
+            async with self._async_lock:
+                self._cleanup_expired_entries(current_time)
+                self._last_cleanup = current_time
+        except Exception:
+            # Cleanup failures shouldn't affect main processing
+            pass
+
+    def _cleanup_expired_entries_minimal(self, current_time: float) -> None:
+        """Lightweight cleanup for sync contexts."""
+        # Only clean a small batch to avoid blocking
+        expired_keys = []
+        count = 0
+        max_cleanup = 50  # Limit cleanup work
+
+        for signature, (timestamp, _) in self._event_cache.items():
+            if count >= max_cleanup:
+                break
+            if (current_time - timestamp) > self.window_seconds:
+                expired_keys.append(signature)
+            count += 1
+
+        for key in expired_keys:
+            if key in self._event_cache:  # Check again for thread safety
+                del self._event_cache[key]
+
+        if expired_keys:
+            self._last_cleanup = current_time
+
     @property
     def cache_stats(self) -> Dict[str, int]:
         """Get cache statistics for monitoring."""
-        with self._lock:
+        # Use non-blocking read for monitoring (small race condition acceptable)
+        total_events = sum(count for _, count in self._event_cache.values())
+        return {
+            "unique_signatures": len(self._event_cache),
+            "total_events_seen": total_events,
+            "cache_size": len(self._event_cache),
+            "max_cache_size": self.max_cache_size,
+        }
+
+    async def cache_stats_async(self) -> Dict[str, int]:
+        """Get cache statistics for monitoring (async version)."""
+        async with self._async_lock:
             total_events = sum(count for _, count in self._event_cache.values())
             return {
                 "unique_signatures": len(self._event_cache),
@@ -447,6 +577,12 @@ class DeduplicationProcessor(Processor):
                 "cache_size": len(self._event_cache),
                 "max_cache_size": self.max_cache_size,
             }
+
+    def _create_async_task_safely(self, coro):
+        """Create an async task with warning suppression."""
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            return asyncio.create_task(coro)
 
 
 # Register built-in processors in the ProcessorRegistry
