@@ -1,5 +1,6 @@
 """Concrete processor implementations for fapilog structured logging."""
 
+import asyncio
 import hashlib
 import json
 import random
@@ -149,6 +150,8 @@ class ThrottleProcessor(Processor):
         window_seconds: int = 60,
         key_field: str = "source",
         strategy: str = "drop",
+        cleanup_interval: int = 300,
+        max_cache_size: int = 10000,
         **config: Any,
     ) -> None:
         """Initialize throttle processor.
@@ -158,20 +161,29 @@ class ThrottleProcessor(Processor):
             window_seconds: Time window in seconds for rate limiting
             key_field: Field to use as throttling key
             strategy: Throttling strategy ('drop', 'sample')
+            cleanup_interval: Background cleanup interval in seconds
+            max_cache_size: Maximum number of keys to track
             **config: Additional configuration parameters
         """
         self.max_rate = max_rate
         self.window_seconds = window_seconds
         self.key_field = key_field
         self.strategy = strategy
+        self.cleanup_interval = cleanup_interval
+        self.max_cache_size = max_cache_size
         self._rate_tracker: Dict[str, List[float]] = {}
+        self._key_access_times: Dict[str, float] = {}  # For LRU tracking
         self._lock = threading.Lock()
         self._sample_rate = 0.1  # For sample strategy
+        self._cleanup_task: Optional[asyncio.Task[None]] = None
+        self._stopping = False
         super().__init__(
             max_rate=max_rate,
             window_seconds=window_seconds,
             key_field=key_field,
             strategy=strategy,
+            cleanup_interval=cleanup_interval,
+            max_cache_size=max_cache_size,
             **config,
         )
 
@@ -190,6 +202,32 @@ class ThrottleProcessor(Processor):
 
         if self.strategy not in ["drop", "sample"]:
             raise ProcessorConfigurationError("strategy must be 'drop' or 'sample'")
+
+        if not isinstance(self.cleanup_interval, int) or self.cleanup_interval <= 0:
+            raise ProcessorConfigurationError(
+                "cleanup_interval must be a positive integer"
+            )
+
+        if not isinstance(self.max_cache_size, int) or self.max_cache_size <= 0:
+            raise ProcessorConfigurationError(
+                "max_cache_size must be a positive integer"
+            )
+
+    async def _start_impl(self) -> None:
+        """Start the background cleanup task."""
+        self._stopping = False
+        self._cleanup_task = asyncio.create_task(self._background_cleanup())
+
+    async def _stop_impl(self) -> None:
+        """Stop the background cleanup task."""
+        self._stopping = True
+        if self._cleanup_task and not self._cleanup_task.done():
+            self._cleanup_task.cancel()
+            try:
+                await self._cleanup_task
+            except asyncio.CancelledError:
+                pass
+        self._cleanup_task = None
 
     def process(
         self, logger: Any, method_name: str, event_dict: Dict[str, Any]
@@ -238,9 +276,36 @@ class ThrottleProcessor(Processor):
             self._rate_tracker[key] = []
 
         self._rate_tracker[key].append(timestamp)
+        # Update LRU access time
+        self._key_access_times[key] = timestamp
 
         # Keep only recent events to prevent memory growth
         self._cleanup_old_entries_for_key(key, timestamp)
+
+        # Enforce memory limits synchronously
+        if len(self._rate_tracker) > self.max_cache_size:
+            self._enforce_memory_limits_sync()
+
+    def _enforce_memory_limits_sync(self) -> None:
+        """Synchronously enforce maximum cache size with LRU eviction."""
+        if len(self._rate_tracker) <= self.max_cache_size:
+            return
+
+        # Calculate how many entries to remove (remove 10% when over limit)
+        excess_count = len(self._rate_tracker) - self.max_cache_size
+        remove_count = max(excess_count, len(self._rate_tracker) // 10)
+
+        # Sort keys by access time (LRU first)
+        sorted_keys = sorted(
+            self._key_access_times.items(),
+            key=lambda x: x[1],  # Sort by access time
+        )
+
+        # Remove oldest keys
+        for i in range(min(remove_count, len(sorted_keys))):
+            key_to_remove = sorted_keys[i][0]
+            self._rate_tracker.pop(key_to_remove, None)
+            self._key_access_times.pop(key_to_remove, None)
 
     def _cleanup_old_entries_for_key(self, key: str, current_time: float) -> None:
         """Clean up old entries for a specific key."""
@@ -255,6 +320,8 @@ class ThrottleProcessor(Processor):
         # Remove empty key entries to prevent memory leaks
         if not self._rate_tracker[key]:
             del self._rate_tracker[key]
+            # Also cleanup LRU tracking for removed keys
+            self._key_access_times.pop(key, None)
 
     async def _cleanup_old_entries(self) -> None:
         """Background cleanup of old rate tracking entries.
@@ -264,11 +331,27 @@ class ThrottleProcessor(Processor):
         """
         current_time = time.time()
         with self._lock:
-            keys_to_remove = []
             for key in list(self._rate_tracker.keys()):
                 self._cleanup_old_entries_for_key(key, current_time)
-                if key not in self._rate_tracker:  # Was removed in cleanup
-                    keys_to_remove.append(key)
+
+    async def _background_cleanup(self) -> None:
+        """Background task that periodically cleans up expired entries."""
+        while not self._stopping:
+            try:
+                await asyncio.sleep(self.cleanup_interval)
+                if not self._stopping:
+                    await self._cleanup_old_entries()
+                    await self._enforce_memory_limits()
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                # Log error but continue cleanup task
+                pass
+
+    async def _enforce_memory_limits(self) -> None:
+        """Enforce maximum cache size with LRU eviction (async version for background task)."""
+        with self._lock:
+            self._enforce_memory_limits_sync()
 
     def get_current_rates(self) -> Dict[str, int]:
         """Get current event rates for all tracked keys.
@@ -287,6 +370,26 @@ class ThrottleProcessor(Processor):
                     rates[key] = len(self._rate_tracker[key])
 
         return rates
+
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """Get comprehensive cache statistics for monitoring.
+
+        Returns:
+            Dictionary with cache size, memory usage, and performance metrics
+        """
+        with self._lock:
+            total_events = sum(len(events) for events in self._rate_tracker.values())
+            return {
+                "tracked_keys": len(self._rate_tracker),
+                "total_events_tracked": total_events,
+                "max_cache_size": self.max_cache_size,
+                "cache_utilization": len(self._rate_tracker) / self.max_cache_size,
+                "cleanup_interval": self.cleanup_interval,
+                "window_seconds": self.window_seconds,
+                "average_events_per_key": (
+                    total_events / len(self._rate_tracker) if self._rate_tracker else 0
+                ),
+            }
 
 
 class DeduplicationProcessor(Processor):
