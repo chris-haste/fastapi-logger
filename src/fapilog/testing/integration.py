@@ -5,9 +5,9 @@ import os
 from typing import Any, Dict, List, Type
 from urllib.parse import urlencode
 
-from .._internal.queue import Sink
 from .._internal.sink_registry import SinkRegistry
 from ..settings import LoggingSettings
+from ..sinks import Sink
 
 
 class SinkIntegrationTester:

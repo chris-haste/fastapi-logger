@@ -5,7 +5,7 @@ import statistics
 import time
 from typing import Any, Dict, List
 
-from .._internal.queue import Sink
+from ..sinks import Sink
 
 
 class SinkPerformanceTester:

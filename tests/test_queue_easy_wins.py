@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from fapilog._internal.queue import QueueWorker
+from fapilog._internal.queue_worker import QueueWorker
 
 
 class TestQueueEasyWins:

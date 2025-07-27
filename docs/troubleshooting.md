@@ -377,7 +377,7 @@ import logging
 logging.getLogger("fapilog").setLevel(logging.DEBUG)
 
 # Enable debug for specific modules
-logging.getLogger("fapilog._internal.queue").setLevel(logging.DEBUG)
+logging.getLogger("fapilog._internal.queue_worker").setLevel(logging.DEBUG)
 logging.getLogger("fapilog.sinks.loki").setLevel(logging.DEBUG)
 ```
 
@@ -395,7 +395,7 @@ sink = StdoutSink()
 await sink.write({"test": "message"})
 
 # Test queue
-from fapilog._internal.queue import QueueWorker
+from fapilog._internal.queue_worker import QueueWorker
 worker = QueueWorker(sinks=[sink])
 await worker._process_event({"test": "event"})
 ```

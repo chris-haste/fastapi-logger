@@ -4,7 +4,6 @@ from typing import Any, Dict
 
 import pytest
 
-from fapilog._internal.queue import Sink
 from fapilog._internal.sink_factory import (
     SinkConfigurationError,
     _convert_parameter_value,
@@ -14,6 +13,7 @@ from fapilog._internal.sink_factory import (
 from fapilog._internal.sink_registry import SinkRegistry, register_sink
 from fapilog.bootstrap import configure_logging
 from fapilog.settings import LoggingSettings
+from fapilog.sinks import Sink
 
 
 # Test sink implementations

@@ -5,9 +5,9 @@ import inspect
 import traceback
 from typing import Any, Dict, List, Type
 
-from .._internal.queue import Sink
 from .._internal.sink_factory import create_custom_sink_from_uri
 from .._internal.sink_registry import SinkRegistry
+from ..sinks import Sink
 
 
 class SinkDebugger:

@@ -14,9 +14,9 @@ except ImportError:
 
 from .._internal.error_handling import handle_sink_error, retry_with_backoff_async
 from .._internal.metrics import get_metrics_collector
-from .._internal.queue import Sink
 from .._internal.utils import safe_json_serialize
 from ..exceptions import ConfigurationError
+from .base import Sink
 
 logger = logging.getLogger(__name__)
 

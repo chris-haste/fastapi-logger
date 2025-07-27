@@ -5,8 +5,8 @@ from typing import Any, Dict
 
 import pytest
 
-from fapilog._internal.queue import Sink
 from fapilog._internal.sink_registry import SinkRegistry
+from fapilog.sinks import Sink
 from fapilog.testing import (
     FailingSink,
     RecordingSink,

@@ -4,8 +4,8 @@ import asyncio
 import inspect
 from typing import Any, Dict, List, Optional, Type
 
-from .._internal.queue import Sink
 from .._internal.sink_registry import SinkRegistry
+from ..sinks import Sink
 
 
 class SinkTestFramework:

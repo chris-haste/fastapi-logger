@@ -7,8 +7,8 @@ from typing import Any, Dict, Literal
 import structlog
 
 from .._internal.metrics import get_metrics_collector
-from .._internal.queue import Sink
 from .._internal.utils import safe_json_serialize
+from .base import Sink
 
 StdoutMode = Literal["json", "pretty", "auto"]
 

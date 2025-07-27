@@ -12,11 +12,13 @@ Available sinks:
 Sinks are automatically configured based on the 'sinks' setting in LoggingSettings.
 """
 
+from .base import Sink
 from .file import FileSink, create_file_sink_from_uri
 from .loki import LokiSink, create_loki_sink_from_uri
 from .stdout import StdoutSink
 
 __all__ = [
+    "Sink",
     "FileSink",
     "LokiSink",
     "StdoutSink",

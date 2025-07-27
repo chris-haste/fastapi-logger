@@ -8,15 +8,13 @@ from unittest.mock import Mock, patch
 import pytest
 import structlog
 
-from fapilog._internal.queue import (
-    QueueWorker,
-    Sink,
-    queue_sink,
-)
+from fapilog._internal.queue_integration import queue_sink
+from fapilog._internal.queue_worker import QueueWorker
 from fapilog.bootstrap import configure_logging, reset_logging
 from fapilog.container import set_current_container
 from fapilog.exceptions import QueueError
 from fapilog.settings import LoggingSettings
+from fapilog.sinks import Sink
 from fapilog.sinks.stdout import StdoutSink
 
 

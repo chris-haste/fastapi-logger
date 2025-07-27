@@ -4,7 +4,7 @@ from typing import Any, Dict
 
 import pytest
 
-from fapilog._internal.queue import Sink
+from fapilog.sinks import Sink
 from fapilog.testing.performance import SinkPerformanceTester
 
 

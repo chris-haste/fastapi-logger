@@ -8,11 +8,11 @@ import structlog
 
 from ._internal.context import get_trace_id as get_current_trace_id
 from ._internal.processor_registry import register_processor
-from ._internal.queue import Sink
 from ._internal.sink_registry import SinkRegistry, register_sink
 from .bootstrap import configure_logging
 from .container import LoggingContainer
 from .settings import LoggingSettings
+from .sinks import Sink
 
 
 def _get_version() -> str:

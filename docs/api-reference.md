@@ -825,7 +825,7 @@ sink = LokiSink("http://localhost:3100", labels={"app": "myapp", "env": "prod"})
 **Complete interface documentation for the Sink base class:**
 
 ```python
-from fapilog._internal.queue import Sink
+from fapilog.sinks.base import Sink
 from typing import Dict, Any, Optional
 import asyncio
 

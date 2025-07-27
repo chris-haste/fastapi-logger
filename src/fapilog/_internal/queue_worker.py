@@ -1,4 +1,9 @@
-"""Async log queue implementation for non-blocking logging."""
+"""Queue worker implementation for async log processing.
+
+This module provides the QueueWorker class that handles background processing
+of log events from an async queue, with batching, retry logic, and overflow
+strategies.
+"""
 
 import asyncio
 import logging
@@ -6,8 +11,7 @@ import random as rnd
 import time
 from typing import Any, Dict, List, Literal, Optional
 
-import structlog
-
+from ..sinks import Sink
 from .error_handling import (
     handle_queue_error,
     log_error_with_context,
@@ -16,46 +20,6 @@ from .error_handling import (
 from .metrics import get_metrics_collector
 
 logger = logging.getLogger(__name__)
-
-
-class Sink:
-    """Base class for log sinks."""
-
-    def __init__(self):
-        """Initialize the sink."""
-        self._sink_name = self.__class__.__name__
-
-    async def write(self, event_dict: Dict[str, Any]) -> None:
-        """Write a log event to the sink.
-
-        Args:
-            event_dict: The structured log event dictionary
-        """
-        raise NotImplementedError
-
-    async def _write_with_metrics(self, event_dict: Dict[str, Any]) -> None:
-        """Write with metrics collection wrapper."""
-        start_time = time.time()
-        metrics = get_metrics_collector()
-        success = False
-        error_msg = None
-
-        try:
-            await self.write(event_dict)
-            success = True
-        except Exception as e:
-            error_msg = str(e)
-            raise
-        finally:
-            if metrics:
-                latency_ms = (time.time() - start_time) * 1000
-                metrics.record_sink_write(
-                    sink_name=self._sink_name,
-                    latency_ms=latency_ms,
-                    success=success,
-                    batch_size=1,
-                    error=error_msg,
-                )
 
 
 class QueueWorker:
@@ -471,112 +435,3 @@ class QueueWorker:
                 "sampling_rate": self.sampling_rate,
             }
             raise handle_queue_error(e, "enqueue", queue_state) from e
-
-
-def queue_sink(
-    logger: Any, method_name: str, event_dict: Dict[str, Any]
-) -> Optional[Dict[str, Any]]:
-    """Queue sink processor for structlog.
-
-    This processor enqueues log events into the async queue instead of
-    writing them directly to sinks. It only works with container-provided
-    queue workers.
-
-    Args:
-        logger: The structlog logger instance
-        method_name: The log method name (info, error, etc.)
-        event_dict: The structured log event dictionary
-
-    Returns:
-        None to prevent further processing, or the event_dict if queuing failed
-    """
-    # Import here to avoid circular import
-    from ..container import get_current_container
-
-    container = get_current_container()
-    if container is None:
-        # No container available - return event_dict for further processing
-        return event_dict
-
-    worker = getattr(container, "queue_worker", None)
-    if worker is None:
-        # No queue worker available - return event_dict for further processing
-        return event_dict
-
-    # When we have a queue worker, we should ALWAYS either queue or drop
-    # Never let structured data reach the logger when queues are intended
-
-    # Check if we're shutting down first
-    if worker._stopping:
-        # Drop events during shutdown
-        raise structlog.DropEvent
-
-    # Start the worker if it's not running (but be more careful)
-    if not worker._running and not worker._stopping:
-        try:
-            # Try to start the worker in the current context
-            try:
-                loop = asyncio.get_running_loop()
-                # Only create task if we're in an async context
-                if not loop.is_closed():
-                    loop.create_task(worker.start())
-                else:
-                    # Event loop is closed, drop the event
-                    raise structlog.DropEvent
-            except RuntimeError:
-                # No running loop - drop the event rather than fall back
-                # This prevents structured data from reaching the logger
-                raise structlog.DropEvent from None
-        except Exception:
-            # Any other exception during startup - drop the event
-            raise structlog.DropEvent from None
-
-    # Handle different overflow strategies
-    if worker.overflow_strategy == "drop":
-        # Drop strategy: try to enqueue, drop if full
-        try:
-            worker.queue.put_nowait(event_dict)
-            raise structlog.DropEvent
-        except asyncio.QueueFull:
-            raise structlog.DropEvent from None
-    elif worker.overflow_strategy == "block":
-        # Block strategy: not supported in sync context, drop instead
-        try:
-            worker.queue.put_nowait(event_dict)
-            raise structlog.DropEvent
-        except asyncio.QueueFull:
-            raise structlog.DropEvent from None
-    else:  # "sample"
-        # Sample strategy: apply sampling and try to enqueue
-        rate = worker.sampling_rate
-        if rate < 1.0 and rnd.random() > rate:
-            raise structlog.DropEvent
-        try:
-            worker.queue.put_nowait(event_dict)
-            raise structlog.DropEvent
-        except asyncio.QueueFull:
-            raise structlog.DropEvent from None
-
-
-async def queue_sink_async(
-    logger: Any, method_name: str, event_dict: Dict[str, Any]
-) -> Optional[Dict[str, Any]]:
-    """Async version of queue_sink for use in async contexts."""
-    # Import here to avoid circular import
-    from ..container import get_current_container
-
-    container = get_current_container()
-    if container is None:
-        return event_dict
-
-    worker = getattr(container, "queue_worker", None)
-    if worker is None:
-        return event_dict
-
-    # Try to enqueue the event
-    enqueued = await worker.enqueue(event_dict)
-    if not enqueued:
-        # Queue is full or shutting down, drop the event silently
-        return None
-
-    return None  # Prevent further processing

@@ -4,9 +4,9 @@ from typing import Any, List, Optional, Union
 
 import structlog
 
-from ._internal.queue import Sink
 from .container import LoggingContainer
 from .settings import LoggingSettings
+from .sinks import Sink
 
 # Default container instance for backward compatibility
 _default_container: Optional[LoggingContainer] = None
