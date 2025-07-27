@@ -2,12 +2,12 @@
 
 import asyncio
 from typing import Any, Dict
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 import structlog
 
-from fapilog._internal.queue_integration import queue_sink, queue_sink_async
+from fapilog._internal.queue_integration import queue_sink
 from fapilog._internal.queue_worker import QueueWorker
 from fapilog.container import set_current_container
 from fapilog.exceptions import QueueError
@@ -365,55 +365,59 @@ class TestQueueSinkEdgeCases:
 
 
 class TestQueueSinkAsyncEdgeCases:
-    """Test queue_sink_async function edge cases (lines 567, 575)."""
+    """Test queue_sink edge cases that were previously async-specific."""
 
     def setup_method(self):
         """Clear container before each test."""
         set_current_container(None)
 
-    @pytest.mark.asyncio
-    async def test_queue_sink_async_no_container(self):
-        """Test queue_sink_async when no container is available."""
-        result = await queue_sink_async(Mock(), "info", {"test": "event"})
+    def test_queue_sink_async_no_container(self):
+        """Test queue_sink when no container is available."""
+        result = queue_sink(Mock(), "info", {"test": "event"})
         # Should return event_dict for further processing
         assert result == {"test": "event"}
 
-    @pytest.mark.asyncio
-    async def test_queue_sink_async_no_queue_worker(self):
-        """Test queue_sink_async when container has no queue worker."""
+    def test_queue_sink_async_no_queue_worker(self):
+        """Test queue_sink when container has no queue worker."""
         container = Mock()
         container.queue_worker = None
         set_current_container(container)
 
-        result = await queue_sink_async(Mock(), "info", {"test": "event"})
+        result = queue_sink(Mock(), "info", {"test": "event"})
         # Should return event_dict for further processing
         assert result == {"test": "event"}
 
-    @pytest.mark.asyncio
-    async def test_queue_sink_async_enqueue_failed(self):
-        """Test queue_sink_async when enqueue fails."""
+    def test_queue_sink_async_enqueue_failed(self):
+        """Test queue_sink with mock worker that has overflow strategy."""
         container = Mock()
-        worker = AsyncMock()
-        worker.enqueue.return_value = False
+        worker = Mock()
+        worker._stopping = False
+        worker._running = True
+        worker.overflow_strategy = "drop"
+        worker.queue = Mock()
+        worker.queue.put_nowait.side_effect = asyncio.QueueFull()
         container.queue_worker = worker
         set_current_container(container)
 
-        result = await queue_sink_async(Mock(), "info", {"test": "event"})
-        # Should return None when enqueue fails
-        assert result is None
+        # Should raise DropEvent when queue is full with drop strategy
+        with pytest.raises(structlog.DropEvent):
+            queue_sink(Mock(), "info", {"test": "event"})
 
-    @pytest.mark.asyncio
-    async def test_queue_sink_async_enqueue_success(self):
-        """Test queue_sink_async when enqueue succeeds."""
+    def test_queue_sink_async_enqueue_success(self):
+        """Test queue_sink with successful enqueue."""
         container = Mock()
-        worker = AsyncMock()
-        worker.enqueue.return_value = True
+        worker = Mock()
+        worker._stopping = False
+        worker._running = True
+        worker.overflow_strategy = "drop"
+        worker.queue = Mock()
+        worker.queue.put_nowait.return_value = None  # Successful enqueue
         container.queue_worker = worker
         set_current_container(container)
 
-        result = await queue_sink_async(Mock(), "info", {"test": "event"})
-        # Should return None to prevent further processing
-        assert result is None
+        # Should raise DropEvent to prevent further processing (normal behavior)
+        with pytest.raises(structlog.DropEvent):
+            queue_sink(Mock(), "info", {"test": "event"})
 
 
 class TestOverflowStrategySampling:
