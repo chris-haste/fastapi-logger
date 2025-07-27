@@ -341,6 +341,15 @@ ignore_names = [
     # Loki sink attributes
     "_last_flush",
     "_flush_task",
+    # BatchManager properties for monitoring and extensibility
+    "time_since_last_flush",
+    "current_batch_size",
+    # LokiHttpClient properties for monitoring
+    "is_connected",
+    # LokiPayloadFormatter methods for extensibility
+    "update_labels",
+    "add_label",
+    "remove_label",
     # Validation processor settings and methods
     "enable_validation",
     "validation_required_fields", 

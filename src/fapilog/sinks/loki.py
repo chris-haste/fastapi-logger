@@ -1,7 +1,5 @@
 """Loki sink implementation for async logging via HTTP push."""
 
-import asyncio
-import datetime
 import logging
 import time
 from typing import Any, Dict, List, Optional
@@ -12,9 +10,11 @@ try:
 except ImportError:
     httpx = None
 
-from .._internal.error_handling import handle_sink_error, retry_with_backoff_async
+from .._internal.batch_manager import BatchManager
+from .._internal.error_handling import handle_sink_error
+from .._internal.loki_http_client import LokiHttpClient
+from .._internal.loki_payload_formatter import LokiPayloadFormatter
 from .._internal.metrics import get_metrics_collector
-from .._internal.utils import safe_json_serialize
 from ..exceptions import ConfigurationError
 from .base import Sink
 
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class LokiSink(Sink):
-    """Sink that pushes log events to Loki via HTTP."""
+    """Sink that pushes log events to Loki via HTTP using composition."""
 
     def __init__(
         self,
@@ -53,6 +53,7 @@ class LokiSink(Sink):
                 "initialize",
             )
 
+        # Store configuration
         self.url = url.rstrip("/") + "/loki/api/v1/push"
         self.labels = labels or {}
         self.batch_size = batch_size
@@ -61,13 +62,10 @@ class LokiSink(Sink):
         self.max_retries = max_retries
         self.retry_delay = retry_delay
 
-        # Batch management
-        self._batch: List[Dict[str, Any]] = []
-        self._last_flush = time.time()
-        self._lock = asyncio.Lock()
-        self._flush_task: Optional[asyncio.Task[None]] = None
-        self._client: Optional[httpx.AsyncClient] = None
-        self._flush_timer: Optional[asyncio.Task[None]] = None
+        # Initialize composed components
+        self._http_client = LokiHttpClient(self.url, timeout)
+        self._formatter = LokiPayloadFormatter(self.labels)
+        self._batch_manager = BatchManager(batch_size, batch_interval, self._send_batch)
 
     async def write(self, event_dict: Dict[str, Any]) -> None:
         """Write a log event to the batch.
@@ -81,17 +79,8 @@ class LokiSink(Sink):
         error_msg = None
 
         try:
-            async with self._lock:
-                self._batch.append(event_dict)
-                batch_was_empty = len(self._batch) == 1
-
-                should_flush = len(self._batch) >= self.batch_size
-
-                if should_flush:
-                    await self._flush_batch()
-                elif batch_was_empty:
-                    # Start interval flush timer if this is the first log in batch
-                    self._start_flush_timer()
+            # Simple delegation to batch manager
+            await self._batch_manager.add_event(event_dict)
             success = True
         except Exception as e:
             error_msg = str(e)
@@ -107,42 +96,8 @@ class LokiSink(Sink):
                     error=error_msg,
                 )
 
-    def _start_flush_timer(self) -> None:
-        if self._flush_timer and not self._flush_timer.done():
-            self._flush_timer.cancel()
-        loop = asyncio.get_running_loop()
-        task = loop.create_task(self._interval_flush())
-        self._flush_timer = task
-
-    async def _interval_flush(self) -> None:
-        try:
-            await asyncio.sleep(self.batch_interval)
-            async with self._lock:
-                if self._batch:
-                    await self._flush_batch()
-        except asyncio.CancelledError:
-            pass
-
-    async def _flush_batch(self) -> None:
-        """Flush the current batch to Loki."""
-        if not self._batch:
-            return
-
-        # Cancel interval flush timer
-        if self._flush_timer and not self._flush_timer.done():
-            self._flush_timer.cancel()
-            self._flush_timer = None
-
-        # Get current batch and reset
-        batch_to_send = self._batch.copy()
-        self._batch.clear()
-        self._last_flush = time.time()
-
-        # Send batch immediately (no async task)
-        await self._send_batch(batch_to_send)
-
     async def _send_batch(self, batch: List[Dict[str, Any]]) -> None:
-        """Send a batch of logs to Loki.
+        """Send a batch of logs to Loki using composed components.
 
         Args:
             batch: List of log event dictionaries
@@ -156,32 +111,18 @@ class LokiSink(Sink):
         error_msg = None
 
         try:
-            # Format batch for Loki
-            payload = self._format_loki_payload(batch)
+            # Format batch using the formatter component
+            payload = self._formatter.format_batch(batch)
 
-            async def send_request_with_retry() -> None:
-                """Send request to Loki with proper error handling."""
-                await self._send_request(payload)
-
-            await retry_with_backoff_async(
-                send_request_with_retry,
-                max_retries=self.max_retries,
-                base_delay=self.retry_delay,
-                error_handler=lambda e: handle_sink_error(
-                    e, "loki", {"url": self.url, "batch_size": len(batch)}, "send"
-                ),
+            # Send using the HTTP client component
+            await self._http_client.send_batch(
+                payload, self.max_retries, self.retry_delay
             )
             success = True
         except Exception as e:
             error_msg = str(e)
-            # Final failure after all retries
-            sink_config = {
-                "url": self.url,
-                "batch_size": len(batch),
-                "max_retries": self.max_retries,
-                "retry_delay": self.retry_delay,
-            }
-            raise handle_sink_error(e, "loki", sink_config, "send") from e
+            # Re-raise the error since it's already handled by components
+            raise
         finally:
             if metrics:
                 latency_ms = (time.time() - start_time) * 1000
@@ -194,139 +135,17 @@ class LokiSink(Sink):
                     error=error_msg,
                 )
 
-    async def _send_request(self, payload: Dict[str, Any]) -> None:
-        """Send HTTP request to Loki.
-
-        Args:
-            payload: The Loki-compatible payload
-
-        Raises:
-            SinkError: If the request fails
-        """
-        try:
-            if self._client is None:
-                self._client = httpx.AsyncClient(timeout=self.timeout)
-
-            response = await self._client.post(
-                self.url,
-                json=payload,
-                headers={"Content-Type": "application/json"},
-            )
-            await response.raise_for_status()
-        except httpx.HTTPError as e:
-            # HTTP-specific errors
-            status_code = None
-            if hasattr(e, "response") and e.response is not None:
-                status_code = getattr(e.response, "status_code", None)
-
-            sink_config = {
-                "url": self.url,
-                "status_code": status_code,
-                "payload_size": len(str(payload)),
-            }
-            raise handle_sink_error(e, "loki", sink_config, "http_request") from e
-        except httpx.RequestError as e:
-            # Network/connection errors
-            sink_config = {
-                "url": self.url,
-                "error_type": type(e).__name__,
-            }
-            raise handle_sink_error(e, "loki", sink_config, "network_request") from e
-        except Exception as e:
-            # Other unexpected errors
-            sink_config = {
-                "url": self.url,
-                "error_type": type(e).__name__,
-            }
-            raise handle_sink_error(e, "loki", sink_config, "request") from e
-
-    def _format_loki_payload(self, batch: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Format a batch of logs into Loki-compatible payload.
-
-        Args:
-            batch: List of log event dictionaries
-
-        Returns:
-            Loki-compatible payload dictionary
-
-        Raises:
-            SinkError: If payload formatting fails
-        """
-        try:
-            # Convert logs to Loki format
-            values = []
-            for i, event in enumerate(batch):
-                try:
-                    # Convert timestamp to nanoseconds (Loki expects nanoseconds)
-                    timestamp = event.get("timestamp", time.time())
-                    if isinstance(timestamp, str):
-                        # Parse ISO timestamp
-                        dt = datetime.datetime.fromisoformat(
-                            timestamp.replace("Z", "+00:00")
-                        )
-                        timestamp_ns = int(dt.timestamp() * 1_000_000_000)
-                    elif isinstance(timestamp, datetime.datetime):
-                        # Handle datetime objects directly
-                        timestamp_ns = int(timestamp.timestamp() * 1_000_000_000)
-                    else:
-                        # Assume Unix timestamp in seconds
-                        timestamp_ns = int(timestamp * 1_000_000_000)
-
-                    # Convert event to JSON string using safe serialization
-                    log_line = safe_json_serialize(event)
-
-                    values.append([str(timestamp_ns), log_line])
-                except Exception as e:
-                    # Handle individual event formatting errors
-                    sink_config = {
-                        "event_index": i,
-                        "event_keys": list(event.keys()),
-                        "timestamp_value": event.get("timestamp"),
-                    }
-                    raise handle_sink_error(
-                        e, "loki", sink_config, "format_event"
-                    ) from e
-
-            return {
-                "streams": [
-                    {
-                        "stream": self.labels,
-                        "values": values,
-                    }
-                ]
-            }
-        except Exception as e:
-            # Handle overall payload formatting errors
-            sink_config = {
-                "batch_size": len(batch),
-                "labels": self.labels,
-            }
-            raise handle_sink_error(e, "loki", sink_config, "format_payload") from e
-
     async def close(self) -> None:
         """Close the sink and flush any remaining logs."""
-        # Cancel interval flush timer
-        if self._flush_timer and not self._flush_timer.done():
-            self._flush_timer.cancel()
-            try:
-                await self._flush_timer
-            except asyncio.CancelledError:
-                pass
-            self._flush_timer = None
-        # Flush any remaining logs
-        async with self._lock:
-            if self._batch:
-                await self._send_batch(self._batch)
+        # Close batch manager (flushes remaining logs)
+        await self._batch_manager.close()
 
         # Close HTTP client
-        if self._client:
-            await self._client.aclose()
+        await self._http_client.close()
 
     async def flush(self) -> None:
         """Flush any buffered logs immediately (for testing or shutdown)."""
-        async with self._lock:
-            if self._batch:
-                await self._flush_batch()
+        await self._batch_manager.flush_batch()
 
 
 def parse_loki_uri(uri: str) -> tuple[str, Dict[str, str], int, float]:

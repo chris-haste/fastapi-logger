@@ -151,22 +151,17 @@ class TestSafeJsonIntegration:
             assert len(output) > 0
             # Pretty mode uses structlog's console renderer
 
-    @patch("fapilog.sinks.loki.httpx")
     @pytest.mark.asyncio
-    async def test_loki_sink_safe_serialization(self, mock_httpx):
+    async def test_loki_sink_safe_serialization(self):
         """Test LokiSink handles problematic data safely."""
-        # Mock httpx client and response
+        sink = LokiSink("http://localhost:3100")
+
+        # Mock the HTTP client component to avoid real network calls
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.raise_for_status = AsyncMock()
         mock_client.post.return_value = mock_response
-        mock_httpx.AsyncClient.return_value = mock_client
-
-        # Mock the exception classes to avoid import issues
-        mock_httpx.HTTPError = Exception
-        mock_httpx.RequestError = Exception
-
-        sink = LokiSink("http://localhost:3100")
+        sink._http_client._client = mock_client
 
         problematic_event = self.create_problematic_log_event()
 
@@ -238,27 +233,24 @@ class TestSafeJsonIntegration:
             stdout_output = mock_stdout.getvalue().strip()
 
         # Test Loki Sink
-        with patch("fapilog.sinks.loki.httpx") as mock_httpx:
-            mock_client = AsyncMock()
-            mock_response = AsyncMock()
-            mock_response.raise_for_status = AsyncMock()
-            mock_client.post.return_value = mock_response
-            mock_httpx.AsyncClient.return_value = mock_client
+        loki_sink = LokiSink("http://localhost:3100")
 
-            # Mock the exception classes to avoid import issues
-            mock_httpx.HTTPError = Exception
-            mock_httpx.RequestError = Exception
+        # Mock the HTTP client component to avoid real network calls
+        mock_client = AsyncMock()
+        mock_response = AsyncMock()
+        mock_response.raise_for_status = AsyncMock()
+        mock_client.post.return_value = mock_response
+        loki_sink._http_client._client = mock_client
 
-            loki_sink = LokiSink("http://localhost:3100")
-            await loki_sink.write(test_event)
-            await loki_sink.flush()
+        await loki_sink.write(test_event)
+        await loki_sink.flush()
 
-            # Extract Loki output
-            call_args = mock_client.post.call_args
-            payload = call_args.kwargs["json"]
-            loki_output = payload["streams"][0]["values"][0][1]
+        # Extract Loki output
+        call_args = mock_client.post.call_args
+        payload = call_args.kwargs["json"]
+        loki_output = payload["streams"][0]["values"][0][1]
 
-            await loki_sink.close()
+        await loki_sink.close()
 
         # Parse all outputs
         file_parsed = json.loads(file_output)
