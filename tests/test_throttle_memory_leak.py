@@ -27,7 +27,7 @@ class TestThrottleProcessorMemoryManagement:
         }
 
     @pytest_asyncio.fixture
-    async def processor(self, processor_config: Dict[str, Any]) -> ThrottleProcessor:
+    async def processor(self, processor_config: Dict[str, Any]):
         """Create and start a processor for testing."""
         proc = ThrottleProcessor(**processor_config)
         await proc.start()
