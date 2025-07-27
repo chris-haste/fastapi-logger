@@ -358,6 +358,64 @@ ignore_names = [
     # Processor registry
     "ProcessorRegistry",
     "register_processor",
+    # Simplified error handling functions
+    "simple_processor_execution", 
+    "create_simple_processor_wrapper",
+    # Processor API methods and properties
+    "is_started",
+    "validate_processor_configuration",
+    "safe_processor_lifecycle_operation",
+    "_cleanup_old_entries",
+    "get_current_rates",
+    "cache_stats",
+    # Queue internal attributes
+    "disabled",
+    # Testing framework API methods
+    "debug_sink_configuration",
+    "print_sink_registry_status", 
+    "print_sink_debug_info",
+    "run_integration_suite",
+    "get_test_results",
+    "clear_test_results",
+    "print_test_summary",
+    "run_uri_test_suite",
+    "get_test_summary",
+    "clear_results",
+    "create_test_uri_cases",
+    # Mock testing API methods
+    "get_events",
+    "get_last_event",
+    "get_stats",
+    "reset_stats",
+    "get_performance_stats",
+    "get_failure_count",
+    "get_batches",
+    "get_current_batch",
+    "get_timing_stats",
+    "get_transformation_count",
+    "get_filter_stats",
+    # Performance testing methods
+    "run_comprehensive_test",
+    "get_metrics",
+    "clear_metrics",
+    "print_summary",
+    "_test_events",
+    # Sink testing framework methods
+    "create_test_sink",
+    "validate_sink_interface",
+    "validate_sink_name_for_uri",
+    "clear_state",
+    # Testing variables and attributes
+    "ignore_order",
+    "error_rate",
+    # New simplified testing API
+    "ProcessorTestResult",
+    "test_processor_with_events",
+    "validate_processor_behavior",
+    "stress_test_processor",
+    "test_processor_edge_cases", 
+    "benchmark_processor_performance",
+    "run_processor_performance_suite",
 ]
 ignore_decorators = [
     "pytest.fixture",

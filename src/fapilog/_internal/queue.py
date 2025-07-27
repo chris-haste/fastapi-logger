@@ -217,13 +217,20 @@ class QueueWorker:
                         temp_loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(temp_loop)
                         try:
-                            # Wait for the task to complete with timeout
-                            temp_loop.run_until_complete(
-                                asyncio.wait_for(
-                                    asyncio.shield(self._task),
-                                    timeout=min(timeout, 2.0),
+                            # Only try to wait if the task belongs to our temporary loop
+                            if (
+                                hasattr(self._task, "get_loop")
+                                and self._task.get_loop() == temp_loop
+                            ):
+                                # Wait for the task to complete with timeout
+                                temp_loop.run_until_complete(
+                                    asyncio.wait_for(
+                                        asyncio.shield(self._task),
+                                        timeout=min(timeout, 2.0),
+                                    )
                                 )
-                            )
+                            # If task belongs to different loop, skip waiting
+                            # The task will be cleaned up by its own loop
                         except (asyncio.TimeoutError, asyncio.CancelledError):
                             # Task didn't complete in time or was cancelled, that's OK
                             pass

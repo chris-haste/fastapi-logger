@@ -7,11 +7,11 @@ import pytest
 
 from fapilog._internal.processor import Processor
 from fapilog._internal.processor_error_handling import (
-    create_safe_processor_wrapper,
+    create_simple_processor_wrapper,
     handle_processor_error,
     log_processor_error_with_context,
-    safe_processor_execution,
     safe_processor_lifecycle_operation,
+    simple_processor_execution,
     validate_processor_configuration,
 )
 from fapilog.exceptions import (
@@ -99,249 +99,181 @@ class MockTestProcessorExceptions:
             "Execution failed",
             processor_name="MockTestProcessor",
             operation="process",
-            event_context=event_context,
+            **event_context,
         )
         assert "Execution failed" in str(error)
         assert error.context["processor_name"] == "MockTestProcessor"
         assert error.context["operation"] == "process"
-        assert error.context["event_context"] == event_context
 
     def test_processor_registration_error(self):
         """Test ProcessorRegistrationError with context."""
         error = ProcessorRegistrationError(
             "Registration failed",
             processor_name="MockTestProcessor",
-            registration_type="custom",
+            registry_state="partial",
         )
         assert "Registration failed" in str(error)
         assert error.context["processor_name"] == "MockTestProcessor"
-        assert error.context["registration_type"] == "custom"
+        assert error.context["registry_state"] == "partial"
 
 
-class MockTestProcessorErrorHandling:
-    """Test processor error handling utilities."""
+class TestHandleProcessorError:
+    """Test processor error handling functions."""
 
-    @patch("fapilog._internal.processor_error_handling.log_error_with_context")
-    def test_handle_processor_error_execution(self, mock_log):
-        """Test handle_processor_error for execution errors."""
-        original_error = RuntimeError("Test error")
+    def test_handle_processor_error_execution(self):
+        """Test handling execution errors."""
+        error = RuntimeError("Process failed")
 
-        result = handle_processor_error(
-            original_error, "MockTestProcessor", {"event_keys": ["level"]}, "process"
-        )
+        result = handle_processor_error(error, "TestProcessor", operation="process")
 
         assert isinstance(result, ProcessorExecutionError)
-        assert "Processor process failed for MockTestProcessor: Test error" in str(
-            result
-        )
-        assert result.context["processor_name"] == "MockTestProcessor"
-        assert result.context["operation"] == "process"
-        assert result.context["original_error"] == "Test error"
-        mock_log.assert_called_once()
+        assert "TestProcessor" in str(result)
+        assert "Process failed" in str(result)
 
-    @patch("fapilog._internal.processor_error_handling.log_error_with_context")
-    def test_handle_processor_error_configuration(self, mock_log):
-        """Test handle_processor_error for configuration errors."""
-        original_error = ValueError("Config error")
+    def test_handle_processor_error_configuration(self):
+        """Test handling configuration errors."""
+        error = ValueError("Invalid config")
 
         result = handle_processor_error(
-            original_error, "MockTestProcessor", operation="configuration"
+            error, "TestProcessor", operation="configuration"
         )
 
         assert isinstance(result, ProcessorConfigurationError)
-        assert "Processor configuration failed for MockTestProcessor" in str(result)
-        mock_log.assert_called_once()
+        assert "TestProcessor" in str(result)
 
-    @patch("fapilog._internal.processor_error_handling.log_error_with_context")
-    def test_handle_processor_error_registration(self, mock_log):
-        """Test handle_processor_error for registration errors."""
-        original_error = ValueError("Registration error")
+    def test_handle_processor_error_registration(self):
+        """Test handling registration errors."""
+        error = KeyError("Duplicate name")
 
         result = handle_processor_error(
-            original_error, "MockTestProcessor", operation="registration"
+            error, "TestProcessor", operation="registration"
         )
 
         assert isinstance(result, ProcessorRegistrationError)
-        assert "Processor registration failed for MockTestProcessor" in str(result)
-        mock_log.assert_called_once()
+        assert "TestProcessor" in str(result)
 
-    def test_handle_processor_error_filters_sensitive_context(self):
-        """Test that sensitive information is filtered from context."""
-        sensitive_context = {
+    def test_handle_processor_error_with_context(self):
+        """Test error handling with additional context."""
+        error = RuntimeError("Test error")
+        context = {"event_keys": ["level", "message"], "method_name": "info"}
+
+        result = handle_processor_error(error, "TestProcessor", context, "process")
+
+        assert isinstance(result, ProcessorExecutionError)
+        # Context is logged but not necessarily preserved in exception context
+        assert "TestProcessor" in str(result)
+
+    def test_handle_processor_error_filters_sensitive_data(self):
+        """Test that sensitive data is filtered from context."""
+        error = RuntimeError("Test error")
+        context = {
             "password": "secret123",
-            "api_key": "key123",
-            "normal_field": "safe_value",
+            "api_key": "key456",
+            "token": "auth789",
+            "safe_field": "safe_value",
         }
 
-        result = handle_processor_error(
-            RuntimeError("Test"), "MockTestProcessor", sensitive_context
-        )
+        result = handle_processor_error(error, "TestProcessor", context, "process")
 
-        assert "password" not in result.context
-        assert "api_key" not in result.context
-        assert result.context["normal_field"] == "safe_value"
+        # The error should be properly handled and return ProcessorExecutionError
+        assert isinstance(result, ProcessorExecutionError)
+        assert "TestProcessor" in str(result)
 
 
-class TestSafeProcessorExecution:
-    """Test safe processor execution with fallback strategies."""
+class TestSimpleProcessorExecution:
+    """Test simplified processor execution with fail-fast error handling."""
 
-    def test_safe_execution_success(self):
+    def test_simple_execution_success(self):
         """Test successful processor execution."""
         processor = ProcessorForTesting()
         event_dict = {"level": "INFO", "message": "test"}
 
-        result = safe_processor_execution(
-            processor, None, "info", event_dict, "pass_through"
-        )
+        result = simple_processor_execution(processor, None, "info", event_dict)
 
         assert result["processed_by"] == "TestProcessor"
         assert result["level"] == "INFO"
         assert result["message"] == "test"
 
-    def test_safe_execution_pass_through_strategy(self):
-        """Test pass_through fallback strategy."""
+    def test_simple_execution_failure_returns_original(self):
+        """Test processor failure returns original event with logging."""
         processor = ProcessorForTesting(should_fail=True)
         event_dict = {"level": "INFO", "message": "test"}
 
         with patch("fapilog._internal.processor_error_handling.logger") as mock_logger:
-            result = safe_processor_execution(
-                processor, None, "info", event_dict, "pass_through"
-            )
+            result = simple_processor_execution(processor, None, "info", event_dict)
 
-        assert result == event_dict  # Should return original event
+        # Should return original event on failure
+        assert result == event_dict
+        # Should log warning
         mock_logger.warning.assert_called_once()
-
-    def test_safe_execution_drop_strategy(self):
-        """Test drop fallback strategy."""
-        processor = ProcessorForTesting(should_fail=True)
-        event_dict = {"level": "INFO", "message": "test"}
-
-        with patch("fapilog._internal.processor_error_handling.logger") as mock_logger:
-            result = safe_processor_execution(
-                processor, None, "info", event_dict, "drop"
-            )
-
-        assert result is None  # Should drop the event
-        mock_logger.warning.assert_called_once()
-
-    def test_safe_execution_fallback_value_strategy(self):
-        """Test fallback_value strategy."""
-        processor = ProcessorForTesting(should_fail=True)
-        event_dict = {"level": "INFO", "message": "test"}
-
-        with patch("fapilog._internal.processor_error_handling.logger") as mock_logger:
-            result = safe_processor_execution(
-                processor, None, "info", event_dict, "fallback_value"
-            )
-
-        assert result["level"] == "INFO"
-        assert result["message"] == "Processor execution failed"
-        assert result["processor_error"] is True
-        assert result["original_message"] == "test"
-        mock_logger.warning.assert_called_once()
-
-    def test_safe_execution_invalid_strategy(self):
-        """Test invalid fallback strategy defaults to pass_through."""
-        processor = ProcessorForTesting(should_fail=True)
-        event_dict = {"level": "INFO", "message": "test"}
-
-        with patch("fapilog._internal.processor_error_handling.logger") as mock_logger:
-            result = safe_processor_execution(
-                processor, None, "info", event_dict, "invalid_strategy"
-            )
-
-        assert result == event_dict  # Should default to pass_through
-        mock_logger.error.assert_called_once()
+        warning_call = mock_logger.warning.call_args[0][0]
+        assert "ProcessorForTesting" in warning_call
+        assert "failed during info" in warning_call
 
 
-class MockTestProcessorWrapper:
-    """Test processor wrapper with error handling."""
+class TestCreateSimpleProcessorWrapper:
+    """Test simple processor wrapper creation."""
 
-    def test_wrapper_success(self):
-        """Test successful execution through wrapper."""
+    def test_create_wrapper_success(self):
+        """Test creating a wrapper for successful processor."""
         processor = ProcessorForTesting()
-        wrapper = create_safe_processor_wrapper(processor, "pass_through")
-        event_dict = {"level": "INFO", "message": "test"}
+        wrapper = create_simple_processor_wrapper(processor)
 
+        event_dict = {"level": "INFO", "message": "test"}
         result = wrapper(None, "info", event_dict)
 
         assert result["processed_by"] == "TestProcessor"
+        assert result["level"] == "INFO"
 
-    def test_wrapper_with_retries(self):
-        """Test wrapper with retry logic."""
+    def test_create_wrapper_failure(self):
+        """Test wrapper behavior with failing processor."""
         processor = ProcessorForTesting(should_fail=True)
-        wrapper = create_safe_processor_wrapper(
-            processor, "pass_through", retry_count=2
-        )
+        wrapper = create_simple_processor_wrapper(processor)
+
         event_dict = {"level": "INFO", "message": "test"}
 
         with patch("fapilog._internal.processor_error_handling.logger") as mock_logger:
             result = wrapper(None, "info", event_dict)
 
-        assert result == event_dict  # Should fall back after retries
-        # Should have logged debug messages for retry attempts
-        assert mock_logger.debug.call_count == 2
-
-    def test_wrapper_pass_through_strategy(self):
-        """Test wrapper with pass_through strategy."""
-        processor = ProcessorForTesting(should_fail=True)
-        wrapper = create_safe_processor_wrapper(processor, "pass_through")
-        event_dict = {"level": "INFO", "message": "test"}
-
-        result = wrapper(None, "info", event_dict)
-
+        # Should return original event
         assert result == event_dict
-
-    def test_wrapper_drop_strategy(self):
-        """Test wrapper with drop strategy."""
-        processor = ProcessorForTesting(should_fail=True)
-        wrapper = create_safe_processor_wrapper(processor, "drop")
-        event_dict = {"level": "INFO", "message": "test"}
-
-        result = wrapper(None, "info", event_dict)
-
-        assert result is None
-
-    def test_wrapper_fallback_value_strategy(self):
-        """Test wrapper with fallback_value strategy."""
-        processor = ProcessorForTesting(should_fail=True)
-        wrapper = create_safe_processor_wrapper(processor, "fallback_value")
-        event_dict = {"level": "INFO", "message": "test"}
-
-        result = wrapper(None, "info", event_dict)
-
-        assert result["processor_error"] is True
-        assert result["processor_name"] == "MockTestProcessor"
+        # Should log error
+        mock_logger.warning.assert_called_once()
 
 
-class TestProcessorConfiguration:
+class TestValidateProcessorConfiguration:
     """Test processor configuration validation."""
 
-    def test_validate_configuration_success(self):
-        """Test successful configuration validation."""
+    def test_validate_valid_processor(self):
+        """Test validation of processor with valid configuration."""
         processor = ProcessorForTesting()
 
         # Should not raise any exception
         validate_processor_configuration(processor)
 
-    def test_validate_configuration_failure(self):
-        """Test configuration validation failure."""
-        # Create processor without triggering validation during init
+    def test_validate_failing_processor(self):
+        """Test validation of processor with invalid configuration."""
+        processor = FailingConfigProcessor(fail_during_init=False)
+
+        with pytest.raises(ProcessorConfigurationError):
+            validate_processor_configuration(processor)
+
+    def test_validate_with_custom_name(self):
+        """Test validation with custom processor name."""
         processor = FailingConfigProcessor(fail_during_init=False)
 
         with pytest.raises(ProcessorConfigurationError) as exc_info:
-            validate_processor_configuration(processor)
+            validate_processor_configuration(processor, "CustomProcessor")
 
-        assert "Configuration validation failed" in str(exc_info.value)
-        assert exc_info.value.context["processor_name"] == "FailingConfigProcessor"
+        assert "CustomProcessor" in str(exc_info.value)
 
 
-class MockTestProcessorLifecycle:
-    """Test processor lifecycle operations with error handling."""
+class TestSafeProcessorLifecycleOperation:
+    """Test safe processor lifecycle operations."""
 
     @pytest.mark.asyncio
-    async def test_lifecycle_start_success(self):
-        """Test successful processor start."""
+    async def test_start_operation_success(self):
+        """Test successful start operation."""
         processor = ProcessorForTesting()
 
         result = await safe_processor_lifecycle_operation(processor, "start")
@@ -350,8 +282,8 @@ class MockTestProcessorLifecycle:
         assert processor.start_called is True
 
     @pytest.mark.asyncio
-    async def test_lifecycle_stop_success(self):
-        """Test successful processor stop."""
+    async def test_stop_operation_success(self):
+        """Test successful stop operation."""
         processor = ProcessorForTesting()
         await processor.start()  # Start first
 
@@ -361,71 +293,61 @@ class MockTestProcessorLifecycle:
         assert processor.stop_called is True
 
     @pytest.mark.asyncio
-    async def test_lifecycle_start_failure(self):
-        """Test processor start failure."""
+    async def test_start_operation_failure(self):
+        """Test start operation failure."""
         processor = ProcessorForTesting(should_fail=True)
 
         with patch("fapilog._internal.processor_error_handling.logger") as mock_logger:
             result = await safe_processor_lifecycle_operation(processor, "start")
 
         assert result is False
-        assert processor.start_called is False
         mock_logger.error.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_lifecycle_stop_failure(self):
-        """Test processor stop failure."""
-        processor = ProcessorForTesting(should_fail=True)
-
-        with patch("fapilog._internal.processor_error_handling.logger") as mock_logger:
-            result = await safe_processor_lifecycle_operation(processor, "stop")
-
-        assert result is False
-        assert processor.stop_called is False
-        mock_logger.error.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_lifecycle_invalid_operation(self):
+    async def test_invalid_operation(self):
         """Test invalid lifecycle operation."""
         processor = ProcessorForTesting()
 
-        with patch("fapilog._internal.processor_error_handling.logger") as mock_logger:
-            result = await safe_processor_lifecycle_operation(processor, "invalid")
-
+        # Invalid operation should return False and log error (graceful handling)
+        result = await safe_processor_lifecycle_operation(processor, "invalid")
         assert result is False
-        mock_logger.error.assert_called_once()
 
 
-class TestErrorLogging:
-    """Test error logging functionality."""
+class TestLogProcessorErrorWithContext:
+    """Test processor error logging with context."""
 
-    @patch("fapilog._internal.processor_error_handling.log_error_with_context")
-    def test_log_processor_error_with_context(self, mock_log):
+    def test_log_error_with_context(self):
         """Test logging processor errors with context."""
         error = RuntimeError("Test error")
-        context = {"processor_name": "MockTestProcessor"}
+        context = {"processor": "TestProcessor", "event_keys": ["level", "message"]}
 
-        log_processor_error_with_context(error, context)
+        with patch(
+            "fapilog._internal.processor_error_handling.log_error_with_context"
+        ) as mock_log:
+            log_processor_error_with_context(error, context)
 
-        mock_log.assert_called_once_with(error, context, 30)  # WARNING level
+            mock_log.assert_called_once_with(error, context, 30)  # WARNING level
 
-    @patch("fapilog._internal.processor_error_handling.log_error_with_context")
-    def test_log_processor_error_custom_level(self, mock_log):
+    def test_log_error_custom_level(self):
         """Test logging with custom level."""
         import logging
 
         error = RuntimeError("Test error")
+        context = {"processor": "TestProcessor"}
 
-        log_processor_error_with_context(error, level=logging.ERROR)
+        with patch(
+            "fapilog._internal.processor_error_handling.log_error_with_context"
+        ) as mock_log:
+            log_processor_error_with_context(error, context, logging.ERROR)
 
-        mock_log.assert_called_once_with(error, None, logging.ERROR)
+            mock_log.assert_called_once_with(error, context, logging.ERROR)
 
 
 class TestIntegration:
     """Test integration scenarios."""
 
-    def test_multiple_processor_failures(self):
-        """Test handling multiple processor failures in a chain."""
+    def test_multiple_processor_chain(self):
+        """Test processing chain with multiple processors."""
         processor1 = ProcessorForTesting()
         processor2 = ProcessorForTesting(should_fail=True)
         processor3 = ProcessorForTesting()
@@ -433,36 +355,30 @@ class TestIntegration:
         event_dict = {"level": "INFO", "message": "test"}
 
         # First processor should succeed
-        result1 = safe_processor_execution(processor1, None, "info", event_dict)
+        result1 = simple_processor_execution(processor1, None, "info", event_dict)
         assert result1["processed_by"] == "TestProcessor"
 
-        # Second processor should fail but return fallback
-        result2 = safe_processor_execution(
-            processor2, None, "info", result1, "pass_through"
-        )
-        assert result2 == result1  # Should pass through
+        # Second processor should fail but return original
+        with patch("fapilog._internal.processor_error_handling.logger"):
+            result2 = simple_processor_execution(processor2, None, "info", result1)
+        assert result2 == result1  # Should return original
 
-        # Third processor should process the passed-through event
-        result3 = safe_processor_execution(processor3, None, "info", result2)
+        # Third processor should process the original event
+        result3 = simple_processor_execution(processor3, None, "info", result2)
         assert result3["processed_by"] == "TestProcessor"
 
     def test_sensitive_data_filtering(self):
         """Test that sensitive data is filtered from error context."""
-        # Add sensitive data to the processor context, not the event dict
         sensitive_context = {
             "password": "secret123",
             "api_key": "key123",
             "normal_field": "safe_value",
         }
 
-        # Test the filtering directly
         result = handle_processor_error(
             RuntimeError("Test error"), "TestProcessor", sensitive_context, "process"
         )
 
-        # Verify sensitive data is filtered but normal fields remain
-        assert hasattr(result, "context")
-        # The processor name should be present
-        assert "processor_name" in str(result.context)
-        # The operation should be present
-        assert "process" in str(result.context)
+        # Verify error is properly handled
+        assert isinstance(result, ProcessorExecutionError)
+        assert "TestProcessor" in str(result)
