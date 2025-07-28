@@ -4,7 +4,7 @@ import datetime
 import time
 from typing import Any, Dict, List
 
-from .error_handling import handle_sink_error
+from ..exceptions import SinkErrorContextBuilder, SinkWriteError
 from .utils import safe_json_serialize
 
 
@@ -51,9 +51,12 @@ class LokiPayloadFormatter:
                         "event_keys": list(event.keys()),
                         "timestamp_value": event.get("timestamp"),
                     }
-                    raise handle_sink_error(
-                        e, "loki", sink_config, "format_event"
-                    ) from e
+                    context = SinkErrorContextBuilder.build_write_context(
+                        sink_name="loki",
+                        event_dict=sink_config,
+                        operation="format_event",
+                    )
+                    raise SinkWriteError(str(e), "loki", context) from e
 
             return {"streams": [{"stream": self.labels, "values": values}]}
         except Exception as e:
@@ -62,7 +65,10 @@ class LokiPayloadFormatter:
                 "batch_size": len(events),
                 "labels": self.labels,
             }
-            raise handle_sink_error(e, "loki", sink_config, "format_payload") from e
+            context = SinkErrorContextBuilder.build_write_context(
+                sink_name="loki", event_dict=sink_config, operation="format_payload"
+            )
+            raise SinkWriteError(str(e), "loki", context) from e
 
     def _convert_timestamp_to_nanoseconds(self, timestamp: Any) -> int:
         """Convert various timestamp formats to nanoseconds.

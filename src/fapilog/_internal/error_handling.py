@@ -148,62 +148,6 @@ def log_error_with_context(
     logger.log(level, message, exc_info=True)
 
 
-def handle_sink_error(
-    error: Exception,
-    sink_type: str,
-    sink_config: Optional[Dict[str, Any]] = None,
-    operation: str = "write",
-) -> SinkError:
-    """Handle sink-related errors with proper context.
-
-    Legacy function maintained for existing code.
-    New code should use StandardSinkErrorHandling mixin instead.
-
-    Args:
-        error: The original exception
-        sink_type: Type of sink that failed
-        sink_config: Configuration of the sink
-        operation: Operation that failed (e.g., "write", "flush", "close")
-
-    Returns:
-        SinkError with proper context
-    """
-    # Convert old parameters to new format
-    sink_name = sink_type or "UnknownSink"
-
-    # Build context using new builder
-    context = {
-        "operation": operation,
-        "original_error": str(error),
-        "timestamp": time.time(),
-    }
-
-    if sink_config:
-        # Filter out sensitive information from config
-        safe_config = {
-            k: v
-            for k, v in sink_config.items()
-            if k not in ["password", "token", "secret", "key", "api_key"]
-        }
-        context["sink_config"] = safe_config
-
-    message = f"Sink {operation} failed for {sink_name}: {error}"
-
-    # Log error with context using consistent pattern
-    log_error_with_context(error, context)
-
-    # Return appropriate error type based on exception
-    if isinstance(error, (ConnectionError, TimeoutError)):
-        if isinstance(error, TimeoutError):
-            return SinkTimeoutError(message, sink_name, context)
-        else:
-            return SinkConnectionError(message, sink_name, context)
-    elif isinstance(error, (ValueError, TypeError, AttributeError)):
-        return SinkConfigurationError(message, sink_name, context)
-    else:
-        return SinkWriteError(message, sink_name, context)
-
-
 def handle_configuration_error(
     error: Exception,
     setting: str,

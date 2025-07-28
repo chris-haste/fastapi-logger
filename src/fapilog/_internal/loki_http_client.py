@@ -7,7 +7,12 @@ try:
 except ImportError:
     httpx = None
 
-from .error_handling import handle_sink_error, retry_with_backoff_async
+from ..exceptions import (
+    SinkConfigurationError,
+    SinkErrorContextBuilder,
+    SinkWriteError,
+)
+from .error_handling import retry_with_backoff_async
 
 
 class LokiHttpClient:
@@ -21,16 +26,25 @@ class LokiHttpClient:
             timeout: HTTP request timeout in seconds (default: 30.0s)
         """
         if httpx is None:
-            raise handle_sink_error(
-                ImportError("httpx is required for LokiHttpClient"),
-                "loki",
-                {"url": url},
-                "initialize",
+            context = SinkErrorContextBuilder.build_write_context(
+                sink_name="loki", event_dict={"url": url}, operation="initialize"
+            )
+            raise SinkConfigurationError(
+                "httpx is required for LokiHttpClient", "loki", context
             )
 
         self.url = url
         self.timeout = timeout
         self._client: Optional[httpx.AsyncClient] = None
+
+    def _create_sink_error(
+        self, error: Exception, operation: str, config: Dict[str, Any]
+    ) -> SinkWriteError:
+        """Create standardized sink error with context."""
+        context = SinkErrorContextBuilder.build_write_context(
+            sink_name="loki", event_dict=config, operation=operation
+        )
+        return SinkWriteError(str(error), "loki", context)
 
     async def send_batch(
         self,
@@ -58,20 +72,14 @@ class LokiHttpClient:
                 send_request_with_retry,
                 max_retries=max_retries,
                 base_delay=retry_delay,
-                error_handler=lambda e: handle_sink_error(
-                    e,
-                    "loki",
-                    {"url": self.url, "payload_size": len(str(payload))},
-                    "send",
+                error_handler=lambda e: self._create_sink_error(
+                    e, "send", {"url": self.url, "payload_size": len(str(payload))}
                 ),
             )
         except Exception as e:
             # Convert final exception to SinkError
-            raise handle_sink_error(
-                e,
-                "loki",
-                {"url": self.url, "payload_size": len(str(payload))},
-                "send",
+            raise self._create_sink_error(
+                e, "send", {"url": self.url, "payload_size": len(str(payload))}
             ) from e
 
     async def _send_request(self, payload: Dict[str, Any]) -> None:
@@ -104,21 +112,21 @@ class LokiHttpClient:
                 "status_code": status_code,
                 "payload_size": len(str(payload)),
             }
-            raise handle_sink_error(e, "loki", sink_config, "http_request") from e
+            raise self._create_sink_error(e, "http_request", sink_config) from e
         except httpx.RequestError as e:
             # Network/connection errors
             sink_config = {
                 "url": self.url,
                 "error_type": type(e).__name__,
             }
-            raise handle_sink_error(e, "loki", sink_config, "network_request") from e
+            raise self._create_sink_error(e, "network_request", sink_config) from e
         except Exception as e:
             # Other unexpected errors
             sink_config = {
                 "url": self.url,
                 "error_type": type(e).__name__,
             }
-            raise handle_sink_error(e, "loki", sink_config, "request") from e
+            raise self._create_sink_error(e, "request", sink_config) from e
 
     async def close(self) -> None:
         """Close the HTTP client and clean up resources."""

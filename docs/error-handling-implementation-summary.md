@@ -30,7 +30,7 @@ All custom exception classes are implemented and fully functional:
 Comprehensive error handling utilities implemented:
 
 - ✅ `log_error_with_context()` - Error logging with context information
-- ✅ `handle_sink_error()` - Standardized sink error handling
+- ✅ `StandardSinkErrorHandling` mixin - Standardized sink error handling
 - ✅ `handle_configuration_error()` - Configuration error handling
 - ✅ `handle_queue_error()` - Queue error handling
 - ✅ `handle_middleware_error()` - Middleware error handling
@@ -50,7 +50,7 @@ Comprehensive error handling utilities implemented:
 - ✅ Replaced generic exception handling with specific error types
 - ✅ Added proper error context for configuration failures
 - ✅ Implemented graceful degradation for optional features
-- ✅ Uses `handle_configuration_error()` and `handle_sink_error()`
+- ✅ Uses `handle_configuration_error()` and `StandardSinkErrorHandling` mixin
 
 #### Queue (`src/fapilog/_internal/queue.py`)
 
@@ -64,7 +64,7 @@ Comprehensive error handling utilities implemented:
 - ✅ Replaced basic exception handling with specific error types
 - ✅ Added proper error context for HTTP failures
 - ✅ Implemented exponential backoff with error classification
-- ✅ Uses `handle_sink_error()` and `retry_with_backoff_async()`
+- ✅ Uses `StandardSinkErrorHandling` mixin and `retry_with_backoff_async()`
 
 #### Middleware (`src/fapilog/middleware.py`)
 
@@ -167,7 +167,7 @@ error = SinkError("Connection failed", "loki", sink_config)
 result = graceful_degradation(
     primary_func=expensive_operation,
     fallback_func=simple_operation,
-    error_handler=handle_sink_error
+    error_handler=lambda e: SinkError(str(e), "sink_name", {})
 )
 ```
 
@@ -179,7 +179,7 @@ await retry_with_backoff_async(
     func=send_to_loki,
     max_retries=3,
     base_delay=1.0,
-    error_handler=lambda e: handle_sink_error(e, "loki")
+    error_handler=lambda e: SinkError(str(e), "loki", {})
 )
 ```
 

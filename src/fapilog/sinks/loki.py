@@ -11,11 +11,15 @@ except ImportError:
     httpx = None
 
 from .._internal.batch_manager import BatchManager
-from .._internal.error_handling import StandardSinkErrorHandling, handle_sink_error
+from .._internal.error_handling import StandardSinkErrorHandling
 from .._internal.loki_http_client import LokiHttpClient
 from .._internal.loki_payload_formatter import LokiPayloadFormatter
 from .._internal.metrics import get_metrics_collector
-from ..exceptions import ConfigurationError
+from ..exceptions import (
+    ConfigurationError,
+    SinkConfigurationError,
+    SinkErrorContextBuilder,
+)
 from .base import Sink
 
 logger = logging.getLogger(__name__)
@@ -46,11 +50,11 @@ class LokiSink(Sink, StandardSinkErrorHandling):
             retry_delay: Base delay between retries in seconds (default: 1.0s)
         """
         if httpx is None:
-            raise handle_sink_error(
-                ImportError("httpx is required for LokiSink"),
-                "loki",
-                {"url": url},
-                "initialize",
+            context = SinkErrorContextBuilder.build_write_context(
+                sink_name="loki", event_dict={"url": url}, operation="initialize"
+            )
+            raise SinkConfigurationError(
+                "httpx is required for LokiSink", "loki", context
             )
 
         # Store configuration
