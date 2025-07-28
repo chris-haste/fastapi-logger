@@ -73,7 +73,12 @@ class TestProcessorLockManager:
         # First access should create the lock
         lock1 = manager.get_sync_lock(lock_name)
         assert lock_name in manager._sync_locks
-        assert isinstance(lock1, threading.Lock)
+        # Cross-platform compatibility for threading.Lock isinstance check
+        try:
+            assert isinstance(lock1, threading.Lock)
+        except TypeError:
+            # Fallback for environments where Lock is not a direct class
+            assert isinstance(lock1, type(threading.Lock()))
 
         # Second access should return the same lock
         lock2 = manager.get_sync_lock(lock_name)
