@@ -438,6 +438,35 @@ ignore_names = [
     "test_processor_edge_cases", 
     "benchmark_processor_performance",
     "run_processor_performance_suite",
+    # Foundation Components - Public API methods for future processor implementations
+    # ProcessorLockManager
+    "get_sync_lock",
+    "get_async_lock", 
+    "cleanup_unused_locks",
+    "get_lock_stats",
+    # SafeAsyncCache
+    "get_or_create",
+    "get",
+    "set", 
+    "delete",
+    "clear",
+    "cleanup_expired",
+    "get_stats",
+    "get_all_keys",
+    # AsyncProcessorBase - base class and protected methods
+    "AsyncProcessorBase",
+    "_safe_cache_operation",
+    "_atomic_update",
+    "_get_or_create_cached_value",
+    "_update_cache_atomic", 
+    "_remove_from_cache",
+    "_cleanup_expired_cache",
+    "get_async_stats",
+    "_handle_processor_error",
+    "process_async",
+    "_create_processor_task",
+    "_start_impl",
+    "_stop_impl",
 ]
 ignore_decorators = [
     "pytest.fixture",
