@@ -43,7 +43,7 @@ Tasks / Technical Checklist
 
 2. **✅ Implement error handling utilities in `src/fapilog/_internal/error_handling.py`**:
 
-   - ✅ `handle_sink_error()` - Standardized sink error handling with config filtering
+   - ✅ `StandardSinkErrorHandling` mixin - Standardized sink error handling with config filtering
    - ✅ `handle_configuration_error()` - Configuration error handling with context
    - ✅ `handle_queue_error()` - Queue error handling with state context
    - ✅ `log_error_with_context()` - Error logging with rich context information
@@ -63,7 +63,7 @@ Tasks / Technical Checklist
    - ✅ Replaced generic exception handling with specific error types
    - ✅ Added proper error context for configuration failures
    - ✅ Implemented graceful degradation for optional features
-   - ✅ Uses `handle_configuration_error()` and `handle_sink_error()`
+   - ✅ Uses `handle_configuration_error()` and `StandardSinkErrorHandling` mixin
 
    **Implementation Details:**
 
@@ -89,7 +89,7 @@ Tasks / Technical Checklist
    - ✅ Replaced basic exception handling with specific error types
    - ✅ Added proper error context for HTTP failures
    - ✅ Implemented exponential backoff with error classification
-   - ✅ Uses `handle_sink_error()` and `retry_with_backoff_async()`
+   - ✅ Uses `StandardSinkErrorHandling` mixin and `retry_with_backoff_async()`
 
    **Implementation Details:**
 

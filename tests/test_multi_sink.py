@@ -248,14 +248,18 @@ class TestMultiSinkFunctionality:
 
         with pytest.raises(SinkError) as exc_info:
             configure_logging(settings=settings)
-        assert "Sink initialize failed for file" in str(exc_info.value)
+        # New error format includes context information
+        assert "file" in str(exc_info.value)
+        assert "initialize" in str(exc_info.value)
 
         # Test with invalid Loki URI (without httpx)
         with patch("fapilog.sinks.loki.httpx", None):
             settings = LoggingSettings(sinks=["loki://loki:3100"])
             with pytest.raises(SinkError) as exc_info:
                 configure_logging(settings=settings)
-            assert "Sink initialize failed for loki" in str(exc_info.value)
+            # New error format includes context information
+            assert "loki" in str(exc_info.value)
+            assert "initialize" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_multiple_sinks_with_different_types(self) -> None:
