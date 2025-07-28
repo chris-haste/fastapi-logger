@@ -10,11 +10,11 @@ def test_resource_enricher_included_when_enabled():
     """Test that resource enricher is included in pipeline when enabled."""
     settings = LoggingSettings(enable_resource_metrics=True)
 
-    with patch("fapilog.enrichers._get_process") as mock_get_process:
+    with patch("fapilog.enrichers._get_process_smart") as mock_get_process_smart:
         mock_process = Mock()
         mock_process.memory_info.return_value.rss = 1024 * 1024 * 50  # 50MB
         mock_process.cpu_percent.return_value = 25.5
-        mock_get_process.return_value = mock_process
+        mock_get_process_smart.return_value = mock_process
 
         processors = build_processor_chain(settings)
 
@@ -40,11 +40,11 @@ def test_resource_enricher_position_in_chain():
     """Test that resource enricher is positioned correctly in the pipeline."""
     settings = LoggingSettings(enable_resource_metrics=True)
 
-    with patch("fapilog.enrichers._get_process") as mock_get_process:
+    with patch("fapilog.enrichers._get_process_smart") as mock_get_process_smart:
         mock_process = Mock()
         mock_process.memory_info.return_value.rss = 1024 * 1024 * 50
         mock_process.cpu_percent.return_value = 25.5
-        mock_get_process.return_value = mock_process
+        mock_get_process_smart.return_value = mock_process
 
         processors = build_processor_chain(settings)
 
@@ -70,11 +70,11 @@ def test_pipeline_with_resource_metrics():
         queue_enabled=False,
     )
 
-    with patch("fapilog.enrichers._get_process") as mock_get_process:
+    with patch("fapilog.enrichers._get_process_smart") as mock_get_process_smart:
         mock_process = Mock()
         mock_process.memory_info.return_value.rss = 1024 * 1024 * 75  # 75MB
         mock_process.cpu_percent.return_value = 45.5
-        mock_get_process.return_value = mock_process
+        mock_get_process_smart.return_value = mock_process
 
         processors = build_processor_chain(settings)
 

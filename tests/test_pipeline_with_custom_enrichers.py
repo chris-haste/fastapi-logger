@@ -97,6 +97,11 @@ def test_custom_enrichers_with_actual_logging():
     """Test that custom enrichers affect actual log output."""
     clear_enrichers()
 
+    # Clear context to avoid contamination from other tests
+    from fapilog._internal.context import clear_context
+
+    clear_context()
+
     def tenant_enricher(logger, method_name, event_dict):
         event_dict["tenant_id"] = "tenant_123"
         return event_dict

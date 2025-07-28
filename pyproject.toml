@@ -268,6 +268,8 @@ ignore_names = [
     "retry_with_backoff",
     # Redactor utility functions (may be used in future)
     "_get_nested_value",
+    # Smart cache dataclass fields (false positive - used in dataclass)
+    "cached_at",
     "_set_nested_value",
     # Backward compatibility functions
     "_get_log",

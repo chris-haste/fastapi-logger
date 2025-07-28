@@ -12,11 +12,11 @@ def test_enricher_includes_fields():
     mock_process.memory_info.return_value.rss = 1024 * 1024 * 50  # 50MB
     mock_process.cpu_percent.return_value = 25.5
 
-    with patch("fapilog.enrichers._get_process", return_value=mock_process):
+    with patch("fapilog.enrichers._get_process_smart", return_value=mock_process):
         # Clear the cache to ensure fresh values
-        from fapilog.enrichers import _get_process
+        from fapilog.enrichers import _get_process_smart
 
-        _get_process.cache_clear()
+        _get_process_smart.cache_clear()
 
         event_dict = {"event": "test_message", "level": "info"}
         enriched = resource_snapshot_enricher(None, "info", event_dict)
@@ -36,11 +36,11 @@ def test_enricher_includes_fields():
 
 def test_enricher_skipped_when_disabled():
     """Test that enricher is skipped when psutil is not available."""
-    with patch("fapilog.enrichers._get_process", return_value=None):
+    with patch("fapilog.enrichers._get_process_smart", return_value=None):
         # Clear the cache to ensure fresh values
-        from fapilog.enrichers import _get_process
+        from fapilog.enrichers import _get_process_smart
 
-        _get_process.cache_clear()
+        _get_process_smart.cache_clear()
 
         event_dict = {"event": "test_message", "level": "info"}
         enriched = resource_snapshot_enricher(None, "info", event_dict)
@@ -60,11 +60,11 @@ def test_fields_within_valid_range():
     mock_process.memory_info.return_value.rss = 1024 * 1024 * 100  # 100MB
     mock_process.cpu_percent.return_value = 75.25
 
-    with patch("fapilog.enrichers._get_process", return_value=mock_process):
+    with patch("fapilog.enrichers._get_process_smart", return_value=mock_process):
         # Clear the cache to ensure fresh values
-        from fapilog.enrichers import _get_process
+        from fapilog.enrichers import _get_process_smart
 
-        _get_process.cache_clear()
+        _get_process_smart.cache_clear()
 
         event_dict = {"event": "test_message"}
         enriched = resource_snapshot_enricher(None, "info", event_dict)
@@ -86,11 +86,11 @@ def test_fields_can_be_overridden():
     mock_process.memory_info.return_value.rss = 1024 * 1024 * 50  # 50MB
     mock_process.cpu_percent.return_value = 25.5
 
-    with patch("fapilog.enrichers._get_process", return_value=mock_process):
+    with patch("fapilog.enrichers._get_process_smart", return_value=mock_process):
         # Clear the cache to ensure fresh values
-        from fapilog.enrichers import _get_process
+        from fapilog.enrichers import _get_process_smart
 
-        _get_process.cache_clear()
+        _get_process_smart.cache_clear()
 
         # Create event dict with manual values
         event_dict = {
@@ -115,11 +115,11 @@ def test_only_missing_fields_added():
     mock_process.memory_info.return_value.rss = 1024 * 1024 * 50  # 50MB
     mock_process.cpu_percent.return_value = 25.5
 
-    with patch("fapilog.enrichers._get_process", return_value=mock_process):
+    with patch("fapilog.enrichers._get_process_smart", return_value=mock_process):
         # Clear the cache to ensure fresh values
-        from fapilog.enrichers import _get_process
+        from fapilog.enrichers import _get_process_smart
 
-        _get_process.cache_clear()
+        _get_process_smart.cache_clear()
 
         # Create event dict with only memory_mb
         event_dict = {"event": "test_message", "memory_mb": 123.45}
@@ -152,11 +152,11 @@ def test_none_values_handling():
     mock_process.memory_info.return_value.rss = 1024 * 1024 * 75  # 75MB
     mock_process.cpu_percent.return_value = 45.5
 
-    with patch("fapilog.enrichers._get_process", return_value=mock_process):
+    with patch("fapilog.enrichers._get_process_smart", return_value=mock_process):
         # Clear the cache to ensure fresh values
-        from fapilog.enrichers import _get_process
+        from fapilog.enrichers import _get_process_smart
 
-        _get_process.cache_clear()
+        _get_process_smart.cache_clear()
 
         event_dict = {"event": "test_message", "memory_mb": None, "cpu_percent": None}
         enriched = resource_snapshot_enricher(None, "info", event_dict)
@@ -172,11 +172,11 @@ def test_process_errors_handled():
     mock_process.memory_info.side_effect = OSError("Process not found")
     mock_process.cpu_percent.return_value = 25.5
 
-    with patch("fapilog.enrichers._get_process", return_value=mock_process):
+    with patch("fapilog.enrichers._get_process_smart", return_value=mock_process):
         # Clear the cache to ensure fresh values
-        from fapilog.enrichers import _get_process
+        from fapilog.enrichers import _get_process_smart
 
-        _get_process.cache_clear()
+        _get_process_smart.cache_clear()
 
         event_dict = {"event": "test_message"}
         enriched = resource_snapshot_enricher(None, "info", event_dict)
@@ -203,11 +203,11 @@ def test_cached_process_object():
     mock_process.memory_info.return_value.rss = 1024 * 1024 * 50
     mock_process.cpu_percent.return_value = 25.5
 
-    with patch("fapilog.enrichers._get_process", return_value=mock_process):
+    with patch("fapilog.enrichers._get_process_smart", return_value=mock_process):
         # Clear the cache to ensure fresh values
-        from fapilog.enrichers import _get_process
+        from fapilog.enrichers import _get_process_smart
 
-        _get_process.cache_clear()
+        _get_process_smart.cache_clear()
 
         # Apply enricher multiple times
         event_dict1 = {"event": "test1"}
@@ -227,11 +227,11 @@ def test_logger_and_method_parameters():
     mock_process.memory_info.return_value.rss = 1024 * 1024 * 50
     mock_process.cpu_percent.return_value = 25.5
 
-    with patch("fapilog.enrichers._get_process", return_value=mock_process):
+    with patch("fapilog.enrichers._get_process_smart", return_value=mock_process):
         # Clear the cache to ensure fresh values
-        from fapilog.enrichers import _get_process
+        from fapilog.enrichers import _get_process_smart
 
-        _get_process.cache_clear()
+        _get_process_smart.cache_clear()
 
         # Create a mock logger
         mock_logger = object()
@@ -251,11 +251,11 @@ def test_empty_event_dict():
     mock_process.memory_info.return_value.rss = 1024 * 1024 * 50
     mock_process.cpu_percent.return_value = 25.5
 
-    with patch("fapilog.enrichers._get_process", return_value=mock_process):
+    with patch("fapilog.enrichers._get_process_smart", return_value=mock_process):
         # Clear the cache to ensure fresh values
-        from fapilog.enrichers import _get_process
+        from fapilog.enrichers import _get_process_smart
 
-        _get_process.cache_clear()
+        _get_process_smart.cache_clear()
 
         event_dict = {}
         enriched = resource_snapshot_enricher(None, "info", event_dict)
@@ -268,12 +268,12 @@ def test_empty_event_dict():
 
 def test_psutil_import_error():
     """Test behavior when psutil is not available."""
-    # Mock _get_process to return None (simulating psutil import failure)
-    with patch("fapilog.enrichers._get_process", return_value=None):
+    # Mock _get_process_smart to return None (simulating psutil import failure)
+    with patch("fapilog.enrichers._get_process_smart", return_value=None):
         # Clear the cache to ensure fresh values
-        from fapilog.enrichers import _get_process
+        from fapilog.enrichers import _get_process_smart
 
-        _get_process.cache_clear()
+        _get_process_smart.cache_clear()
 
         event_dict = {"event": "test_message"}
         enriched = resource_snapshot_enricher(None, "info", event_dict)

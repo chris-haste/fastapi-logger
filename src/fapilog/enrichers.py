@@ -1,10 +1,13 @@
 """Enrichers for adding metadata to log events."""
 
 import asyncio
+import logging
 import os
 import socket
-from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Callable, Dict, List
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set
 
 from ._internal.context import get_context
 from .exceptions import ConfigurationError
@@ -12,29 +15,257 @@ from .exceptions import ConfigurationError
 if TYPE_CHECKING:
     import psutil
 
+# Logger for enricher-related issues
+enricher_logger = logging.getLogger(__name__)
 
-@lru_cache(maxsize=1)
-def _get_process() -> "psutil.Process":
-    """Get the current process object, cached for performance."""
+# Public API
+__all__ = [
+    # Core classes
+    "SmartCache",
+    "CacheEntry",
+    "EnricherErrorStrategy",
+    "EnricherErrorHandler",
+    "EnricherHealthMonitor",
+    "EnricherExecutionError",
+    # Configuration functions
+    "configure_enricher_error_handling",
+    "get_enricher_health_report",
+    "clear_smart_cache",
+    # Enricher functions
+    "host_process_enricher",
+    "resource_snapshot_enricher",
+    "body_size_enricher",
+    "request_response_enricher",
+    "user_context_enricher",
+    "create_user_dependency",
+    # Registry functions
+    "register_enricher",
+    "clear_enrichers",
+    "run_registered_enrichers",
+]
+
+
+@dataclass
+class CacheEntry:
+    """Cache entry that tracks value, timestamp, and error state."""
+
+    value: Any
+    cached_at: datetime
+    is_error: bool = False
+    retry_after: Optional[datetime] = None
+
+
+class SmartCache:
+    """Cache that handles failures gracefully with retry logic."""
+
+    def __init__(self, retry_interval: timedelta = timedelta(minutes=5)):
+        self._cache: Dict[str, CacheEntry] = {}
+        self.retry_interval = retry_interval
+
+    def get_or_compute(self, key: str, compute_func: Callable) -> Any:
+        """Get cached value or compute new one with retry logic."""
+        entry = self._cache.get(key)
+        now = datetime.now()
+
+        # Check if we should retry a failed computation
+        if entry and entry.is_error and entry.retry_after and now >= entry.retry_after:
+            # Retry the computation
+            entry = None
+
+        if entry is None or (
+            entry.is_error and entry.retry_after and now >= entry.retry_after
+        ):
+            try:
+                value = compute_func()
+                self._cache[key] = CacheEntry(
+                    value=value, cached_at=now, is_error=False
+                )
+                return value
+            except Exception:
+                retry_after = now + self.retry_interval
+                self._cache[key] = CacheEntry(
+                    value=None, cached_at=now, is_error=True, retry_after=retry_after
+                )
+                raise
+
+        if entry.is_error:
+            raise RuntimeError(f"Cached error for {key}")
+
+        return entry.value
+
+
+class EnricherErrorStrategy(Enum):
+    """Error handling strategies for enricher failures."""
+
+    SILENT = "silent"  # Current behavior - continue silently
+    LOG_WARNING = "log_warning"  # Log warning but continue
+    LOG_ERROR = "log_error"  # Log error but continue
+    FAIL_FAST = "fail_fast"  # Raise exception immediately
+
+
+class EnricherExecutionError(Exception):
+    """Exception raised when enricher execution fails and fail_fast is enabled."""
+
+    pass
+
+
+class EnricherErrorHandler:
+    """Handles enricher errors according to configured strategy."""
+
+    def __init__(
+        self, strategy: EnricherErrorStrategy = EnricherErrorStrategy.LOG_WARNING
+    ):
+        self.strategy = strategy
+        self.failed_enrichers: Set[str] = set()
+
+    def handle_enricher_error(
+        self, enricher: Callable, error: Exception, event_dict: Dict[str, Any]
+    ) -> bool:
+        """Handle enricher error according to strategy.
+
+        Returns:
+            bool: True to continue processing, False to stop
+        """
+        enricher_name = getattr(enricher, "__name__", str(enricher))
+
+        if self.strategy == EnricherErrorStrategy.SILENT:
+            return True  # Continue processing
+        elif self.strategy == EnricherErrorStrategy.LOG_WARNING:
+            enricher_logger.warning(
+                f"Enricher {enricher_name} failed: {error}", exc_info=True
+            )
+            self.failed_enrichers.add(enricher_name)
+            return True
+        elif self.strategy == EnricherErrorStrategy.LOG_ERROR:
+            enricher_logger.error(
+                f"Enricher {enricher_name} failed: {error}", exc_info=True
+            )
+            self.failed_enrichers.add(enricher_name)
+            return True
+        elif self.strategy == EnricherErrorStrategy.FAIL_FAST:
+            raise EnricherExecutionError(f"Enricher {enricher_name} failed") from error
+
+        return True
+
+
+class EnricherHealthMonitor:
+    """Monitor enricher health and availability."""
+
+    def __init__(self):
+        self.enricher_stats: Dict[str, Dict[str, Any]] = {}
+
+    def record_enricher_execution(
+        self, enricher_name: str, success: bool, duration_ms: float
+    ):
+        """Record enricher execution statistics."""
+        if enricher_name not in self.enricher_stats:
+            self.enricher_stats[enricher_name] = {
+                "total_calls": 0,
+                "successful_calls": 0,
+                "failed_calls": 0,
+                "avg_duration_ms": 0.0,
+                "last_success": None,
+                "last_failure": None,
+            }
+
+        stats = self.enricher_stats[enricher_name]
+        stats["total_calls"] += 1
+
+        if success:
+            stats["successful_calls"] += 1
+            stats["last_success"] = datetime.now()
+        else:
+            stats["failed_calls"] += 1
+            stats["last_failure"] = datetime.now()
+
+        # Update average duration
+        current_avg = stats["avg_duration_ms"]
+        total_calls = stats["total_calls"]
+        stats["avg_duration_ms"] = (
+            (current_avg * (total_calls - 1)) + duration_ms
+        ) / total_calls
+
+    def get_health_report(self) -> Dict[str, Any]:
+        """Get comprehensive health report for all enrichers."""
+        return {
+            "enricher_count": len(self.enricher_stats),
+            "enrichers": self.enricher_stats.copy(),
+            "overall_success_rate": self._calculate_overall_success_rate(),
+        }
+
+    def _calculate_overall_success_rate(self) -> float:
+        """Calculate overall success rate across all enrichers."""
+        if not self.enricher_stats:
+            return 1.0
+
+        total_calls = sum(
+            stats["total_calls"] for stats in self.enricher_stats.values()
+        )
+        total_successful = sum(
+            stats["successful_calls"] for stats in self.enricher_stats.values()
+        )
+
+        return total_successful / total_calls if total_calls > 0 else 1.0
+
+
+# Global smart cache instance
+_smart_cache = SmartCache()
+
+# Global error handler and health monitor
+_error_handler = EnricherErrorHandler()
+_health_monitor = EnricherHealthMonitor()
+
+
+def configure_enricher_error_handling(strategy: EnricherErrorStrategy) -> None:
+    """Configure global enricher error handling strategy."""
+    global _error_handler
+    _error_handler = EnricherErrorHandler(strategy)
+
+
+def get_enricher_health_report() -> Dict[str, Any]:
+    """Get current enricher health report."""
+    return _health_monitor.get_health_report()
+
+
+def _create_process() -> "psutil.Process":
+    """Create psutil process - may raise ImportError."""
+    import psutil
+
+    return psutil.Process()
+
+
+def _get_process_smart() -> Optional["psutil.Process"]:
+    """Get process with smart caching and retry logic."""
     try:
-        import psutil
-
-        return psutil.Process()
-    except ImportError:
-        # Return None if psutil is not available
-        return None
+        return _smart_cache.get_or_compute("psutil_process", _create_process)
+    except Exception:
+        return None  # Graceful degradation
 
 
-@lru_cache(maxsize=1)
-def _get_hostname() -> str:
-    """Get the system hostname, cached for performance."""
+def _create_hostname() -> str:
+    """Create hostname - cached computation."""
     return socket.gethostname()
 
 
-@lru_cache(maxsize=1)
-def _get_pid() -> int:
-    """Get the current process ID, cached for performance."""
+def _get_hostname_smart() -> str:
+    """Get hostname with smart caching."""
+    try:
+        return _smart_cache.get_or_compute("hostname", _create_hostname)
+    except Exception:
+        return "unknown"  # Fallback value
+
+
+def _create_pid() -> int:
+    """Create process ID - cached computation."""
     return os.getpid()
+
+
+def _get_pid_smart() -> int:
+    """Get process ID with smart caching."""
+    try:
+        return _smart_cache.get_or_compute("pid", _create_pid)
+    except Exception:
+        return -1  # Fallback value
 
 
 def host_process_enricher(
@@ -59,11 +290,11 @@ def host_process_enricher(
     """
     # Add hostname if not already present or if it's None
     if "hostname" not in event_dict or event_dict["hostname"] is None:
-        event_dict["hostname"] = _get_hostname()
+        event_dict["hostname"] = _get_hostname_smart()
 
     # Add pid if not already present or if it's None
     if "pid" not in event_dict or event_dict["pid"] is None:
-        event_dict["pid"] = _get_pid()
+        event_dict["pid"] = _get_pid_smart()
 
     return event_dict
 
@@ -88,7 +319,7 @@ def resource_snapshot_enricher(
     Returns:
         The enriched event dictionary
     """
-    process = _get_process()
+    process = _get_process_smart()
     if process is None:
         # psutil not available, skip enrichment
         return event_dict
@@ -392,16 +623,29 @@ def run_registered_enrichers(
     """
     result = event_dict
     for enricher in _registered_enrichers:
+        enricher_name = getattr(enricher, "__name__", str(enricher))
+        start_time = datetime.now()
+
         try:
             result = enricher(logger, method_name, result)
-        except Exception as e:
-            # Log enricher failures for debugging but don't break the logging
-            # chain
-            import logging
+            # Record successful execution
+            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            _health_monitor.record_enricher_execution(enricher_name, True, duration_ms)
 
-            enricher_logger = logging.getLogger(__name__)
-            enricher_logger.debug(
-                f"Enricher {enricher.__name__} failed: {e}",
-                exc_info=True,
-            )
+        except Exception as e:
+            # Record failed execution
+            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            _health_monitor.record_enricher_execution(enricher_name, False, duration_ms)
+
+            # Handle error according to strategy
+            should_continue = _error_handler.handle_enricher_error(enricher, e, result)
+            if not should_continue:
+                break
+
     return result
+
+
+def clear_smart_cache() -> None:
+    """Clear the global smart cache for testing purposes."""
+    global _smart_cache
+    _smart_cache._cache.clear()

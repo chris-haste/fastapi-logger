@@ -69,7 +69,10 @@ async def test_latency_header_present():
 @pytest.mark.asyncio
 async def test_context_cleanup():
     """Test that context is cleaned up after request."""
-    from fapilog._internal.context import get_context
+    from fapilog._internal.context import clear_context, get_context
+
+    # Clear context to avoid contamination from other tests
+    clear_context()
 
     app = FastAPI()
 
@@ -114,7 +117,10 @@ async def test_exception_handling():
 @pytest.mark.asyncio
 async def test_context_cleanup_after_exception():
     """Test that context is cleaned up even after exceptions."""
-    from fapilog._internal.context import get_context
+    from fapilog._internal.context import clear_context, get_context
+
+    # Clear context to avoid contamination from other tests
+    clear_context()
 
     app = FastAPI()
 

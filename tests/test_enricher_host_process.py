@@ -91,11 +91,10 @@ def test_with_mock_system_calls():
     with patch("socket.gethostname", return_value="test-hostname"), patch(
         "os.getpid", return_value=12345
     ):
-        # Clear the lru_cache after applying the mock
-        from fapilog.enrichers import _get_hostname, _get_pid
+        # Clear the smart cache after applying the mock
+        from fapilog.enrichers import clear_smart_cache
 
-        _get_hostname.cache_clear()
-        _get_pid.cache_clear()
+        clear_smart_cache()
 
         event_dict = {"event": "test_message"}
         enriched = host_process_enricher(None, "info", event_dict)
@@ -106,10 +105,9 @@ def test_with_mock_system_calls():
 
 def test_empty_event_dict():
     """Test behavior with empty event dict."""
-    from fapilog.enrichers import _get_hostname, _get_pid
+    from fapilog.enrichers import clear_smart_cache
 
-    _get_hostname.cache_clear()
-    _get_pid.cache_clear()
+    clear_smart_cache()
     event_dict = {}
     enriched = host_process_enricher(None, "info", event_dict)
 
@@ -135,10 +133,9 @@ def test_logger_and_method_parameters():
 
 def test_none_values_handling():
     """Test that None values are handled correctly."""
-    from fapilog.enrichers import _get_hostname, _get_pid
+    from fapilog.enrichers import clear_smart_cache
 
-    _get_hostname.cache_clear()
-    _get_pid.cache_clear()
+    clear_smart_cache()
     event_dict = {"event": "test_message", "hostname": None, "pid": None}
     enriched = host_process_enricher(None, "info", event_dict)
     # None values should be replaced with actual values
