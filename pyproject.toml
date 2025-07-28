@@ -290,6 +290,13 @@ ignore_names = [
     "stop_metrics_server",
     "get_metrics_text",
     "get_metrics_dict",
+    # Context manager exception parameters (standard Python protocol)
+    "exc_type",
+    "exc_val", 
+    "exc_tb",
+    # Methods used in tests (false positives)
+    "force_cleanup",
+    "get_deduplication_stats",
     # Pydantic validators and framework methods
     "parse_sinks",
     "parse_redact_patterns", 
