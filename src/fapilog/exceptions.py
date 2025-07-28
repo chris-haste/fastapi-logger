@@ -1,5 +1,6 @@
 """Custom exception classes for fapilog error handling."""
 
+import time
 from typing import Any, Dict, Optional
 
 
@@ -64,37 +65,31 @@ class ConfigurationError(FapilogError):
 
 
 class SinkError(FapilogError):
-    """Raised when there are sink-related errors."""
+    """Base exception for all sink errors."""
 
     def __init__(
         self,
         message: str,
-        sink_type: Optional[str] = None,
-        sink_config: Optional[Dict[str, Any]] = None,
-        operation: Optional[str] = None,
+        sink_name: str,
+        context: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Initialize sink error.
 
         Args:
             message: Human-readable error message
-            sink_type: Type of sink that failed
-            sink_config: Configuration that caused the error
-            operation: Operation that failed (e.g., "write", "flush", "close")
+            sink_name: Name of the sink that failed
+            context: Additional context information
         """
-        context = {}
-        if sink_type:
-            context["sink_type"] = sink_type
-        if sink_config:
-            # Filter sensitive fields
-            safe_config = {
-                k: v
-                for k, v in sink_config.items()
-                if k not in ["password", "token", "secret", "key", "api_key"]
-            }
-            context["sink_config"] = safe_config
-        if operation:
-            context["operation"] = operation
-        super().__init__(message, context)
+        # Build enhanced context
+        error_context = {
+            "sink_name": sink_name,
+            "timestamp": time.time(),
+        }
+        if context:
+            error_context.update(context)
+
+        super().__init__(message, error_context)
+        self.sink_name = sink_name
 
     def __str__(self) -> str:
         if self.context:
@@ -108,6 +103,65 @@ class SinkError(FapilogError):
             context_str = ", ".join(context_items)
             return f"{self.message} (context: {context_str})"
         return self.message
+
+
+class SinkConnectionError(SinkError):
+    """Error connecting to sink destination."""
+
+    pass
+
+
+class SinkWriteError(SinkError):
+    """Error writing to sink destination."""
+
+    pass
+
+
+class SinkConfigurationError(SinkError):
+    """Error in sink configuration."""
+
+    pass
+
+
+class SinkTimeoutError(SinkError):
+    """Timeout during sink operation."""
+
+    pass
+
+
+class SinkErrorContextBuilder:
+    """Builds consistent error context across all sinks."""
+
+    @staticmethod
+    def build_write_context(
+        sink_name: str,
+        event_dict: Dict[str, Any],
+        operation: str,
+        additional_context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Build standardized error context for sink write operations.
+
+        Args:
+            sink_name: Name of the sink
+            event_dict: The log event that was being processed
+            operation: The operation that failed
+            additional_context: Sink-specific additional context
+
+        Returns:
+            Standardized context dictionary
+        """
+        context = {
+            "sink_name": sink_name,
+            "operation": operation,
+            "event_keys": list(event_dict.keys()),
+            "event_size": len(str(event_dict)),
+            "timestamp": time.time(),
+        }
+
+        if additional_context:
+            context.update(additional_context)
+
+        return context
 
 
 class QueueError(FapilogError):
