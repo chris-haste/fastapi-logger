@@ -307,18 +307,18 @@ class TestAsyncTaskManagerCoverage:
         assert len(manager._active_tasks) == 0
 
     async def test_fire_and_forget_parameter(self):
-        """Test fire_and_forget parameter (currently not affecting behavior but ensures parameter is tested)."""
+        """Test task creation without fire_and_forget parameter (parameter was removed)."""
         manager = AsyncTaskManager()
 
         async def simple_task():
             return "done"
 
-        # Test with fire_and_forget=True (default)
-        task1 = await manager.create_task(simple_task(), fire_and_forget=True)
+        # Test task creation without the removed parameter
+        task1 = await manager.create_task(simple_task())
         assert task1 is not None
 
-        # Test with fire_and_forget=False
-        task2 = await manager.create_task(simple_task(), fire_and_forget=False)
+        # Test task creation with task name
+        task2 = await manager.create_task(simple_task(), task_name="named_task")
         assert task2 is not None
 
         await task1
