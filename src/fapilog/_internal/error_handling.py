@@ -1,6 +1,7 @@
 """Error handling utilities for fapilog."""
 
 import logging
+import time
 from typing import Any, Awaitable, Callable, Dict, Optional, TypeVar
 
 from ..exceptions import (
@@ -10,12 +11,108 @@ from ..exceptions import (
     MiddlewareError,
     QueueError,
     RedactionError,
+    SinkConfigurationError,
+    SinkConnectionError,
     SinkError,
+    SinkErrorContextBuilder,
+    SinkTimeoutError,
+    SinkWriteError,
 )
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
+
+
+class StandardSinkErrorHandling:
+    """Mixin providing standard error handling for all sinks."""
+
+    def _handle_sink_error(
+        self,
+        error: Exception,
+        operation: str,
+        event_dict: Dict[str, Any],
+        additional_context: Optional[Dict[str, Any]] = None,
+    ) -> SinkError:
+        """Convert any exception to standard sink error with context.
+
+        Args:
+            error: The original exception that occurred
+            operation: The operation that was being performed
+            event_dict: The log event being processed
+            additional_context: Sink-specific additional context
+
+        Returns:
+            Appropriate SinkError subclass with full context
+        """
+        sink_name = self.__class__.__name__
+
+        # Build standardized context
+        context = SinkErrorContextBuilder.build_write_context(
+            sink_name=sink_name,
+            event_dict=event_dict,
+            operation=operation,
+            additional_context=additional_context,
+        )
+
+        # Map to appropriate error type based on exception
+        error_message = str(error)
+
+        # Check for connection-related errors
+        if self._is_connection_error(error):
+            return SinkConnectionError(error_message, sink_name, context)
+
+        # Check for timeout errors
+        elif self._is_timeout_error(error):
+            return SinkTimeoutError(error_message, sink_name, context)
+
+        # Check for configuration errors
+        elif self._is_configuration_error(error):
+            return SinkConfigurationError(error_message, sink_name, context)
+
+        # Default to write error for all other cases
+        else:
+            return SinkWriteError(error_message, sink_name, context)
+
+    def _is_connection_error(self, error: Exception) -> bool:
+        """Check if error is connection-related."""
+        try:
+            import httpx
+
+            if isinstance(error, (ConnectionError, httpx.NetworkError)):
+                return True
+        except ImportError:
+            pass
+
+        return isinstance(error, ConnectionError)
+
+    def _is_timeout_error(self, error: Exception) -> bool:
+        """Check if error is timeout-related."""
+        try:
+            import httpx
+
+            if isinstance(error, (TimeoutError, httpx.TimeoutException)):
+                return True
+        except ImportError:
+            pass
+
+        return isinstance(error, TimeoutError)
+
+    def _is_configuration_error(self, error: Exception) -> bool:
+        """Check if error is configuration-related."""
+        return isinstance(error, (ValueError, TypeError, AttributeError))
+
+    def _log_error_with_context(self, standardized_error: SinkError) -> None:
+        """Log the standardized error with full context.
+
+        Args:
+            standardized_error: The standardized sink error to log
+        """
+        log_error_with_context(
+            error=standardized_error,
+            context=standardized_error.context,
+            level=logging.ERROR,
+        )
 
 
 def log_error_with_context(
@@ -59,6 +156,9 @@ def handle_sink_error(
 ) -> SinkError:
     """Handle sink-related errors with proper context.
 
+    Legacy function maintained for existing code.
+    New code should use StandardSinkErrorHandling mixin instead.
+
     Args:
         error: The original exception
         sink_type: Type of sink that failed
@@ -68,10 +168,14 @@ def handle_sink_error(
     Returns:
         SinkError with proper context
     """
+    # Convert old parameters to new format
+    sink_name = sink_type or "UnknownSink"
+
+    # Build context using new builder
     context = {
-        "sink_type": sink_type,
         "operation": operation,
         "original_error": str(error),
+        "timestamp": time.time(),
     }
 
     if sink_config:
@@ -83,11 +187,21 @@ def handle_sink_error(
         }
         context["sink_config"] = safe_config
 
-    message = f"Sink {operation} failed for {sink_type}: {error}"
+    message = f"Sink {operation} failed for {sink_name}: {error}"
 
+    # Log error with context using consistent pattern
     log_error_with_context(error, context)
 
-    return SinkError(message, sink_type, sink_config, operation)
+    # Return appropriate error type based on exception
+    if isinstance(error, (ConnectionError, TimeoutError)):
+        if isinstance(error, TimeoutError):
+            return SinkTimeoutError(message, sink_name, context)
+        else:
+            return SinkConnectionError(message, sink_name, context)
+    elif isinstance(error, (ValueError, TypeError, AttributeError)):
+        return SinkConfigurationError(message, sink_name, context)
+    else:
+        return SinkWriteError(message, sink_name, context)
 
 
 def handle_configuration_error(
@@ -363,7 +477,6 @@ def retry_with_backoff(
     Raises:
         Last exception if all retries fail
     """
-    import time
 
     last_exception = None
 

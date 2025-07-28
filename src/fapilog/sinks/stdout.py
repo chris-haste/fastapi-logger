@@ -6,6 +6,7 @@ from typing import Any, Dict, Literal
 
 import structlog
 
+from .._internal.error_handling import StandardSinkErrorHandling
 from .._internal.metrics import get_metrics_collector
 from .._internal.utils import safe_json_serialize
 from .base import Sink
@@ -13,7 +14,7 @@ from .base import Sink
 StdoutMode = Literal["json", "pretty", "auto"]
 
 
-class StdoutSink(Sink):
+class StdoutSink(Sink, StandardSinkErrorHandling):
     """Sink that writes log events to stdout."""
 
     def __init__(self, mode: StdoutMode = "auto") -> None:
@@ -70,8 +71,29 @@ class StdoutSink(Sink):
                 print(safe_json_serialize(event_dict), file=sys.stdout, flush=True)
             success = True
         except Exception as e:
-            error_msg = str(e)
-            raise
+            # Use standardized error handling with stdout-specific context
+            additional_context = {
+                "mode": self.mode,
+                "pretty_output": self._pretty,
+                "tty_status": sys.stdout.isatty(),
+                "encoding": getattr(sys.stdout, "encoding", "unknown"),
+                "stderr_tty": sys.stderr.isatty(),
+                "stdout_closed": sys.stdout.closed,
+            }
+
+            standardized_error = self._handle_sink_error(
+                error=e,
+                operation="write_to_stdout",
+                event_dict=event_dict,
+                additional_context=additional_context,
+            )
+
+            # Log the error with full context
+            self._log_error_with_context(standardized_error)
+            error_msg = str(standardized_error)
+
+            # Raise the standardized error with proper chaining
+            raise standardized_error from e
         finally:
             if metrics:
                 latency_ms = (time.time() - start_time) * 1000

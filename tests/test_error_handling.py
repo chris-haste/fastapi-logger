@@ -56,12 +56,17 @@ class TestExceptionClasses:
 
     def test_sink_error(self):
         """Test SinkError."""
-        config = {"url": "http://example.com", "password": "test_password"}
-        error = SinkError("Sink failed", "loki", config, "write")
-        assert error.context["sink_type"] == "loki"
+        config = {"url": "http://example.com"}
+        context = {
+            "operation": "write",
+            "sink_config": config,
+            "timestamp": 1234567890.0,
+        }
+        error = SinkError("Sink failed", "loki", context)
+        assert error.context["sink_name"] == "loki"
         assert error.context["operation"] == "write"
-        # Password should be filtered out
-        assert "password" not in error.context["sink_config"]
+        assert error.context["sink_config"]["url"] == "http://example.com"
+        assert "timestamp" in error.context
 
     def test_queue_error(self):
         """Test QueueError."""
@@ -117,7 +122,7 @@ class TestErrorHandlingUtilities:
         error = handle_sink_error(original_error, "loki", sink_config, "write")
 
         assert isinstance(error, SinkError)
-        assert "loki" in error.context["sink_type"]
+        assert error.context["sink_name"] == "loki"  # Updated from sink_type
         assert "write" in error.context["operation"]
         assert "password" not in error.context["sink_config"]
 
@@ -412,10 +417,13 @@ class TestErrorRecovery:
             "timeout": 30,
         }
 
+        # Use the legacy handle_sink_error function which filters passwords
+        original_error = ValueError("Connection failed")
+
         try:
-            raise SinkError("Sink failed", "loki", config, "write")
+            raise handle_sink_error(original_error, "loki", config, "write")
         except SinkError as e:
-            # Password should be filtered out
+            # Password should be filtered out by handle_sink_error
             assert "password" not in e.context["sink_config"]
             assert "url" in e.context["sink_config"]
             assert "timeout" in e.context["sink_config"]
@@ -449,9 +457,12 @@ class TestUserFriendlyErrorMessages:
 
     def test_sink_error_user_friendly(self):
         """Test that sink errors have user-friendly messages."""
-        error = SinkError(
-            "Failed to connect to Loki", "loki", {"url": "http://loki:3100"}, "connect"
-        )
+        context = {
+            "operation": "connect",
+            "url": "http://loki:3100",
+            "timestamp": 1234567890.0,
+        }
+        error = SinkError("Failed to connect to Loki", "loki", context)
 
         message = str(error)
         assert "Failed to connect to Loki" in message
@@ -544,7 +555,9 @@ class TestComprehensiveErrorHandling:
         with patch("fapilog.sinks.loki.httpx", None):
             with pytest.raises(SinkError) as exc_info:
                 LokiSink("http://example.com")
-            assert "loki" in exc_info.value.context["sink_type"]
+            assert (
+                "loki" in exc_info.value.context["sink_name"]
+            )  # Updated from sink_type
             assert "initialize" in exc_info.value.context["operation"]
 
     def test_error_recovery_with_graceful_degradation(self):

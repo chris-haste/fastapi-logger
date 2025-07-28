@@ -11,7 +11,7 @@ except ImportError:
     httpx = None
 
 from .._internal.batch_manager import BatchManager
-from .._internal.error_handling import handle_sink_error
+from .._internal.error_handling import StandardSinkErrorHandling, handle_sink_error
 from .._internal.loki_http_client import LokiHttpClient
 from .._internal.loki_payload_formatter import LokiPayloadFormatter
 from .._internal.metrics import get_metrics_collector
@@ -21,7 +21,7 @@ from .base import Sink
 logger = logging.getLogger(__name__)
 
 
-class LokiSink(Sink):
+class LokiSink(Sink, StandardSinkErrorHandling):
     """Sink that pushes log events to Loki via HTTP using composition."""
 
     def __init__(
@@ -83,8 +83,29 @@ class LokiSink(Sink):
             await self._batch_manager.add_event(event_dict)
             success = True
         except Exception as e:
-            error_msg = str(e)
-            raise
+            # Use standardized error handling with Loki-specific context
+            additional_context = {
+                "url": self.url,
+                "batch_size": self.batch_size,
+                "batch_interval": self.batch_interval,
+                "timeout": self.timeout,
+                "max_retries": self.max_retries,
+                "labels": self.labels,
+            }
+
+            standardized_error = self._handle_sink_error(
+                error=e,
+                operation="add_to_batch",
+                event_dict=event_dict,
+                additional_context=additional_context,
+            )
+
+            # Log the error with full context
+            self._log_error_with_context(standardized_error)
+            error_msg = str(standardized_error)
+
+            # Raise the standardized error with proper chaining
+            raise standardized_error from e
         finally:
             if metrics:
                 latency_ms = (time.time() - start_time) * 1000
@@ -120,9 +141,36 @@ class LokiSink(Sink):
             )
             success = True
         except Exception as e:
-            error_msg = str(e)
-            # Re-raise the error since it's already handled by components
-            raise
+            # Use standardized error handling with batch-specific context
+            # Create a summary event dict for context (avoid logging all events)
+            summary_event_dict = {
+                "batch_summary": {
+                    "batch_size": len(batch),
+                    "first_event_keys": list(batch[0].keys()) if batch else [],
+                }
+            }
+
+            additional_context = {
+                "url": self.url,
+                "batch_size": len(batch),
+                "payload_size": len(str(payload)) if "payload" in locals() else 0,
+                "timeout": self.timeout,
+                "max_retries": self.max_retries,
+            }
+
+            standardized_error = self._handle_sink_error(
+                error=e,
+                operation="send_batch",
+                event_dict=summary_event_dict,
+                additional_context=additional_context,
+            )
+
+            # Log the error with full context
+            self._log_error_with_context(standardized_error)
+            error_msg = str(standardized_error)
+
+            # Raise the standardized error with proper chaining
+            raise standardized_error from e
         finally:
             if metrics:
                 latency_ms = (time.time() - start_time) * 1000

@@ -8,13 +8,14 @@ from pathlib import Path
 from typing import Any, Dict
 from urllib.parse import parse_qs, urlparse
 
+from .._internal.error_handling import StandardSinkErrorHandling
 from .._internal.metrics import get_metrics_collector
 from .._internal.utils import safe_json_serialize
 from ..exceptions import ConfigurationError
 from .base import Sink
 
 
-class FileSink(Sink):
+class FileSink(Sink, StandardSinkErrorHandling):
     """Sink that writes log events to a file with rotation support."""
 
     def __init__(
@@ -94,8 +95,30 @@ class FileSink(Sink):
                 await loop.run_in_executor(None, lambda: self._write_and_flush(record))
             success = True
         except Exception as e:
-            error_msg = str(e)
-            raise
+            # Use standardized error handling with file-specific context
+            additional_context = {
+                "file_path": str(self.file_path),
+                "max_bytes": self.max_bytes,
+                "backup_count": self.backup_count,
+                "file_exists": self.file_path.exists(),
+                "directory_exists": self.file_path.parent.exists(),
+                "is_writable": self.file_path.parent.is_dir()
+                and self.file_path.parent.exists(),
+            }
+
+            standardized_error = self._handle_sink_error(
+                error=e,
+                operation="write_to_file",
+                event_dict=event_dict,
+                additional_context=additional_context,
+            )
+
+            # Log the error with full context
+            self._log_error_with_context(standardized_error)
+            error_msg = str(standardized_error)
+
+            # Raise the standardized error with proper chaining
+            raise standardized_error from e
         finally:
             if metrics:
                 latency_ms = (time.time() - start_time) * 1000
