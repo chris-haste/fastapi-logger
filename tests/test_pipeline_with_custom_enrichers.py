@@ -85,7 +85,7 @@ def test_custom_enrichers_order_in_pipeline():
     for i in range(custom_enricher_index):
         if (
             hasattr(processors[i], "__name__")
-            and processors[i].__name__ == "host_process_enricher"
+            and processors[i].__name__ == "host_process_enricher_sync"
         ):
             host_process_found = True
             break

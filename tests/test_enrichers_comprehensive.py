@@ -11,11 +11,13 @@ from fapilog.enrichers import (
     EnricherExecutionError,
     EnricherHealthMonitor,
     body_size_enricher,
+    clear_enrichers,
     clear_smart_cache,
     configure_enricher_error_handling,
     create_user_dependency,
     get_enricher_health_report,
     host_process_enricher,
+    register_enricher,
     request_response_enricher,
     resource_snapshot_enricher,
     run_registered_enrichers,
@@ -219,48 +221,55 @@ class TestGlobalFunctions:
 class TestHostProcessEnricher:
     """Test host_process_enricher functionality."""
 
-    def test_host_process_enricher_basic(self):
+    @pytest.mark.asyncio
+    async def test_host_process_enricher_basic(self):
         """Test basic host process enrichment."""
         event_dict = {}
-        result = host_process_enricher(Mock(), "info", event_dict)
+        result = await host_process_enricher(Mock(), "info", event_dict)
 
         assert "hostname" in result
         assert "pid" in result
         assert result["hostname"] is not None
         assert result["pid"] is not None
 
-    def test_host_process_enricher_with_existing_values(self):
+    @pytest.mark.asyncio
+    async def test_host_process_enricher_with_existing_values(self):
         """Test host process enrichment with existing values."""
         event_dict = {"hostname": "existing_host", "pid": 12345}
-        result = host_process_enricher(Mock(), "info", event_dict)
+        result = await host_process_enricher(Mock(), "info", event_dict)
 
         assert result["hostname"] == "existing_host"
         assert result["pid"] == 12345
 
-    def test_host_process_enricher_with_none_values(self):
+    @pytest.mark.asyncio
+    async def test_host_process_enricher_with_none_values(self):
         """Test host process enrichment with None values."""
         event_dict = {"hostname": None, "pid": None}
-        result = host_process_enricher(Mock(), "info", event_dict)
+        result = await host_process_enricher(Mock(), "info", event_dict)
 
         assert result["hostname"] is not None
         assert result["pid"] is not None
 
-    @patch("socket.gethostname")
-    def test_host_process_enricher_socket_error(self, mock_gethostname):
+    @pytest.mark.asyncio
+    @patch("fapilog.enrichers.socket.gethostname")
+    async def test_host_process_enricher_socket_error(self, mock_gethostname):
         """Test host process enrichment with socket error."""
+        clear_smart_cache()  # Clear cache to test error condition
         mock_gethostname.side_effect = Exception("Socket error")
         event_dict = {}
-        result = host_process_enricher(Mock(), "info", event_dict)
+        result = await host_process_enricher(Mock(), "info", event_dict)
 
         assert result["hostname"] == "unknown"
         assert "pid" in result
 
-    @patch("os.getpid")
-    def test_host_process_enricher_pid_error(self, mock_getpid):
+    @pytest.mark.asyncio
+    @patch("fapilog.enrichers.os.getpid")
+    async def test_host_process_enricher_pid_error(self, mock_getpid):
         """Test host process enrichment with PID error."""
+        clear_smart_cache()  # Clear cache to test error condition
         mock_getpid.side_effect = Exception("PID error")
         event_dict = {}
-        result = host_process_enricher(Mock(), "info", event_dict)
+        result = await host_process_enricher(Mock(), "info", event_dict)
 
         assert result["pid"] == -1
         assert "hostname" in result
@@ -269,64 +278,61 @@ class TestHostProcessEnricher:
 class TestResourceSnapshotEnricher:
     """Test resource_snapshot_enricher functionality."""
 
-    def test_resource_snapshot_enricher_basic(self):
+    @pytest.mark.asyncio
+    async def test_resource_snapshot_enricher_basic(self):
         """Test basic resource snapshot enrichment."""
         event_dict = {}
-        result = resource_snapshot_enricher(Mock(), "info", event_dict)
+        result = await resource_snapshot_enricher(Mock(), "info", event_dict)
 
         # Should not crash and should return the event_dict
         assert isinstance(result, dict)
 
-    def test_resource_snapshot_enricher_with_existing_values(self):
+    @pytest.mark.asyncio
+    async def test_resource_snapshot_enricher_with_existing_values(self):
         """Test resource snapshot enrichment with existing values."""
         event_dict = {"memory_mb": 100.0, "cpu_percent": 50.0}
-        result = resource_snapshot_enricher(Mock(), "info", event_dict)
+        result = await resource_snapshot_enricher(Mock(), "info", event_dict)
 
         assert result["memory_mb"] == 100.0
         assert result["cpu_percent"] == 50.0
 
-    def test_resource_snapshot_enricher_with_none_values(self):
+    @pytest.mark.asyncio
+    async def test_resource_snapshot_enricher_with_none_values(self):
         """Test resource snapshot enrichment with None values."""
         event_dict = {"memory_mb": None, "cpu_percent": None}
-        result = resource_snapshot_enricher(Mock(), "info", event_dict)
+        result = await resource_snapshot_enricher(Mock(), "info", event_dict)
 
         # Should not crash
         assert isinstance(result, dict)
 
-    @patch("builtins.__import__")
-    def test_resource_snapshot_enricher_psutil_import_error(self, mock_import):
+    @pytest.mark.asyncio
+    @patch("fapilog.enrichers._get_process_smart")
+    async def test_resource_snapshot_enricher_psutil_import_error(
+        self, mock_get_process
+    ):
         """Test resource snapshot enrichment with psutil import error."""
-
-        def side_effect(name, *args, **kwargs):
-            if name == "psutil":
-                raise ImportError("psutil not available")
-            return __import__(name, *args, **kwargs)
-
-        mock_import.side_effect = side_effect
+        mock_get_process.return_value = None  # Simulate import failure
         event_dict = {}
-        result = resource_snapshot_enricher(Mock(), "info", event_dict)
+        result = await resource_snapshot_enricher(Mock(), "info", event_dict)
 
         assert result == event_dict
 
-    @patch("builtins.__import__")
-    def test_resource_snapshot_enricher_process_error(self, mock_import):
+    @pytest.mark.asyncio
+    @patch("fapilog.enrichers._get_process_smart")
+    async def test_resource_snapshot_enricher_process_error(self, mock_get_process):
         """Test resource snapshot enrichment with process error."""
-        # Mock psutil import to succeed but Process to fail
-        mock_psutil = Mock()
-        mock_process = Mock()
-        mock_process.memory_info.side_effect = OSError("Process error")
-        mock_psutil.Process.return_value = mock_process
+        # Mock process that fails on memory_info
+        mock_instance = Mock()
+        mock_instance.memory_info.side_effect = OSError("Process not found")
+        mock_get_process.return_value = mock_instance
 
-        def side_effect(name, *args, **kwargs):
-            if name == "psutil":
-                return mock_psutil
-            return __import__(name, *args, **kwargs)
-
-        mock_import.side_effect = side_effect
         event_dict = {}
-        result = resource_snapshot_enricher(Mock(), "info", event_dict)
+        result = await resource_snapshot_enricher(Mock(), "info", event_dict)
 
-        assert result == event_dict
+        # Should handle error gracefully and return event_dict without fields
+        assert isinstance(result, dict)
+        assert "memory_mb" not in result
+        assert "cpu_percent" not in result
 
 
 class TestBodySizeEnricher:
@@ -480,8 +486,6 @@ class TestRunRegisteredEnrichers:
             event_dict["enriched"] = True
             return event_dict
 
-        from fapilog.enrichers import register_enricher
-
         register_enricher(test_enricher)
 
         event_dict = {"test": "data"}
@@ -491,7 +495,6 @@ class TestRunRegisteredEnrichers:
         assert result["test"] == "data"
 
         # Clean up
-        from fapilog.enrichers import clear_enrichers
 
         clear_enrichers()
 
@@ -500,8 +503,6 @@ class TestRunRegisteredEnrichers:
 
         def failing_enricher(logger, method_name, event_dict):
             raise Exception("Enricher failed")
-
-        from fapilog.enrichers import register_enricher
 
         register_enricher(failing_enricher)
 
@@ -520,7 +521,6 @@ class TestRunRegisteredEnrichers:
         assert result == event_dict
 
         # Clean up
-        from fapilog.enrichers import clear_enrichers
 
         clear_enrichers()
 
