@@ -417,6 +417,8 @@ ignore_names = [
     "get_events",
     "get_last_event",
     "get_stats",
+    # RetryCoordinator methods (used in tests and public API)
+    "coordinate_retry",
     "reset_stats",
     "get_performance_stats",
     "get_failure_count",

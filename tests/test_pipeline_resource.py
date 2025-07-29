@@ -19,9 +19,9 @@ def test_resource_enricher_included_when_enabled():
         processors = build_processor_chain(settings)
 
         # Find the resource snapshot enricher in the chain
-        from fapilog.enrichers import resource_snapshot_enricher
+        from fapilog.enrichers import resource_snapshot_enricher_sync
 
-        assert resource_snapshot_enricher in processors
+        assert resource_snapshot_enricher_sync in processors
 
 
 def test_resource_enricher_excluded_when_disabled():
@@ -51,12 +51,12 @@ def test_resource_enricher_position_in_chain():
         # Find the resource snapshot enricher in the chain
         from fapilog.enrichers import (
             request_response_enricher,
-            resource_snapshot_enricher,
+            resource_snapshot_enricher_sync,
         )
 
         # Resource enricher should come after request_response_enricher
         request_response_index = processors.index(request_response_enricher)
-        resource_index = processors.index(resource_snapshot_enricher)
+        resource_index = processors.index(resource_snapshot_enricher_sync)
 
         assert resource_index > request_response_index
 

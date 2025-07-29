@@ -4,6 +4,15 @@ from typing import Any, List
 
 import structlog
 
+from fapilog.enrichers import (
+    body_size_enricher,
+    host_process_enricher_sync,
+    request_response_enricher,
+    resource_snapshot_enricher_sync,
+    run_registered_enrichers,
+    user_context_enricher,
+)
+
 from ._internal.pii_patterns import DEFAULT_PII_PATTERNS, auto_redact_pii_processor
 from ._internal.processor import Processor
 from ._internal.processor_error_handling import (
@@ -15,14 +24,6 @@ from ._internal.processors import (
     RedactionProcessor,
     SamplingProcessor,
     ThrottleProcessor,
-)
-from .enrichers import (
-    body_size_enricher,
-    host_process_enricher,
-    request_response_enricher,
-    resource_snapshot_enricher,
-    run_registered_enrichers,
-    user_context_enricher,
 )
 from .redactors import field_redactor
 from .settings import LoggingSettings
@@ -70,7 +71,7 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
     processors.append(structlog.processors.EventRenamer("event"))
 
     # 6. Host and process info enricher (early in chain)
-    processors.append(host_process_enricher)
+    processors.append(host_process_enricher_sync)
 
     # 7. Custom redaction processor (regex patterns) - class-based with error handling
     redaction_processor = RedactionProcessor(
@@ -107,7 +108,7 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
 
     # 12. Resource metrics enricher (if enabled)
     if settings.enable_resource_metrics:
-        processors.append(resource_snapshot_enricher)
+        processors.append(resource_snapshot_enricher_sync)
 
     # 12. User context enricher (if enabled)
     if settings.user_context_enabled:
