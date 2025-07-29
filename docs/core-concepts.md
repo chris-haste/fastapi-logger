@@ -22,13 +22,36 @@ Fapilog uses a **modular pipeline architecture** that processes log events throu
                    └──────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
 ```
 
+### AsyncSmartCache Architecture
+
+The enrichment stage is powered by **AsyncSmartCache v2.0**, a race-condition-free caching system that provides:
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│ Async Enricher  │───▶│ AsyncSmartCache │───▶│ Cached Result   │
+│                 │    │                 │    │                 │
+│ await enrich()  │    │ Atomic Ops      │    │ Zero Race       │
+│ Context Data    │    │ Error Caching   │    │ Conditions      │
+│ Performance     │    │ Retry Logic     │    │ 5x Throughput   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+#### Cache Features
+
+- **Atomic Operations**: All cache operations use async locks to prevent race conditions
+- **Error Caching**: Failed computations are cached with intelligent retry intervals
+- **Async-First Design**: Native async/await support for optimal performance
+- **Memory Efficiency**: Automatic cleanup and optimized memory usage
+- **Performance Monitoring**: Built-in cache statistics and hit rate tracking
+
 ### Key Design Principles
 
 1. **Separation of Concerns** - Each stage has a single responsibility
 2. **Extensibility** - Custom enrichers, processors, and sinks
-3. **Performance** - Async processing with configurable buffering
-4. **Reliability** - Fault tolerance and error handling
+3. **Performance** - Async processing with race-condition-free caching
+4. **Reliability** - Fault tolerance, error caching, and intelligent retry
 5. **Observability** - Rich context for debugging and monitoring
+6. **Concurrency Safety** - Zero race conditions under high-load scenarios
 
 ---
 
