@@ -388,15 +388,15 @@ class TestErrorHandling:
             nonlocal failure_count
             failure_count += 1
             if failure_count <= 3:
-                raise Exception(f"Failure {failure_count}")
+                raise ValueError(f"Failure {failure_count}")
             return "success"
 
-        # First few calls should fail, then succeed
-        with pytest.raises(RuntimeError, match="Failure 1"):
+        # First call should fail with original exception
+        with pytest.raises(ValueError, match="Failure 1"):
             await cache.get_or_compute("failing_key", failing_function)
 
         # Error should be cached temporarily
-        with pytest.raises(RuntimeError, match="Cached error"):
+        with pytest.raises(RuntimeError, match="Cached error for failing_key"):
             await cache.get_or_compute("failing_key", failing_function)
 
 
