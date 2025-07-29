@@ -4,6 +4,8 @@ import time
 from typing import Any, Dict
 from unittest.mock import Mock, patch
 
+import pytest
+
 from fapilog.testing.mock_processors import FailingProcessor, SlowProcessor
 from fapilog.testing.processor_performance import (
     load_test_processor_concurrent,
@@ -594,6 +596,7 @@ class TestRunProcessorPerformanceSuite:
                 ]
             )
 
+    @pytest.mark.slow
     def test_performance_suite_with_slow_processor(self):
         """Test performance suite with an intentionally slow processor."""
         processor = SlowProcessor(delay_ms=1)  # Small delay

@@ -474,6 +474,8 @@ ignore_names = [
     "_create_processor_task",
     "_start_impl",
     "_stop_impl",
+    # Test framework methods
+    "create_processor",
 ]
 ignore_decorators = [
     "pytest.fixture",

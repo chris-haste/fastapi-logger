@@ -1,7 +1,8 @@
 """Async-safe processor base class with foundation components.
 
-This module provides a base class for processors that need async-safe operations,
-using the ProcessorLockManager and SafeAsyncCache foundation components.
+This module provides a base class for processors that need async-safe
+operations, using the ProcessorLockManager and SafeAsyncCache foundation
+components.
 """
 
 import asyncio
@@ -9,7 +10,10 @@ import logging
 from abc import abstractmethod
 from typing import Any, Awaitable, Callable, Dict, Optional
 
-from .async_lock_manager import ProcessorLockManager, get_processor_lock_manager
+from .async_lock_manager import (
+    ProcessorLockManager,
+    get_processor_lock_manager,
+)
 from .processor import Processor
 from .safe_async_cache import SafeAsyncCache
 
@@ -237,3 +241,24 @@ class AsyncProcessorBase(Processor):
         except RuntimeError as e:
             logger.warning(f"Could not create async task for {self._processor_id}: {e}")
             return None
+
+    @property
+    def is_started(self) -> bool:
+        """Check if processor is started.
+
+        Returns:
+            True if the processor has been started, False otherwise
+        """
+        return self._started
+
+    def get_metrics(self) -> Dict[str, Any]:
+        """Get base processor metrics.
+
+        Returns:
+            Dictionary with base processor metrics
+        """
+        return {
+            "processor_id": self._processor_id,
+            "is_started": self.is_started,
+            "cache_stats": self._cache.get_stats(),
+        }
