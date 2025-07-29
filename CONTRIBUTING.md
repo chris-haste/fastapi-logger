@@ -268,7 +268,8 @@ When suggesting new features:
 
 ```bash
 # Testing
-hatch run test              # Run all tests
+hatch run test              # Run all tests (including slow tests)
+hatch run test:pytest -m "not slow"  # Run tests excluding slow tests (faster)
 hatch run test-cov          # Run tests with coverage
 hatch run test-queue-load   # Run queue load testing
 
@@ -311,6 +312,9 @@ def test_feature_name():
 # Run all tests
 hatch run test
 
+# Run tests excluding slow tests (faster for development)
+hatch run test:pytest -m "not slow"
+
 # Run specific test file
 pytest tests/test_specific.py
 
@@ -320,6 +324,8 @@ hatch run test-cov
 # Run tests matching pattern
 pytest -k "test_name_pattern"
 ```
+
+**Note**: Some tests are marked as "slow" because they perform intensive performance testing (60+ second stress tests). For faster development cycles, use `hatch run test:pytest -m "not slow"` which excludes these tests and runs ~53% faster.
 
 ## Code Style Guidelines
 

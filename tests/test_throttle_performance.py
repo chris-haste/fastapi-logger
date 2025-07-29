@@ -103,6 +103,7 @@ class TestThrottleProcessorPerformance:
 
         await processor.stop()
 
+    @pytest.mark.slow
     async def test_memory_stability(self, performance_processor):
         """Test memory usage under sustained load - target <5% growth."""
         processor = performance_processor
@@ -233,6 +234,7 @@ class TestThrottleProcessorPerformance:
 class TestThrottleProcessorStressTest:
     """Stress tests for sustained operation."""
 
+    @pytest.mark.slow
     async def test_sustained_load_stability(self):
         """Test stability under sustained load (reduced for CI)."""
         processor = ThrottleProcessor(
