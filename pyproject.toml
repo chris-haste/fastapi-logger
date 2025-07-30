@@ -159,7 +159,7 @@ default-script = "test"
 
 [tool.hatch.envs.test.scripts]
 test = "pytest tests/ --cov=src/fapilog --cov-report=term-missing --cov-fail-under=90"
-test-cov = "pytest tests/ --cov=src/fapilog --cov-report=term-missing"
+test-cov = "pytest tests/ --cov=src/fapilog --cov-report=term-missing --cov-report=xml"
 test-queue-load = "python scripts/load_test_log_queue.py"
 
 [tool.ruff]
