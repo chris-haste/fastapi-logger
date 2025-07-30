@@ -325,6 +325,81 @@ reset_logging()
 - Explicit lifecycle management options
 - Enhanced testing capabilities
 
+## Component Integration Updates (Story 3)
+
+### Queue Integration Changes
+
+**Updated Queue Sink Creation:**
+
+```python
+# ✅ NEW - Pure dependency injection queue sink
+from fapilog._internal.queue_integration import create_queue_sink
+
+# Create queue sink with explicit container
+container = LoggingContainer.create_from_settings(settings)
+queue_sink_processor = create_queue_sink(container)
+
+# Old global state function is now legacy fallback
+# from fapilog._internal.queue_integration import queue_sink  # Legacy
+```
+
+**Pipeline Updates:**
+
+```python
+# ✅ NEW - Pipeline with container parameter
+from fapilog.pipeline import build_processor_chain
+
+# Build processor chain with explicit container for queue support
+processors = build_processor_chain(
+    settings=settings,
+    pretty=False,
+    container=container  # Required for queue_enabled=True
+)
+
+# Falls back gracefully without container (legacy mode)
+processors = build_processor_chain(settings, pretty=False, container=None)
+```
+
+### Component Architecture Changes
+
+**What Changed:**
+
+- `queue_integration.py` - Removed `get_current_container()` usage
+- `pipeline.py` - Added optional `container` parameter to `build_processor_chain()`
+- `container.py` - Updated to pass container to pipeline building
+- All components now use pure dependency injection patterns
+
+**What Stayed the Same:**
+
+- Public APIs remain unchanged
+- Pipeline building API is backward compatible (container parameter is optional)
+- Queue functionality works the same (just with explicit container)
+- Middleware components continue to work as before
+
+**Key Improvements:**
+
+- Complete elimination of global state throughout system
+- All components operate with perfect isolation
+- Queue workers receive containers through explicit injection
+- Pipeline processors can access container when needed
+- Thread safety without any global locking
+
+### Integration Validation
+
+The complete system now operates with:
+
+- **Zero global state variables** across all components
+- **Perfect container isolation** between instances
+- **Explicit dependency injection** throughout the pipeline
+- **Backward compatibility** for all public APIs
+- **Enhanced testing capabilities** with complete isolation
+
 ## Questions?
 
-This migration guide covers the core container redesign (Story 1) and bootstrap integration (Story 2). The new pure dependency injection pattern provides better thread safety, testability, and resource management while maintaining backward compatibility for public APIs.
+This migration guide covers the complete architectural transformation:
+
+- **Story 1:** Core container redesign with pure dependency injection
+- **Story 2:** Bootstrap integration maintaining API compatibility
+- **Story 3:** Component updates for complete system-wide pure DI
+
+The new architecture provides better thread safety, testability, and resource management while maintaining backward compatibility for public APIs. All components now operate without global state and support complete isolation.

@@ -1,6 +1,6 @@
 """Default processor pipeline for fapilog structured logging."""
 
-from typing import Any, List
+from typing import TYPE_CHECKING, Any, List, Optional
 
 import structlog
 
@@ -28,6 +28,9 @@ from ._internal.processors import (
 from .redactors import field_redactor
 from .settings import LoggingSettings
 
+if TYPE_CHECKING:
+    from .container import LoggingContainer
+
 
 def _create_safe_processor(
     processor: Processor,
@@ -43,12 +46,18 @@ def _create_safe_processor(
     return create_simple_processor_wrapper(processor)
 
 
-def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> List[Any]:
+def build_processor_chain(
+    settings: LoggingSettings,
+    pretty: bool = False,
+    container: Optional["LoggingContainer"] = None,
+) -> List[Any]:
     """Build the default processor chain for structlog.
 
     Args:
         settings: LoggingSettings instance containing configuration
         pretty: Whether to use pretty console output
+        container: Optional LoggingContainer for pure dependency injection.
+                  Required when queue_enabled=True for proper queue sink creation.
 
     Returns:
         List of processor functions in the correct order
@@ -145,12 +154,22 @@ def build_processor_chain(settings: LoggingSettings, pretty: bool = False) -> Li
     filter_processor = FilterNoneProcessor()
     processors.append(_create_safe_processor(filter_processor))
 
-    # 16. Queue sink or renderer
+    # 18. Queue sink or renderer
     if settings.queue_enabled:
-        # Import here to avoid circular imports
-        from ._internal.queue_integration import queue_sink
+        # Use pure dependency injection for queue sink
+        if container is not None:
+            # Import here to avoid circular imports
+            from ._internal.queue_integration import create_queue_sink
 
-        processors.append(queue_sink)
+            # Create queue sink with explicit container dependency
+            queue_sink_processor = create_queue_sink(container)
+            processors.append(queue_sink_processor)
+        else:
+            # Fall back to legacy queue sink during transition
+            # This ensures compatibility while components are being updated
+            from ._internal.queue_integration import queue_sink
+
+            processors.append(queue_sink)
     else:
         # Renderer (JSON or Console) - always last
         if pretty:

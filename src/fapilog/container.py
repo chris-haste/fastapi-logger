@@ -345,8 +345,9 @@ class LoggingContainer:
         """Configure structlog with pure dependency injection."""
         # Build structlog processor chain using the pipeline
         # The pipeline already handles queue vs non-queue configuration
+        # Pass container for pure dependency injection
         processors = build_processor_chain(
-            self._settings, pretty=(console_format == "pretty")
+            self._settings, pretty=(console_format == "pretty"), container=self
         )
 
         # Configure structlog with appropriate factory based on queue usage
