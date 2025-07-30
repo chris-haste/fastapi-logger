@@ -1,19 +1,17 @@
 """Integration tests for complete pure dependency injection system."""
 
-import asyncio
 import logging
-from typing import Any, Dict, List
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 import structlog
 
+from fapilog._internal.queue_integration import create_queue_sink
 from fapilog.bootstrap import configure_logging, configure_with_container
 from fapilog.container import LoggingContainer
 from fapilog.middleware import TraceIDMiddleware
 from fapilog.pipeline import build_processor_chain
 from fapilog.settings import LoggingSettings
-from fapilog._internal.queue_integration import create_queue_sink
 
 
 class TestComponentIntegrationPureDI:
@@ -44,7 +42,7 @@ class TestComponentIntegrationPureDI:
         # Create container with explicit settings
         container = LoggingContainer.create_from_settings(settings)
 
-        # Configure container (this should call build_processor_chain with container param)
+        # Configure container (calls build_processor_chain with container)
         logger = container.configure()
 
         # Verify container is configured
@@ -58,7 +56,10 @@ class TestComponentIntegrationPureDI:
     def test_container_queue_integration(self) -> None:
         """Test container and queue integration with pure DI."""
         settings = LoggingSettings(
-            level="INFO", queue_enabled=True, sinks=["stdout"], queue_maxsize=10
+            level="INFO",
+            queue_enabled=True,
+            sinks=["stdout"],
+            queue_maxsize=10,
         )
 
         # Create container with queue enabled
@@ -115,7 +116,7 @@ class TestComponentIntegrationPureDI:
         assert callable(processors[-1])
 
     def test_pipeline_without_container_fallback(self) -> None:
-        """Test pipeline build_processor_chain falls back gracefully without container."""
+        """Test pipeline falls back gracefully without container."""
         settings = LoggingSettings(level="INFO", queue_enabled=True, sinks=["stdout"])
 
         # Build processor chain without container (legacy mode)
@@ -197,7 +198,10 @@ class TestComponentIntegrationPureDI:
     async def test_async_integration_with_pure_di(self) -> None:
         """Test async integration with pure dependency injection."""
         settings = LoggingSettings(
-            level="INFO", queue_enabled=True, sinks=["stdout"], metrics_enabled=True
+            level="INFO",
+            queue_enabled=True,
+            sinks=["stdout"],
+            metrics_enabled=True,
         )
 
         # Create container
@@ -254,7 +258,9 @@ class TestComponentIntegrationPureDI:
         def container_worker(worker_id: int) -> None:
             """Worker function for concurrent container testing."""
             settings = LoggingSettings(
-                level="INFO", queue_enabled=(worker_id % 2 == 0), sinks=["stdout"]
+                level="INFO",
+                queue_enabled=(worker_id % 2 == 0),
+                sinks=["stdout"],
             )
 
             # Create and configure container
@@ -311,9 +317,9 @@ class TestComponentIntegrationPureDI:
             loggers.append(logger)
 
         # Verify no global state dependencies by checking module attributes
-        import fapilog.container as container_module
-        import fapilog.bootstrap as bootstrap_module
         import fapilog._internal.queue_integration as queue_module
+        import fapilog.bootstrap as bootstrap_module
+        import fapilog.container as container_module
 
         # Container module should not have global container functions
         assert not hasattr(container_module, "get_current_container")
@@ -363,7 +369,7 @@ class TestComponentIntegrationPureDI:
         error_container = LoggingContainer.create_from_settings(
             LoggingSettings(level="INFO", sinks=["stdout"])
         )
-        error_logger = error_container.configure()
+        error_container.configure()
 
         # Simulate error in one container (by resetting it)
         error_container.reset()
