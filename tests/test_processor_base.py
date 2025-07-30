@@ -164,23 +164,24 @@ class TestRedactionProcessor:
     async def test_redaction_processor_pattern_compilation(self):
         """Test that patterns are compiled on start."""
         processor = RedactionProcessor(patterns=["test", "password"])
-        assert processor.compiled_patterns == []
+        assert processor.compiled_patterns == []  # Not compiled yet
 
         await processor.start()
         assert len(processor.compiled_patterns) == 2
         assert all(hasattr(p, "pattern") for p in processor.compiled_patterns)
 
-    def test_redaction_processor_simple_redaction(self):
-        """Test basic redaction functionality."""
+        # Test enterprise metrics are available by default
+        assert processor.enable_metrics is True
+        assert hasattr(processor, "pattern_cache")
+
+    @pytest.mark.asyncio
+    async def test_redaction_processor_simple_redaction(self):
+        """Test basic redaction functionality with optimized implementation."""
         processor = RedactionProcessor(patterns=["password"])
-        processor.compiled_patterns = [processor.patterns[0]]  # Mock compilation
+        await processor.start()  # Initialize pattern engine
 
         # Redact matching value
         event_dict = {"level": "INFO", "user_password": "secret123"}
-        # Mock the compiled pattern for testing
-        import re
-
-        processor.compiled_patterns = [re.compile("password", re.IGNORECASE)]
 
         result = processor.process(None, "info", event_dict)
         assert result["user_password"] == "[REDACTED]"
@@ -194,12 +195,11 @@ class TestRedactionProcessor:
         result = processor.process(None, "info", event_dict)
         assert result == event_dict  # Should be unchanged
 
-    def test_redaction_processor_level_filtering(self):
+    @pytest.mark.asyncio
+    async def test_redaction_processor_level_filtering(self):
         """Test that redaction respects log level filtering."""
         processor = RedactionProcessor(patterns=["secret"], redact_level="ERROR")
-        import re
-
-        processor.compiled_patterns = [re.compile("secret", re.IGNORECASE)]
+        await processor.start()  # Initialize pattern engine
 
         # INFO level should not be redacted (below ERROR threshold)
         event_dict = {"level": "INFO", "secret_key": "value"}
@@ -211,12 +211,11 @@ class TestRedactionProcessor:
         result = processor.process(None, "error", event_dict)
         assert result["secret_key"] == "[REDACTED]"
 
-    def test_redaction_processor_nested_structures(self):
+    @pytest.mark.asyncio
+    async def test_redaction_processor_nested_structures(self):
         """Test redaction of nested dictionary structures."""
         processor = RedactionProcessor(patterns=["password"])
-        import re
-
-        processor.compiled_patterns = [re.compile("password", re.IGNORECASE)]
+        await processor.start()  # Initialize pattern engine
 
         event_dict = {
             "level": "INFO",

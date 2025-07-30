@@ -111,18 +111,14 @@ def test_redaction_processor_no_patterns():
     assert result == event_dict
 
 
-def test_redaction_processor_with_patterns():
+@pytest.mark.asyncio
+async def test_redaction_processor_with_patterns():
     """Test redaction processor with patterns."""
-    import re
-
     from fapilog._internal.processors import RedactionProcessor
 
     # Test with patterns
     processor_obj = RedactionProcessor(patterns=["password", "secret"])
-    # Manually compile patterns for testing
-    processor_obj.compiled_patterns = [
-        re.compile(pattern, re.IGNORECASE) for pattern in ["password", "secret"]
-    ]
+    await processor_obj.start()  # Initialize pattern engine
 
     # Test redaction of string values
     event_dict = {
@@ -141,17 +137,13 @@ def test_redaction_processor_with_patterns():
     assert result["message"] == "[REDACTED]"
 
 
-def test_redaction_processor_nested_dict():
+@pytest.mark.asyncio
+async def test_redaction_processor_nested_dict():
     """Test redaction processor with nested dictionaries."""
-    import re
-
     from fapilog._internal.processors import RedactionProcessor
 
     processor_obj = RedactionProcessor(patterns=["password", "secret"])
-    # Manually compile patterns for testing
-    processor_obj.compiled_patterns = [
-        re.compile(pattern, re.IGNORECASE) for pattern in ["password", "secret"]
-    ]
+    await processor_obj.start()  # Initialize pattern engine
 
     event_dict = {
         "user": "john",
