@@ -268,6 +268,10 @@ ignore_names = [
     "retry_with_backoff",
     # Redactor utility functions (may be used in future)
     "_get_nested_value",
+    # RedactionProcessor methods (used in tests)
+    "get_performance_metrics",
+    "clear_cache", 
+    "reset_metrics",
     # Smart cache dataclass fields (false positive - used in dataclass)
     "cached_at",
     "_set_nested_value",

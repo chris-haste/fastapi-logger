@@ -67,16 +67,12 @@ class TestLogLevelHelpers:
 class TestPatternRedactionLevel:
     """Test pattern-based redaction with log level checking."""
 
-    def test_debug_log_not_redacted(self):
+    @pytest.mark.asyncio
+    async def test_debug_log_not_redacted(self):
         """Test that DEBUG logs bypass pattern redaction when redact_level is INFO."""
         patterns = [r"password", r"token"]
         processor = RedactionProcessor(patterns=patterns, redact_level="INFO")
-        # Manually compile patterns for synchronous testing
-        import re
-
-        processor.compiled_patterns = [
-            re.compile(pattern, re.IGNORECASE) for pattern in patterns
-        ]
+        await processor.start()  # Initialize pattern engine
 
         event_dict = {
             "level": "DEBUG",
@@ -91,16 +87,12 @@ class TestPatternRedactionLevel:
         assert result["password"] == "secret123"
         assert result["token"] == "abc123"
 
-    def test_info_log_redacted(self):
+    @pytest.mark.asyncio
+    async def test_info_log_redacted(self):
         """Test that INFO logs are redacted when redact_level is INFO."""
         patterns = [r"password", r"token"]
         processor = RedactionProcessor(patterns=patterns, redact_level="INFO")
-        # Manually compile patterns for synchronous testing
-        import re
-
-        processor.compiled_patterns = [
-            re.compile(pattern, re.IGNORECASE) for pattern in patterns
-        ]
+        await processor.start()  # Initialize pattern engine
 
         event_dict = {
             "level": "INFO",
@@ -115,16 +107,12 @@ class TestPatternRedactionLevel:
         assert result["password"] == "[REDACTED]"
         assert result["token"] == "[REDACTED]"
 
-    def test_custom_redact_level(self):
+    @pytest.mark.asyncio
+    async def test_custom_redact_level(self):
         """Test pattern redaction with custom redact level (ERROR)."""
         patterns = [r"password"]
         processor = RedactionProcessor(patterns=patterns, redact_level="ERROR")
-        # Manually compile patterns for synchronous testing
-        import re
-
-        processor.compiled_patterns = [
-            re.compile(pattern, re.IGNORECASE) for pattern in patterns
-        ]
+        await processor.start()  # Initialize pattern engine
 
         # INFO < ERROR - should not redact
         event_dict_info = {"level": "INFO", "password": "secret123"}
@@ -136,16 +124,12 @@ class TestPatternRedactionLevel:
         result_error = processor.process(None, "error", event_dict_error)
         assert result_error["password"] == "[REDACTED]"
 
-    def test_missing_level_defaults_to_redact(self):
+    @pytest.mark.asyncio
+    async def test_missing_level_defaults_to_redact(self):
         """Test that events without level field default to being redacted."""
         patterns = [r"password"]
         processor = RedactionProcessor(patterns=patterns, redact_level="INFO")
-        # Manually compile patterns for synchronous testing
-        import re
-
-        processor.compiled_patterns = [
-            re.compile(pattern, re.IGNORECASE) for pattern in patterns
-        ]
+        await processor.start()  # Initialize pattern engine
 
         event_dict = {"message": "User login", "password": "secret123"}
 
@@ -288,13 +272,12 @@ class TestPIIRedactionLevel:
 class TestLevelRedactionIntegration:
     """Test integration scenarios with multiple redaction types."""
 
-    def test_all_redactors_respect_level(self):
+    @pytest.mark.asyncio
+    async def test_all_redactors_respect_level(self):
         """Test that all redaction processors respect the same log level setting."""
         # Pattern-based redaction
-        import re
-
         pattern_processor = RedactionProcessor([r"password"], redact_level="WARNING")
-        pattern_processor.compiled_patterns = [re.compile(r"password", re.IGNORECASE)]
+        await pattern_processor.start()  # Initialize pattern engine
 
         # Field-based redaction
         field_processor = field_redactor(["api_key"], redact_level="WARNING")
@@ -331,13 +314,12 @@ class TestLevelRedactionIntegration:
         assert result3["api_key"] == "REDACTED"
         assert result3["email"] == "REDACTED"
 
-    def test_different_redact_levels(self):
+    @pytest.mark.asyncio
+    async def test_different_redact_levels(self):
         """Test processors with different redact levels."""
         # Pattern redaction at INFO level
-        import re
-
         pattern_processor = RedactionProcessor([r"password"], redact_level="INFO")
-        pattern_processor.compiled_patterns = [re.compile(r"password", re.IGNORECASE)]
+        await pattern_processor.start()
 
         # Field redaction at ERROR level
         field_processor = field_redactor(["api_key"], redact_level="ERROR")
