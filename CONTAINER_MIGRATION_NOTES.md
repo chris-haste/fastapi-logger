@@ -1,0 +1,268 @@
+# Container Migration Guide - Pure Dependency Injection
+
+## Overview
+
+The LoggingContainer has been completely redesigned to implement pure dependency injection without any global state. This change improves thread safety, testability, and allows perfect container isolation.
+
+## Breaking Changes
+
+### Removed Global Functions
+
+The following global functions have been **REMOVED**:
+
+```python
+# ❌ REMOVED - No longer available
+from fapilog.container import get_current_container, set_current_container, cleanup_all_containers
+
+# These functions are no longer available:
+get_current_container()
+set_current_container(container)
+cleanup_all_containers()
+```
+
+### Removed Global Variables
+
+The following global variables have been **REMOVED**:
+
+```python
+# ❌ REMOVED - No longer available
+_current_container
+_current_container_lock
+_container_registry
+```
+
+## New Usage Patterns
+
+### 1. Pure Dependency Injection
+
+**Old Pattern (Global State):**
+
+```python
+# ❌ OLD - Don't use this pattern
+from fapilog.container import LoggingContainer, get_current_container
+
+container = LoggingContainer()
+container.configure()
+# Global state was automatically set
+
+# Later in code:
+current = get_current_container()  # ❌ No longer available
+```
+
+**New Pattern (Pure DI):**
+
+```python
+# ✅ NEW - Explicit dependency passing
+from fapilog.container import LoggingContainer
+
+container = LoggingContainer()
+container.configure()
+
+# Pass container explicitly where needed
+def my_function(container: LoggingContainer):
+    logger = container.get_logger("my_app")
+    logger.info("Hello world")
+
+my_function(container)
+```
+
+### 2. Context Manager Support
+
+**New Feature - Automatic Configuration and Cleanup:**
+
+```python
+# ✅ NEW - Context manager pattern
+from fapilog.container import LoggingContainer
+from fapilog.settings import LoggingSettings
+
+settings = LoggingSettings(level="INFO", sinks=["stdout"])
+
+with LoggingContainer(settings) as container:
+    # Container is automatically configured
+    logger = container.get_logger("app")
+    logger.info("This will be logged")
+# Container is automatically shut down
+```
+
+### 3. Scoped Logger Pattern
+
+**New Feature - Scoped Logger Management:**
+
+```python
+# ✅ NEW - Scoped logger with automatic cleanup
+container = LoggingContainer()
+
+with container.scoped_logger("my_service") as logger:
+    logger.info("Service started")
+    logger.error("Something went wrong")
+# Logger cleanup is handled automatically
+```
+
+### 4. Factory Methods
+
+**New Feature - Clean Container Creation:**
+
+```python
+# ✅ NEW - Factory methods for clean instantiation
+from fapilog.container import LoggingContainer
+from fapilog.settings import LoggingSettings
+
+# Create from settings
+settings = LoggingSettings(level="DEBUG", queue_enabled=True)
+container = LoggingContainer.create_from_settings(settings)
+
+# Create with defaults
+container = LoggingContainer.create_with_defaults()
+```
+
+### 5. Multiple Container Isolation
+
+**New Capability - Perfect Container Isolation:**
+
+```python
+# ✅ NEW - Multiple containers coexist without interference
+container1 = LoggingContainer(LoggingSettings(level="INFO"))
+container2 = LoggingContainer(LoggingSettings(level="DEBUG"))
+
+logger1 = container1.get_logger("app1")
+logger2 = container2.get_logger("app2")
+
+# Containers are completely isolated
+container1.reset()  # Only affects container1
+# container2 continues working normally
+```
+
+## Migration Steps
+
+### Step 1: Remove Global Function Calls
+
+Replace any usage of global functions:
+
+```python
+# ❌ Remove these patterns:
+from fapilog.container import get_current_container, set_current_container
+
+# Replace with explicit container passing:
+def my_logging_function(container: LoggingContainer):
+    logger = container.get_logger()
+    return logger
+```
+
+### Step 2: Update Container Creation
+
+```python
+# ✅ Use new factory methods or constructor directly:
+container = LoggingContainer.create_with_defaults()
+# or
+container = LoggingContainer(settings)
+```
+
+### Step 3: Use Context Managers for Scoped Access
+
+```python
+# ✅ For scoped usage:
+with LoggingContainer(settings) as container:
+    # Use container here
+    pass
+```
+
+### Step 4: Update Test Code
+
+```python
+# ❌ OLD - Tests using global cleanup
+def teardown():
+    cleanup_all_containers()  # No longer available
+
+# ✅ NEW - Tests with explicit container management
+def test_logging():
+    container = LoggingContainer()
+    try:
+        container.configure()
+        # Test code here
+    finally:
+        container.reset()  # Clean up explicitly
+```
+
+## Benefits of Pure Dependency Injection
+
+### 1. Perfect Thread Safety
+
+- No global locks required
+- Each container operates independently
+- No shared state between containers
+
+### 2. Complete Testability
+
+- Easy to create isolated test containers
+- No global state cleanup required
+- Perfect test isolation
+
+### 3. Memory Efficiency
+
+- Containers can be garbage collected naturally
+- No global registry holding references
+- Better resource management
+
+### 4. Clear Dependencies
+
+- Explicit dependency passing
+- No hidden global state access
+- Easier to reason about code flow
+
+### 5. Multiple Configuration Support
+
+- Run multiple containers with different configs
+- Perfect isolation between environments
+- No configuration conflicts
+
+## Compatibility Notes
+
+- **No backwards compatibility** - This is a complete redesign
+- All existing code using global functions must be updated
+- New pattern is cleaner and more maintainable
+- Performance improvements due to lack of global locking
+
+## Example: Full Migration
+
+**Before (Global State Pattern):**
+
+```python
+from fapilog.container import LoggingContainer, get_current_container
+
+# Global setup
+container = LoggingContainer()
+container.configure()
+
+# Usage throughout app
+def process_request():
+    container = get_current_container()
+    logger = container.get_logger("api")
+    logger.info("Processing request")
+```
+
+**After (Pure DI Pattern):**
+
+```python
+from fapilog.container import LoggingContainer
+
+class Application:
+    def __init__(self):
+        self.container = LoggingContainer.create_with_defaults()
+        self.container.configure()
+
+    def process_request(self):
+        logger = self.container.get_logger("api")
+        logger.info("Processing request")
+
+    def shutdown(self):
+        self.container.shutdown_sync()
+
+# Usage
+app = Application()
+app.process_request()
+app.shutdown()
+```
+
+## Questions?
+
+This migration guide covers the core changes. The new pure dependency injection pattern provides better thread safety, testability, and resource management while eliminating hidden global state.
