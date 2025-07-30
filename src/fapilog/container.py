@@ -27,9 +27,14 @@ from typing import Any, List, Optional
 
 import structlog
 
+from ._internal.async_lock_manager import ProcessorLockManager
+from ._internal.component_factory import ComponentFactory
+from ._internal.component_registry import ComponentRegistry
 from ._internal.error_handling import (
     handle_configuration_error,
 )
+from ._internal.metrics import MetricsCollector
+from ._internal.processor_metrics import ProcessorMetrics
 from ._internal.queue_worker import QueueWorker
 from ._internal.sink_factory import (
     create_custom_sink_from_uri,
@@ -40,6 +45,7 @@ from .exceptions import (
 )
 from .httpx_patch import HttpxTracePropagation
 from .middleware import TraceIDMiddleware
+from .monitoring import PrometheusExporter
 from .pipeline import build_processor_chain
 from .settings import LoggingSettings
 from .sinks import Sink
@@ -74,6 +80,11 @@ class LoggingContainer:
         self._lock = threading.RLock()
         self._settings = settings or LoggingSettings()
         self._configured = False
+
+        # Component management
+        self._container_id = f"container_{id(self)}"
+        self._registry = ComponentRegistry(self._container_id)
+        self._factory = ComponentFactory(self)
         self._queue_worker: Optional[QueueWorker] = None
         self._sinks: List[Any] = []
         self._httpx_propagation: Optional[HttpxTracePropagation] = None
@@ -414,6 +425,12 @@ class LoggingContainer:
     async def shutdown(self) -> None:
         """Shutdown the container gracefully (async version)."""
         with self._lock:
+            # Cleanup component registry
+            try:
+                self._registry.cleanup()
+            except Exception as e:
+                logger.warning(f"Error during component registry cleanup: {e}")
+
             # Shutdown Prometheus exporter
             if self._prometheus_exporter is not None:
                 try:
@@ -447,6 +464,12 @@ class LoggingContainer:
     def shutdown_sync(self) -> None:
         """Shutdown the container gracefully (sync version)."""
         with self._lock:
+            # Cleanup component registry
+            try:
+                self._registry.cleanup()
+            except Exception as e:
+                logger.warning(f"Error during component registry cleanup: {e}")
+
             # Reset metrics components (sync version doesn't need to stop Prometheus)
             self._prometheus_exporter = None
             self._metrics_collector = None
@@ -546,3 +569,49 @@ class LoggingContainer:
             A configured structlog.BoundLogger instance
         """
         return structlog.get_logger(name)
+
+    def get_lock_manager(self) -> ProcessorLockManager:
+        """Get container-scoped ProcessorLockManager instance.
+
+        Returns:
+            ProcessorLockManager instance scoped to this container
+        """
+        return self._registry.get_or_create_component(
+            ProcessorLockManager, self._factory.create_lock_manager
+        )
+
+    def get_processor_metrics(self) -> ProcessorMetrics:
+        """Get container-scoped ProcessorMetrics instance.
+
+        Returns:
+            ProcessorMetrics instance scoped to this container
+        """
+        return self._registry.get_or_create_component(
+            ProcessorMetrics, self._factory.create_processor_metrics
+        )
+
+    def get_metrics_collector(self) -> Optional[MetricsCollector]:
+        """Get container-scoped MetricsCollector instance.
+
+        Returns:
+            MetricsCollector instance if enabled in settings, None otherwise
+        """
+        if not self._settings.metrics_enabled:
+            return None
+
+        return self._registry.get_or_create_component(
+            MetricsCollector, self._factory.create_metrics_collector
+        )
+
+    def get_prometheus_exporter(self) -> Optional[PrometheusExporter]:
+        """Get container-scoped PrometheusExporter instance.
+
+        Returns:
+            PrometheusExporter instance if enabled in settings, None otherwise
+        """
+        if not self._settings.metrics_prometheus_enabled:
+            return None
+
+        return self._registry.get_or_create_component(
+            PrometheusExporter, self._factory.create_prometheus_exporter
+        )
