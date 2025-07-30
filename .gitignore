@@ -235,6 +235,7 @@ $RECYCLE.BIN/
 # Project-specific exclusions
 .bmad-core/
 web-bundles/
+docs/stories/
 
 # Log files
 *.log
