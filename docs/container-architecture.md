@@ -1,28 +1,30 @@
-# Container-Based Architecture
+# Pure Dependency Injection Architecture
 
 ## Overview
 
-FastAPI Logger uses a container-based dependency injection architecture that eliminates global state while maintaining backward compatibility. This architecture provides better testability, thread safety, and supports multiple logging configurations within the same process.
+FastAPI Logger implements a pure dependency injection architecture that completely eliminates global state while providing superior testability, thread safety, and component isolation. This architecture supports multiple logging configurations within the same process with perfect isolation between containers.
 
 ## Architecture Components
 
 ### LoggingContainer
 
-The `LoggingContainer` class is the central component that manages all logging dependencies:
+The `LoggingContainer` class is the central component that manages all logging dependencies using pure dependency injection:
 
 - **Settings Management**: Stores and validates `LoggingSettings`
 - **Queue Worker**: Manages async logging queue when enabled
 - **Sinks**: Handles multiple output destinations (stdout, file, Loki)
 - **HttpX Integration**: Manages trace propagation for outbound requests
 - **Lifecycle Management**: Proper startup and shutdown procedures
+- **Complete Isolation**: Zero global state or shared resources
 
 ### Key Benefits
 
-1. **Thread Safety**: Each container uses thread-local storage and proper locking
-2. **Multiple Configurations**: Different containers can coexist safely
-3. **Better Testing**: Isolated instances prevent test interference
-4. **Memory Management**: Automatic cleanup prevents memory leaks
-5. **Backward Compatibility**: Existing code continues to work unchanged
+1. **Perfect Thread Safety**: Each container operates independently without global locks
+2. **Complete Isolation**: Different containers cannot interfere with each other
+3. **Enhanced Testing**: Perfect isolation prevents any test interference
+4. **Memory Efficiency**: No global registry prevents memory leaks
+5. **Pure Architecture**: Clean dependency injection throughout system
+6. **Backward Compatibility**: Existing code continues to work unchanged
 
 ## Usage Examples
 
@@ -38,68 +40,99 @@ logger = configure_logging()
 logger.info("Hello, world!")
 ```
 
-### Advanced Usage with Multiple Containers
+### Pure Dependency Injection Patterns
 
-For advanced scenarios, you can create multiple isolated logging configurations:
+For complete control and isolation, use explicit container management:
 
 ```python
 from fapilog.container import LoggingContainer
 from fapilog.settings import LoggingSettings
 
-# Create separate containers for different services
-admin_settings = LoggingSettings(
+# Create container with explicit settings
+settings = LoggingSettings(
     level="DEBUG",
     sinks=["stdout", "file:///var/log/admin.log"]
 )
-admin_container = LoggingContainer(admin_settings)
-admin_logger = admin_container.configure()
+container = LoggingContainer.create_from_settings(settings)
+logger = container.configure()
 
-user_settings = LoggingSettings(
-    level="INFO",
-    sinks=["stdout", "loki://localhost:3100"]
-)
-user_container = LoggingContainer(user_settings)
-user_logger = user_container.configure()
+# Each container operates completely independently
+logger.debug("Admin debug message")
 
-# Each logger operates independently
-admin_logger.debug("Admin debug message")  # Goes to stdout + file
-user_logger.info("User activity")          # Goes to stdout + Loki
+# Explicit cleanup when done
+container.reset()
 ```
 
-### FastAPI Integration
+### Multiple Isolated Containers
 
-Containers integrate seamlessly with FastAPI applications:
+The pure DI architecture excels at multiple isolated configurations:
+
+```python
+from fapilog.container import LoggingContainer
+from fapilog.settings import LoggingSettings
+
+# Admin service container
+admin_container = LoggingContainer.create_from_settings(
+    LoggingSettings(
+        level="DEBUG",
+        sinks=["stdout", "file:///var/log/admin.log"]
+    )
+)
+admin_logger = admin_container.configure()
+
+# User service container (completely isolated)
+user_container = LoggingContainer.create_from_settings(
+    LoggingSettings(
+        level="INFO",
+        sinks=["stdout", "loki://localhost:3100"]
+    )
+)
+user_logger = user_container.configure()
+
+# Each logger operates independently with zero interference
+admin_logger.debug("Admin debug message")  # Goes to stdout + file
+user_logger.info("User activity")          # Goes to stdout + Loki
+
+# Clean up each container independently
+admin_container.reset()
+user_container.reset()
+```
+
+### FastAPI Integration with Pure DI
+
+Containers integrate seamlessly with FastAPI applications using pure dependency injection:
 
 ```python
 from fastapi import FastAPI
-from fapilog.container import LoggingContainer
+from fapilog.bootstrap import configure_with_container
 from fapilog.settings import LoggingSettings
 
 app = FastAPI()
 
-# Configure logging with automatic middleware registration
-settings = LoggingSettings(
-    level="INFO",
-    sinks=["stdout"],
-    trace_id_header="X-Request-ID"
+# Pure DI approach - get both logger and container
+logger, container = configure_with_container(
+    LoggingSettings(
+        level="INFO",
+        sinks=["stdout"],
+        trace_id_header="X-Request-ID"
+    ),
+    app=app  # Automatic middleware registration
 )
-container = LoggingContainer(settings)
-logger = container.configure(app=app)
 
 @app.get("/")
 async def root():
     logger.info("Request received")
     return {"message": "Hello World"}
 
-# Automatic cleanup on app shutdown
+# Proper cleanup with explicit container access
 @app.on_event("shutdown")
 async def shutdown_event():
     await container.shutdown()
 ```
 
-### Testing with Containers
+### Testing with Pure Dependency Injection
 
-Containers make testing much easier by providing isolation:
+The pure DI architecture makes testing trivial with perfect isolation:
 
 ```python
 import pytest
@@ -107,34 +140,57 @@ from fapilog.container import LoggingContainer
 from fapilog.settings import LoggingSettings
 
 @pytest.fixture
-def logging_container():
-    """Create an isolated logging container for tests."""
-    settings = LoggingSettings(
-        level="DEBUG",
-        sinks=["stdout"],
-        queue_enabled=False  # Disable queue for synchronous testing
+def isolated_logging():
+    """Create a completely isolated logging container for tests."""
+    container = LoggingContainer.create_from_settings(
+        LoggingSettings(
+            level="DEBUG",
+            sinks=["stdout"],
+            queue_enabled=False  # Synchronous for testing
+        )
     )
-    container = LoggingContainer(settings)
     logger = container.configure()
 
     yield container, logger
 
-    # Automatic cleanup
+    # Automatic cleanup - no global state to worry about
     container.reset()
 
-def test_logging_functionality(logging_container):
-    container, logger = logging_container
+def test_logging_functionality(isolated_logging):
+    container, logger = isolated_logging
 
-    # Test logging without affecting other tests
+    # Test logging with perfect isolation
     logger.info("Test message")
     assert container.is_configured
+
+    # No global state means no interference between tests
+```
+
+### Context Manager Pattern
+
+The pure DI architecture supports clean context management:
+
+```python
+from fapilog.container import LoggingContainer
+from fapilog.settings import LoggingSettings
+
+# Context manager pattern for automatic cleanup
+with LoggingContainer.create_from_settings(settings) as container:
+    logger = container.configure()
+    logger.info("Scoped logging")
+    # Automatic cleanup on exit
+
+# Scoped logger context for convenience
+with container.scoped_logger("background_task") as scoped_logger:
+    scoped_logger.info("Task processing")
+    # Automatic context cleanup
 ```
 
 ## Configuration Options
 
 ### LoggingSettings
 
-The `LoggingSettings` class provides comprehensive configuration:
+The `LoggingSettings` class provides comprehensive configuration for pure DI:
 
 ```python
 from fapilog.settings import LoggingSettings
@@ -144,7 +200,7 @@ settings = LoggingSettings(
     level="INFO",                    # Logging level
     json_console="auto",            # Console output format
 
-    # Queue settings
+    # Queue settings (with pure DI)
     queue_enabled=True,             # Enable async logging
     queue_maxsize=1000,            # Queue size
     queue_batch_size=10,           # Batch processing size
@@ -181,23 +237,26 @@ export FAPILOG_REDACT_FIELDS="password,secret,token"
 
 ## Thread Safety
 
-The container architecture is fully thread-safe:
+The pure DI architecture provides perfect thread safety without global locks:
 
 ```python
 import threading
 from fapilog.container import LoggingContainer
 
 def worker_function(worker_id):
-    # Each thread can safely create its own container
-    container = LoggingContainer()
+    # Each thread creates its own isolated container
+    container = LoggingContainer.create_from_settings(
+        LoggingSettings(level="INFO", sinks=["stdout"])
+    )
     logger = container.configure()
 
     for i in range(100):
         logger.info(f"Worker {worker_id}, message {i}")
 
-    container.shutdown_sync()
+    # Clean up thread-local container
+    container.reset()
 
-# Start multiple threads safely
+# Start multiple threads safely - no global contention
 threads = []
 for i in range(5):
     thread = threading.Thread(target=worker_function, args=(i,))
@@ -210,141 +269,169 @@ for thread in threads:
 
 ## Memory Management
 
-Containers automatically manage memory and provide cleanup mechanisms:
+Containers provide automatic memory management with explicit cleanup:
 
 ```python
-from fapilog.container import LoggingContainer, cleanup_all_containers
+from fapilog.container import LoggingContainer
+from fapilog.bootstrap import get_active_containers, reset_logging
 
-# Manual cleanup for specific container
+# Individual container cleanup
 container = LoggingContainer()
 logger = container.configure()
 # ... use logger ...
-container.shutdown_sync()  # Manual cleanup
+container.reset()  # Explicit cleanup
 
-# Global cleanup (automatically called on process exit)
-cleanup_all_containers()
+# Bootstrap-level cleanup (for configure_logging() usage)
+reset_logging()  # Cleans up bootstrap-managed containers
 
-# Context manager pattern (future enhancement)
-async def async_context_example():
-    container = LoggingContainer()
-    try:
-        logger = container.configure()
-        # ... use logger ...
-    finally:
-        await container.shutdown()
+# Query active containers (bootstrap registry, not global state)
+active = get_active_containers()
+print(f"Active containers: {len(active)}")
+
+# Context manager pattern (automatic cleanup)
+with LoggingContainer() as container:
+    logger = container.configure()
+    # ... use logger ...
+    # Automatic cleanup on exit
 ```
 
 ## Migration Guide
 
-### From Global State to Containers
+### From Old Architecture to Pure DI
 
-If you were previously relying on internal global state (not recommended), you'll need to update:
+The new pure dependency injection architecture eliminates all global state:
 
-**Before (Internal API - Not Recommended):**
+**Before (Global State - Now Removed):**
 
 ```python
-# This was never recommended but might exist in some code
-from fapilog._internal.queue_worker import QueueWorker
-worker = get_queue_worker()  # Global state access
+# These functions no longer exist:
+from fapilog.container import get_current_container  # ❌ REMOVED
+from fapilog.container import set_current_container  # ❌ REMOVED
+from fapilog.container import cleanup_all_containers # ❌ REMOVED
+
+container = get_current_container()  # ❌ No longer available
 ```
 
-**After (Proper Container API):**
+**After (Pure Dependency Injection):**
 
 ```python
 from fapilog.container import LoggingContainer
+from fapilog.bootstrap import configure_with_container
 
-container = LoggingContainer()
-container.configure()
-worker = container.queue_worker  # Access through container
+# Explicit container creation
+container = LoggingContainer.create_from_settings(settings)
+logger = container.configure()
+
+# Or with bootstrap integration
+logger, container = configure_with_container(settings)
 ```
 
-### From Deprecated Functions
+### From Queue Integration Global State
 
-Some internal functions are now deprecated:
-
-**Before:**
+**Before (Global State Access - Now Removed):**
 
 ```python
-from fapilog.bootstrap import _configure_standard_logging
-_configure_standard_logging("INFO")  # Deprecated
+# This pattern no longer works:
+from fapilog._internal.queue_integration import queue_sink  # ❌ Legacy
+
+# Global state access removed
 ```
 
-**After:**
+**After (Pure Dependency Injection):**
 
 ```python
-from fapilog.container import LoggingContainer
+from fapilog._internal.queue_integration import create_queue_sink
+
+# Explicit container passing
+container = LoggingContainer.create_from_settings(settings)
+queue_sink_processor = create_queue_sink(container)
+```
+
+### From Bootstrap Global Functions
+
+**Before (Deprecated Functions - Some Removed):**
+
+```python
+from fapilog.bootstrap import _configure_standard_logging  # ❌ Deprecated
+_configure_standard_logging("INFO")
+```
+
+**After (Pure Dependency Injection):**
+
+```python
+from fapilog.bootstrap import configure_with_container
 from fapilog.settings import LoggingSettings
 
-settings = LoggingSettings(level="INFO")
-container = LoggingContainer(settings)
-container.configure()
+logger, container = configure_with_container(
+    LoggingSettings(level="INFO")
+)
 ```
 
 ## Performance Considerations
 
-### Container Creation Overhead
+### Container Creation Performance
 
-- Container creation is lightweight but not free
-- For high-frequency logging, reuse containers
-- Consider singleton patterns for application-level containers
+- Container creation is lightweight and fast
+- Pure DI eliminates global lock contention
+- Factory methods optimize common patterns
+- No global registry lookup overhead
 
 ### Queue Worker Performance
 
-- Async queues provide better throughput for high-volume logging
-- Tune `queue_batch_size` and `queue_batch_timeout` for your workload
-- Monitor queue overflow with appropriate `queue_overflow` strategy
+- Async queues provide excellent throughput with pure DI
+- Queue workers receive containers through explicit injection
+- No global state lookup in hot paths
+- Tune `queue_batch_size` and `queue_batch_timeout` for workload
 
 ### Memory Usage
 
-- Each container maintains its own state and resources
-- Use `cleanup_all_containers()` for proper resource management
-- Consider container sharing for related components
+- Each container maintains only its own resources
+- No global registry prevents memory leaks
+- Perfect isolation means predictable memory patterns
+- Explicit cleanup provides deterministic resource management
 
 ## Troubleshooting
 
-### Common Issues
+### Common Migration Issues
 
-1. **Multiple Containers with Same Settings**
-
-   ```python
-   # Each container is independent, even with same settings
-   container1 = LoggingContainer(settings)
-   container2 = LoggingContainer(settings)
-   # These are completely separate instances
-   ```
-
-2. **Container Not Cleaning Up**
+1. **Missing Global Functions**
 
    ```python
-   # Always clean up containers explicitly in long-running processes
+   # ❌ This will fail - function removed
+   from fapilog.container import cleanup_all_containers
+
+   # ✅ Use explicit container management instead
    container = LoggingContainer()
-   try:
-       logger = container.configure()
-       # ... use logger ...
-   finally:
-       container.shutdown_sync()
+   logger = container.configure()
+   # ... use logger ...
+   container.reset()
    ```
 
-3. **Thread Safety Issues**
+2. **Queue Integration Changes**
 
    ```python
-   # Don't share containers across threads unless necessary
-   # Create thread-local containers instead
-   import threading
+   # ❌ Legacy queue sink (transition compatibility only)
+   from fapilog._internal.queue_integration import queue_sink
 
-   thread_local = threading.local()
-
-   def get_logger():
-       if not hasattr(thread_local, 'container'):
-           thread_local.container = LoggingContainer()
-           thread_local.logger = thread_local.container.configure()
-       return thread_local.logger
+   # ✅ Pure DI queue sink creation
+   from fapilog._internal.queue_integration import create_queue_sink
+   queue_sink_processor = create_queue_sink(container)
    ```
 
-### Debugging Container State
+3. **Container Isolation Expectations**
+
+   ```python
+   # Each container is completely isolated
+   container1 = LoggingContainer.create_from_settings(settings)
+   container2 = LoggingContainer.create_from_settings(settings)
+   # These are completely separate instances with zero interaction
+   ```
+
+### Debugging Pure DI Containers
 
 ```python
 from fapilog.container import LoggingContainer
+from fapilog.bootstrap import get_active_containers
 
 container = LoggingContainer()
 logger = container.configure()
@@ -358,24 +445,60 @@ print(f"Queue Worker: {container.queue_worker}")
 if container.queue_worker:
     print(f"Queue size: {container.queue_worker.queue.qsize()}")
     print(f"Running: {container.queue_worker._running}")
+
+# Check bootstrap registry (not global state)
+active_containers = get_active_containers()
+print(f"Bootstrap-managed containers: {len(active_containers)}")
 ```
 
 ## Best Practices
 
-1. **Use Default Container for Simple Cases**: The backward-compatible API is perfect for most applications
-2. **Create Dedicated Containers for Complex Scenarios**: Use multiple containers when you need different configurations
-3. **Always Clean Up**: Explicitly shut down containers in long-running applications
-4. **Test with Isolated Containers**: Use separate containers in tests to prevent interference
-5. **Monitor Container Resources**: Keep track of queue sizes and memory usage in production
-6. **Use Environment Variables**: Configure production settings via environment variables
-7. **Follow FastAPI Patterns**: Let containers handle middleware registration automatically
+1. **Use Factory Methods**: Prefer `LoggingContainer.create_from_settings()` for clarity
+2. **Explicit Container Passing**: Pass containers explicitly rather than relying on implicit access
+3. **Context Managers**: Use context managers for automatic cleanup
+4. **Test Isolation**: Create dedicated containers for each test
+5. **Thread Safety**: Create thread-local containers for concurrent scenarios
+6. **Resource Management**: Always clean up containers explicitly in long-running applications
+7. **Bootstrap Integration**: Use `configure_with_container()` when you need both logger and container access
+
+## Architecture Validation
+
+The pure dependency injection architecture provides:
+
+### Zero Global State
+
+- No global variables anywhere in the system
+- No global functions for container access
+- No shared state between containers
+- Complete component isolation
+
+### Perfect Isolation
+
+- Containers operate independently
+- No interference between instances
+- Thread-safe without global locks
+- Predictable resource management
+
+### Enhanced Testing
+
+- Complete test isolation
+- No global state cleanup needed
+- Independent container lifecycle
+- Deterministic behavior
+
+### Production Readiness
+
+- Memory efficient with explicit cleanup
+- Thread-safe concurrent operations
+- Performance optimized dependency injection
+- Clean architecture principles throughout
 
 ## Future Enhancements
 
-The container architecture provides a foundation for future improvements:
+The pure dependency injection architecture provides a foundation for:
 
-- **Async Context Managers**: For cleaner resource management
-- **Container Pools**: For high-performance scenarios
-- **Dynamic Reconfiguration**: Runtime configuration changes
-- **Metrics Integration**: Built-in performance monitoring
-- **Plugin System**: Extensible sink and enricher registration
+- **Enhanced Context Managers**: More sophisticated resource management
+- **Container Factories**: Optimized container creation patterns
+- **Dynamic Configuration**: Runtime configuration updates with isolation
+- **Performance Monitoring**: Built-in metrics with container-level granularity
+- **Plugin Architecture**: Extensible components with pure DI patterns
