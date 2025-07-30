@@ -1,7 +1,8 @@
 """PII (Personally Identifiable Information) detection patterns and processor."""
 
 import re
-from typing import Any, Dict, List
+from collections import deque
+from typing import Any, List, cast
 
 from ..redactors import _should_redact_at_level
 
@@ -47,25 +48,19 @@ def _compile_pii_patterns(patterns: List[str]) -> List[re.Pattern[str]]:
 def _redact_string_value(
     value: str, patterns: List[re.Pattern[str]], replacement: str
 ) -> str:
-    """Redact PII from a string value using non-overlapping matches."""
-    redacted_value = value
+    """Apply PII redaction patterns to a string value."""
     for pattern in patterns:
-        matches = list(pattern.finditer(redacted_value))
-        for match in reversed(matches):
-            start, end = match.span()
-            if redacted_value[start:end] != replacement:
-                redacted_value = (
-                    redacted_value[:start] + replacement + redacted_value[end:]
-                )
-        if redacted_value == replacement:
-            break
-    return redacted_value
+        value = pattern.sub(replacement, value)
+    return value
 
 
-def _redact_pii_recursive(
+def _redact_pii_iterative(
     data: Any, patterns: List[re.Pattern[str]], replacement: str
 ) -> Any:
-    """Recursively redact PII from data structures.
+    """Iteratively redact PII from data structures using explicit stack.
+
+    This replaces the recursive approach to eliminate O(n²) memory complexity
+    and stack overflow issues for deeply nested structures.
 
     Args:
         data: The data to process (dict, list, or primitive)
@@ -75,18 +70,110 @@ def _redact_pii_recursive(
     Returns:
         The data with PII redacted
     """
+    if not isinstance(data, (dict, list)):
+        # Handle primitive values directly
+        if isinstance(data, str):
+            return _redact_string_value(data, patterns, replacement)
+        return data
+
+    # For complex structures, we need to create a copy to avoid modifying original
+    # and use iterative approach
     if isinstance(data, dict):
         result = {}
-        for key, value in data.items():
-            result[key] = _redact_pii_recursive(value, patterns, replacement)
-        return result
-    elif isinstance(data, list):
-        return [_redact_pii_recursive(item, patterns, replacement) for item in data]
-    elif isinstance(data, str):
-        return _redact_string_value(data, patterns, replacement)
-    else:
-        # For non-string primitives (int, float, bool, None), return as-is
-        return data
+    else:  # list
+        result = []
+
+    # Stack contains: (source_obj, target_obj, processing_stage)
+    # processing_stage: 'copy_structure' or 'process_values'
+    stack = deque([(data, result, "copy_structure")])
+
+    while stack:
+        source, target, stage = stack.popleft()
+
+        if stage == "copy_structure":
+            if isinstance(source, dict):
+                # Copy structure and schedule value processing
+                target_dict = cast(dict, target)
+                for key in source.keys():
+                    target_dict[key] = None  # Placeholder
+                # Schedule processing of values
+                for key, value in source.items():
+                    stack.append((value, target_dict, ("dict_value", key)))
+            elif isinstance(source, list):
+                # Create list structure and schedule item processing
+                target_list = cast(list, target)
+                target_list.extend([None] * len(source))
+                for i, item in enumerate(source):
+                    stack.append((item, target_list, ("list_item", i)))
+
+        elif isinstance(stage, tuple) and stage[0] == "dict_value":
+            # Process dictionary value
+            _, key = stage
+
+            # Check if key matches any pattern (like main RedactionProcessor)
+            key_matches = any(pattern.search(str(key)) for pattern in patterns)
+
+            if isinstance(source, str):
+                # If key matches, redact entire value regardless of content
+                if key_matches:
+                    target[key] = replacement
+                else:
+                    # For values, use partial redaction (only redact matching parts)
+                    target[key] = _redact_string_value(source, patterns, replacement)
+            elif isinstance(source, (dict, list)):
+                # If key matches, redact the entire nested structure
+                if key_matches:
+                    target[key] = replacement
+                else:
+                    # Create new nested structure for processing
+                    if isinstance(source, dict):
+                        target[key] = {}
+                    else:
+                        target[key] = []
+                    stack.append((source, target[key], "copy_structure"))
+            else:
+                # For other types, redact if key matches
+                if key_matches:
+                    target[key] = replacement
+                else:
+                    target[key] = source
+
+        elif isinstance(stage, tuple) and stage[0] == "list_item":
+            # Process list item
+            _, index = stage
+            if isinstance(source, str):
+                target[index] = _redact_string_value(source, patterns, replacement)
+            elif isinstance(source, (dict, list)):
+                # Create new nested structure
+                if isinstance(source, dict):
+                    target[index] = {}
+                else:
+                    target[index] = []
+                stack.append((source, target[index], "copy_structure"))
+            else:
+                target[index] = source
+
+    return result
+
+
+# Keep the original function name for backward compatibility, but use iterative implementation
+def _redact_pii_recursive(
+    data: Any, patterns: List[re.Pattern[str]], replacement: str
+) -> Any:
+    """Redact PII from data structures using iterative algorithm.
+
+    Note: Despite the name 'recursive' for backward compatibility, this now
+    uses an iterative implementation to eliminate O(n²) memory complexity.
+
+    Args:
+        data: The data to process (dict, list, or primitive)
+        patterns: List of compiled regex patterns
+        replacement: Replacement string for matches
+
+    Returns:
+        The data with PII redacted
+    """
+    return _redact_pii_iterative(data, patterns, replacement)
 
 
 def auto_redact_pii_processor(
@@ -107,9 +194,7 @@ def auto_redact_pii_processor(
 
     compiled_patterns = _compile_pii_patterns(patterns)
 
-    def pii_processor(
-        logger: Any, method_name: str, event_dict: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def pii_processor(logger: Any, method_name: str, event_dict: Any) -> Any:
         """Automatically detect and redact PII from log entries.
 
         Args:
