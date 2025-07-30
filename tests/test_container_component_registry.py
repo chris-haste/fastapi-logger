@@ -27,7 +27,7 @@ class TestLoggingContainerComponentRegistry:
         """Set up test environment before each test."""
         self.settings = LoggingSettings(
             level="INFO",
-            sinks=["stdout://"],
+            sinks=["stdout"],
             metrics_enabled=True,
             metrics_prometheus_enabled=True,
         )
@@ -96,7 +96,7 @@ class TestLoggingContainerComponentRegistry:
         """Test MetricsCollector access when disabled."""
         settings = LoggingSettings(
             level="INFO",
-            sinks=["stdout://"],
+            sinks=["stdout"],
             metrics_enabled=False,
         )
         container = LoggingContainer(settings)
@@ -121,7 +121,7 @@ class TestLoggingContainerComponentRegistry:
         """Test PrometheusExporter access when disabled."""
         settings = LoggingSettings(
             level="INFO",
-            sinks=["stdout://"],
+            sinks=["stdout"],
             metrics_prometheus_enabled=False,
         )
         container = LoggingContainer(settings)
@@ -205,9 +205,9 @@ class TestLoggingContainerComponentRegistry:
         _metrics_collector = container.get_metrics_collector()
 
         # Verify components exist in registry
-        assert container._registry.has_component(ProcessorLockManager)
-        assert container._registry.has_component(ProcessorMetrics)
-        assert container._registry.has_component(MetricsCollector)
+        assert ProcessorLockManager in container._registry
+        assert ProcessorMetrics in container._registry
+        assert MetricsCollector in container._registry
 
         # Mock the registry cleanup method to verify it's called
         with patch.object(container._registry, "cleanup") as mock_cleanup:
@@ -236,7 +236,7 @@ class TestLoggingContainerComponentRegistry:
         # Create container with specific settings
         settings = LoggingSettings(
             level="DEBUG",
-            sinks=["stdout://"],
+            sinks=["stdout"],
             metrics_enabled=True,
             metrics_sample_window=200,
             metrics_prometheus_enabled=True,
@@ -273,7 +273,7 @@ class TestLoggingContainerComponentRegistry:
 
         # Test registry component tracking
         lock_manager = container.get_lock_manager()
-        assert container._registry.has_component(ProcessorLockManager)
+        assert ProcessorLockManager in container._registry
         assert container._registry.get_component(ProcessorLockManager) is lock_manager
 
 
@@ -284,7 +284,7 @@ class TestContainerAsyncSupport:
         """Set up test environment before each test."""
         self.settings = LoggingSettings(
             level="INFO",
-            sinks=["stdout://"],
+            sinks=["stdout"],
             metrics_prometheus_enabled=True,
         )
 
@@ -328,7 +328,7 @@ class TestContainerErrorHandling:
 
     def setup_method(self):
         """Set up test environment before each test."""
-        self.settings = LoggingSettings(level="INFO", sinks=["stdout://"])
+        self.settings = LoggingSettings(level="INFO", sinks=["stdout"])
 
     def test_registry_cleanup_error_handling(self):
         """Test error handling during registry cleanup."""
@@ -376,7 +376,7 @@ class TestContainerPerformanceCharacteristics:
         """Set up test environment before each test."""
         self.settings = LoggingSettings(
             level="INFO",
-            sinks=["stdout://"],
+            sinks=["stdout"],
             metrics_enabled=True,
         )
 
@@ -429,4 +429,4 @@ class TestContainerPerformanceCharacteristics:
             container.get_metrics_collector()
 
         # Should only have one instance of each component type
-        assert container._registry.get_component_count() <= 3
+        assert len(container._registry) <= 3
