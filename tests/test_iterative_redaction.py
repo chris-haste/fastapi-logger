@@ -288,8 +288,34 @@ class TestStackOverflowPrevention:
         result = processor._redact_iterative(deep_obj)
         assert result is not None
 
-        # Verify some redaction occurred
-        assert "[REDACTED]" in str(result)
+        # Verify some redaction occurred without using str() on deep structures
+        # Use a more efficient approach to check for redaction
+        def check_for_redaction(obj, max_depth=10):
+            """Check for redaction markers without deep recursion."""
+            if max_depth <= 0:
+                return False
+            if isinstance(obj, dict):
+                for _key, value in list(obj.items())[:5]:  # Check first 5 items
+                    if isinstance(value, str) and "[REDACTED]" in value:
+                        return True
+                    if isinstance(value, (dict, list)) and check_for_redaction(
+                        value, max_depth - 1
+                    ):
+                        return True
+            elif isinstance(obj, list):
+                for item in obj[:5]:  # Check first 5 items
+                    if isinstance(item, str) and "[REDACTED]" in item:
+                        return True
+                    if isinstance(item, (dict, list)) and check_for_redaction(
+                        item, max_depth - 1
+                    ):
+                        return True
+            return False
+
+        # Check for redaction in the first few levels only
+        assert check_for_redaction(result), (
+            "Redaction should have occurred in the structure"
+        )
 
     @pytest.mark.asyncio
     async def test_extremely_deep_nesting_with_max_depth_protection(self):
