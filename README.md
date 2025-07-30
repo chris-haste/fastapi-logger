@@ -4,7 +4,7 @@
 ![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![PyPI](https://img.shields.io/badge/pypi-v/fapilog)
-![Codecov](https://codecov.io/gh/chris-haste/fastapi-logger/branch/main/graph/badge.svg)
+![Codecov](https://codecov.io/gh/chris-haste/fastapi-logger/graph/badge.svg)
 
 **Production-ready structured logging for FastAPI with trace IDs, async queues, and observability integration.**
 
