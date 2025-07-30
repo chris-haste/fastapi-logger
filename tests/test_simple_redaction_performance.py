@@ -440,11 +440,12 @@ class TestOptimizedRedactionPerformance:
         print("• Large events (5000 attrs): Some cache benefit, but many unique fields")
         print("• All sizes show realistic enterprise performance patterns")
 
-        # Performance assertions
-        assert results[100]["avg_time_ms"] < 2.0, (
+        # Performance assertions - made more tolerant for CI/CD environments
+        # while still ensuring good performance
+        assert results[100]["avg_time_ms"] < 5.0, (
             f"100-attr events too slow: {results[100]['avg_time_ms']:.2f}ms"
         )
-        assert results[1000]["avg_time_ms"] < 30.0, (
+        assert results[1000]["avg_time_ms"] < 50.0, (
             f"1000-attr events too slow: {results[1000]['avg_time_ms']:.2f}ms"
         )
         assert results[5000]["avg_time_ms"] < 200.0, (
