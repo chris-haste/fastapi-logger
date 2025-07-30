@@ -127,11 +127,11 @@ class RedactionProcessor(Processor):
                 )
 
     def _redact_with_observability(self, event_dict: Dict[str, Any]) -> Dict[str, Any]:
-        """Fast recursive redaction with optional pattern caching for enterprise observability."""
+        """Fast recursive redaction with in-place modification for memory efficiency."""
 
-        def redact_recursive(data: Any) -> Any:
+        def redact_recursive(data: Any) -> None:
+            """Recursively redact data in-place to eliminate memory copying overhead."""
             if isinstance(data, dict):
-                result = {}
                 for key, value in data.items():
                     # Check if key matches any pattern (with optional caching)
                     key_matches = self._pattern_matches(str(key))
@@ -139,20 +139,37 @@ class RedactionProcessor(Processor):
                     if isinstance(value, str):
                         value_matches = self._pattern_matches(value)
                         if key_matches or value_matches:
-                            result[key] = "[REDACTED]"
-                        else:
-                            result[key] = value
+                            data[key] = "[REDACTED]"
                     elif isinstance(value, dict):
-                        result[key] = redact_recursive(value)
-                    else:
+                        # Recursively process nested dictionaries
+                        redact_recursive(value)
+                        # If key matches, replace the entire nested dict with redacted value
                         if key_matches:
-                            result[key] = "[REDACTED]"
-                        else:
-                            result[key] = value
-                return result
-            return data
+                            data[key] = "[REDACTED]"
+                    elif isinstance(value, list):
+                        # Process list items recursively
+                        redact_recursive(value)
+                        # If key matches, replace the entire list with redacted value
+                        if key_matches:
+                            data[key] = "[REDACTED]"
+                    else:
+                        # For other types, redact if key matches
+                        if key_matches:
+                            data[key] = "[REDACTED]"
+            elif isinstance(data, list):
+                for i, item in enumerate(data):
+                    if isinstance(item, (dict, list)):
+                        redact_recursive(item)
+                    elif isinstance(item, str):
+                        # Check if string value matches patterns
+                        if self._pattern_matches(item):
+                            data[i] = "[REDACTED]"
 
-        return redact_recursive(event_dict)
+        # Perform in-place redaction
+        redact_recursive(event_dict)
+
+        # Return the modified event_dict for API compatibility
+        return event_dict
 
     def _pattern_matches(self, text: str) -> bool:
         """Check if text matches any pattern with optional caching for enterprise observability."""
