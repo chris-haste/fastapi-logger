@@ -329,8 +329,8 @@ class PerformanceBaseline:
         # Measure container cleanup
         for container in containers:
             with self.measure_operation("container_cleanup") as result:
-                if hasattr(container, "shutdown"):
-                    container.shutdown()
+                if hasattr(container, "shutdown_sync"):
+                    container.shutdown_sync()
 
             if result.success:
                 cleanup_durations.append(result.duration_ns)
@@ -597,7 +597,9 @@ class TestPerformanceBaseline:
             assert creation_stats.sample_count >= 0  # Allow some failures
             if creation_stats.sample_count > 0:
                 assert creation_stats.mean_ns > 0
-                assert creation_stats.mean_ns < 100_000_000  # Less than 100ms on average
+                assert (
+                    creation_stats.mean_ns < 100_000_000
+                )  # Less than 100ms on average
 
             # Validate container cleanup performance (may be 0 if no containers created)
             assert cleanup_stats.sample_count >= 0
@@ -717,8 +719,10 @@ class TestPerformanceBaseline:
         # Generate comprehensive report
         report = self.baseline.generate_baseline_report()
 
-        # Validate comprehensive coverage  
-        assert len(report["component_baselines"]) >= 8  # Core components + variants (container may skip)
+        # Validate comprehensive coverage
+        assert (
+            len(report["component_baselines"]) >= 8
+        )  # Core components + variants (container may skip)
         # Container tests may be skipped, so don't require them
         # assert "container_creation" in report["component_baselines"]
         # assert "container_cleanup" in report["component_baselines"]
