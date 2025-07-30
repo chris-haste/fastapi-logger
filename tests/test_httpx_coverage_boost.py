@@ -11,6 +11,7 @@ class TestHttpxPatchCoverage:
     def test_httpx_import_failure(self):
         """Test handling when httpx is not available."""
         import builtins
+        import importlib
 
         # Mock httpx import failure
         original_import = builtins.__import__
@@ -22,14 +23,18 @@ class TestHttpxPatchCoverage:
 
         with patch("builtins.__import__", side_effect=mock_import):
             # Re-import the module to trigger the import handling
-            import importlib
-
             import fapilog.httpx_patch
 
             importlib.reload(fapilog.httpx_patch)
 
             # Should handle gracefully without httpx
             assert True
+
+        # CRITICAL: Reload the module again to restore proper httpx import
+        # This prevents contamination of subsequent tests
+        import fapilog.httpx_patch
+
+        importlib.reload(fapilog.httpx_patch)
 
     def test_httpx_trace_propagation_class(self):
         """Test HttpxTracePropagation class exists."""

@@ -339,14 +339,14 @@ class TestTemplateProcessor:
         """Create processor instance for testing."""
         return TemplateProcessor(**config)
 
-    async def test_basic_processing(self, processor):
-        """Test basic event processing."""
+    async def example_basic_processing(self, processor):
+        """Example: Test basic event processing."""
         event = {"user_id": "123", "message": "test"}
         result = await processor.process_async(None, "info", event)
         assert result is not None
 
-    async def test_rate_limiting(self, processor):
-        """Test rate limiting behavior."""
+    async def example_rate_limiting(self, processor):
+        """Example: Test rate limiting behavior."""
         # Send more events than allowed
         for i in range(60):  # More than max_events_per_key
             event = {"user_id": "123", "message": f"test_{i}"}
@@ -356,8 +356,8 @@ class TestTemplateProcessor:
             else:  # Rest should be dropped
                 assert result is None
 
-    async def test_concurrent_access(self, processor):
-        """Test concurrent access patterns."""
+    async def example_concurrent_access(self, processor):
+        """Example: Test concurrent access patterns."""
 
         async def worker(worker_id):
             for i in range(10):

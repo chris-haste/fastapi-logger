@@ -484,6 +484,15 @@ ignore_names = [
     "_stop_impl",
     # Test framework methods
     "create_processor",
+    # Template example methods (used by external test code)
+    "example_basic_processing",
+    "example_rate_limiting", 
+    "example_concurrent_access",
+    # Public API functions (may be used by external code)
+    "shutdown_logging",
+    "get_active_containers", 
+    "configure_with_container",
+    "scoped_logger",
 ]
 ignore_decorators = [
     "pytest.fixture",
