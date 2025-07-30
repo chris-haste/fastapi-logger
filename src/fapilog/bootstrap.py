@@ -8,16 +8,9 @@ from .container import LoggingContainer
 from .settings import LoggingSettings
 from .sinks import Sink
 
-# Default container instance for backward compatibility
-_default_container: Optional[LoggingContainer] = None
-
-
-def _get_default_container() -> LoggingContainer:
-    """Get or create the default container instance."""
-    global _default_container
-    if _default_container is None:
-        _default_container = LoggingContainer()
-    return _default_container
+# Container registry for lifecycle management
+# This is NOT global state - it's a registry for explicit cleanup
+_active_containers: List[LoggingContainer] = []
 
 
 def configure_logging(
@@ -27,8 +20,8 @@ def configure_logging(
 ) -> structlog.BoundLogger:
     """Configure structured logging for the application.
 
-    This function is idempotent - subsequent calls will not duplicate handlers
-    or re-initialize sinks.
+    This function creates a new isolated container instance each time it's called,
+    providing complete isolation while maintaining backward compatibility.
 
     Args:
         settings: Optional LoggingSettings instance. If None, created from env.
@@ -53,31 +46,73 @@ def configure_logging(
             settings = LoggingSettings(**settings.model_dump())
         settings.sinks = sinks
 
-    container = _get_default_container()
+    # Create a new isolated container instance using pure dependency injection
+    container = (
+        LoggingContainer.create_from_settings(settings)
+        if settings
+        else LoggingContainer.create_with_defaults()
+    )
+
+    # Configure the container
     result = container.configure(
         settings=settings,
         app=app,
     )
 
+    # Register container for lifecycle management
+    _active_containers.append(container)
+
     return result
 
 
 def reset_logging() -> None:
-    """Reset logging configuration for testing purposes."""
-    global _default_container
-    if _default_container is not None:
-        _default_container.reset()
-        _default_container = None
+    """Reset all active logging containers for testing purposes.
+
+    This function resets all containers created via configure_logging()
+    and clears the active container registry.
+    """
+    # Reset all active containers
+    for container in _active_containers:
+        try:
+            container.reset()
+        except Exception:
+            # Ignore errors during reset for robustness
+            pass
+
+    # Clear the registry
+    _active_containers.clear()
+
+
+def shutdown_logging() -> None:
+    """Shutdown all active logging containers gracefully.
+
+    This function should be called during application shutdown to ensure
+    all containers are properly cleaned up.
+    """
+    # Shutdown all active containers
+    for container in _active_containers:
+        try:
+            container.shutdown_sync()
+        except Exception:
+            # Ignore errors during shutdown for robustness
+            pass
+
+    # Clear the registry
+    _active_containers.clear()
 
 
 def _shutdown_queue_worker() -> None:
-    """Shutdown the queue worker gracefully.
+    """Shutdown queue workers in all active containers gracefully.
 
-    This function is provided for test compatibility.
+    This function is provided for test compatibility and backward compatibility.
     """
-    global _default_container
-    if _default_container is not None:
-        _default_container.shutdown_sync()
+    for container in _active_containers:
+        if container.queue_worker is not None:
+            try:
+                container.shutdown_sync()
+            except Exception:
+                # Ignore errors during shutdown for robustness
+                pass
 
 
 def _determine_console_format(console_format: str) -> str:
@@ -101,3 +136,57 @@ def _determine_console_format(console_format: str) -> str:
     if console_format == "auto":
         return "pretty" if sys.stderr.isatty() else "json"
     return console_format
+
+
+def get_active_containers() -> List[LoggingContainer]:
+    """Get list of active containers for advanced use cases.
+
+    This function is provided for advanced users who need access to the
+    container instances for lifecycle management or testing.
+
+    Returns:
+        List of currently active LoggingContainer instances
+    """
+    return _active_containers.copy()
+
+
+def configure_with_container(
+    settings: Optional[LoggingSettings] = None,
+    app: Optional[Any] = None,
+    sinks: Optional[List[Union[str, Sink]]] = None,
+) -> tuple[structlog.BoundLogger, LoggingContainer]:
+    """Configure logging and return both logger and container.
+
+    This function provides explicit access to the container for advanced
+    use cases while maintaining the same configuration logic.
+
+    Args:
+        settings: Optional LoggingSettings instance. If None, created from env.
+        app: Optional FastAPI app instance.
+        sinks: Optional list of sink URIs or sink instances.
+
+    Returns:
+        Tuple of (logger, container) for explicit lifecycle management
+    """
+    # Handle sinks parameter
+    if sinks is not None:
+        if settings is None:
+            settings = LoggingSettings()
+        else:
+            settings = LoggingSettings(**settings.model_dump())
+        settings.sinks = sinks
+
+    # Create isolated container
+    container = (
+        LoggingContainer.create_from_settings(settings)
+        if settings
+        else LoggingContainer.create_with_defaults()
+    )
+
+    # Configure the container
+    logger = container.configure(settings=settings, app=app)
+
+    # Register for lifecycle management
+    _active_containers.append(container)
+
+    return logger, container

@@ -263,6 +263,68 @@ app.process_request()
 app.shutdown()
 ```
 
+## Bootstrap Integration Updates (Story 2)
+
+### New Bootstrap Functionality
+
+**Enhanced configure_logging() Function:**
+
+```python
+# ✅ NEW - Still backward compatible, now creates isolated containers
+from fapilog.bootstrap import configure_logging, configure_with_container
+
+# Basic usage (unchanged API)
+logger = configure_logging()
+
+# Advanced usage - get both logger and container
+logger, container = configure_with_container()
+
+# Multiple isolated containers
+logger1 = configure_logging(LoggingSettings(level="INFO"))
+logger2 = configure_logging(LoggingSettings(level="DEBUG"))
+# Each call creates a separate, isolated container
+```
+
+**New Lifecycle Management:**
+
+```python
+# ✅ NEW - Explicit lifecycle management
+from fapilog.bootstrap import shutdown_logging, reset_logging, get_active_containers
+
+# Get active containers for advanced use
+containers = get_active_containers()
+
+# Shutdown all containers gracefully
+shutdown_logging()
+
+# Reset all containers (for testing)
+reset_logging()
+```
+
+### Bootstrap Migration Changes
+
+**What Changed:**
+
+- Removed global `_default_container` variable
+- Removed `_get_default_container()` function
+- `configure_logging()` now creates isolated containers per call
+- Added container registry for lifecycle management
+- Added new utility functions for advanced use cases
+
+**What Stayed the Same:**
+
+- `configure_logging()` API signature unchanged
+- Backward compatibility maintained for all public functions
+- Same configuration behavior and options
+
+**Key Improvements:**
+
+- Perfect container isolation between calls
+- Better memory management
+- Thread safety without global locks
+- Explicit lifecycle management options
+- Enhanced testing capabilities
+
 ## Questions?
 
-This migration guide covers the core changes. The new pure dependency injection pattern provides better thread safety, testability, and resource management while eliminating hidden global state.
+This migration guide covers the core container redesign (Story 1) and bootstrap integration (Story 2). The new pure dependency injection pattern provides better thread safety, testability, and resource management while maintaining backward compatibility for public APIs.
