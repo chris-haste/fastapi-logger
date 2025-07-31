@@ -17,10 +17,11 @@ Key Features Demonstrated:
 import threading
 import time
 
+import structlog
 from fastapi import Depends, FastAPI
 
 from fapilog import configure_logging
-from fapilog.bootstrap import configure_with_container, reset_logging
+from fapilog.bootstrap import configure_with_container
 from fapilog.container import LoggingContainer
 from fapilog.settings import LoggingSettings
 
@@ -198,7 +199,7 @@ def pure_di_lifecycle_example():
         LoggingSettings(level="INFO", sinks=["stdout"])
     )
     logger.info("Bootstrap DI approach", lifecycle="bootstrap_managed")
-    # Bootstrap containers are managed by reset_logging()
+    # Bootstrap containers must be managed explicitly (no global state)
 
     print()
 
@@ -376,15 +377,12 @@ def performance_pure_di_comparison():
     print()
 
 
-def bootstrap_container_registry():
-    """Demonstrate bootstrap container registry (not global state)."""
-    print("=== Bootstrap Container Registry ===")
+def bootstrap_stateless_demo():
+    """Demonstrate stateless bootstrap architecture (no global state)."""
+    print("=== Stateless Bootstrap Architecture ===")
 
-    from fapilog.bootstrap import get_active_containers
-
-    # Check initial state
-    initial_containers = get_active_containers()
-    print(f"Initial bootstrap containers: {len(initial_containers)}")
+    # No container registry in stateless design
+    print("Stateless bootstrap - no global container tracking")
 
     # Create some bootstrap-managed containers
     logger1 = configure_logging(LoggingSettings(level="INFO"))
@@ -394,9 +392,8 @@ def bootstrap_container_registry():
     logger1.info("Bootstrap logger 1 working")
     logger2.debug("Bootstrap logger 2 working")
 
-    # Check registry (this is not global state - it's explicit bootstrap management)
-    active_containers = get_active_containers()
-    print(f"Active bootstrap containers: {len(active_containers)}")
+    # No registry to check - each container is independent
+    print("Containers work independently without global tracking")
 
     # Create pure DI container (not in bootstrap registry)
     pure_container = LoggingContainer.create_from_settings(
@@ -404,15 +401,15 @@ def bootstrap_container_registry():
     )
     pure_logger = pure_container.configure()
 
-    # Registry unchanged (pure DI containers are completely independent)
-    still_active = get_active_containers()
-    print(f"Still active bootstrap containers: {len(still_active)}")
-    print("Pure DI container not in registry (complete independence)")
+    # All containers are independent - no registry exists
+    print("Pure DI and bootstrap containers both work independently")
+    print("No global state or container tracking anywhere")
 
-    # Clean up bootstrap containers
-    reset_logging()
-    after_reset = get_active_containers()
-    print(f"After reset_logging(): {len(after_reset)} bootstrap containers")
+    # With stateless bootstrap, no global cleanup needed
+    # Reset structlog global configuration for fresh state
+    structlog.reset_defaults()
+    structlog.configure()
+    print("Structlog configuration reset (no global container state)")
 
     # Pure DI container unaffected by bootstrap cleanup
     pure_logger.info("Pure DI container still works independently")
@@ -436,10 +433,11 @@ def main():
     fastapi_pure_di_integration()
     pure_di_debugging_example()
     performance_pure_di_comparison()
-    bootstrap_container_registry()
+    bootstrap_stateless_demo()
 
-    # Clean up any remaining bootstrap containers (not global cleanup)
-    reset_logging()
+    # Reset structlog global configuration for clean state
+    structlog.reset_defaults()
+    structlog.configure()
 
     print("All pure dependency injection architecture examples completed!")
     print()
