@@ -37,7 +37,7 @@ class AsyncInvalidTestSink(Sink):
     def __init__(self):
         super().__init__()
 
-    async def write(self, wrong_param: str) -> None:
+    async def write(self, wrong_param: str) -> None:  # type: ignore[override]
         """Write method with wrong signature."""
         pass
 
@@ -179,7 +179,7 @@ class TestSinkDebugger:
             def __init__(self):
                 super().__init__()
 
-            def write(self, event_dict: Dict[str, Any]) -> None:
+            def write(self, event_dict: Dict[str, Any]) -> None:  # type: ignore[override]
                 pass
 
         issues = SinkDebugger.validate_sink_class(SyncWriteTestSink)
