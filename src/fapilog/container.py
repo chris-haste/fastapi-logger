@@ -23,7 +23,7 @@ import atexit
 import logging
 import threading
 from contextlib import contextmanager
-from typing import Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 import structlog
 
@@ -52,6 +52,14 @@ from .sinks import Sink
 from .sinks.file import create_file_sink_from_uri
 from .sinks.loki import create_loki_sink_from_uri
 from .sinks.stdout import StdoutSink
+
+if TYPE_CHECKING:
+    from .enrichers import (
+        AsyncSmartCache,
+        EnricherErrorHandler,
+        EnricherHealthMonitor,
+        RetryCoordinator,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -620,4 +628,52 @@ class LoggingContainer:
 
         return self._registry.get_or_create_component(
             PrometheusExporter, self._factory.create_prometheus_exporter
+        )
+
+    def get_async_smart_cache(self) -> "AsyncSmartCache":
+        """Get container-scoped AsyncSmartCache instance.
+
+        Returns:
+            AsyncSmartCache instance scoped to this container
+        """
+        from .enrichers import AsyncSmartCache
+
+        return self._registry.get_or_create_component(
+            AsyncSmartCache, self._factory.create_async_smart_cache
+        )
+
+    def get_enricher_error_handler(self) -> "EnricherErrorHandler":
+        """Get container-scoped EnricherErrorHandler instance.
+
+        Returns:
+            EnricherErrorHandler instance scoped to this container
+        """
+        from .enrichers import EnricherErrorHandler
+
+        return self._registry.get_or_create_component(
+            EnricherErrorHandler, self._factory.create_enricher_error_handler
+        )
+
+    def get_enricher_health_monitor(self) -> "EnricherHealthMonitor":
+        """Get container-scoped EnricherHealthMonitor instance.
+
+        Returns:
+            EnricherHealthMonitor instance scoped to this container
+        """
+        from .enrichers import EnricherHealthMonitor
+
+        return self._registry.get_or_create_component(
+            EnricherHealthMonitor, self._factory.create_enricher_health_monitor
+        )
+
+    def get_retry_coordinator(self) -> "RetryCoordinator":
+        """Get container-scoped RetryCoordinator instance.
+
+        Returns:
+            RetryCoordinator instance scoped to this container
+        """
+        from .enrichers import RetryCoordinator
+
+        return self._registry.get_or_create_component(
+            RetryCoordinator, self._factory.create_retry_coordinator
         )
