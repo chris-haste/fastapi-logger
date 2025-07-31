@@ -9,7 +9,7 @@ from unittest.mock import patch
 import pytest
 import structlog
 
-from fapilog.bootstrap import configure_logging, reset_logging
+from fapilog.bootstrap import configure_logging
 from fapilog.settings import LoggingSettings
 
 
@@ -18,11 +18,13 @@ class TestConfigureLogging:
 
     def setup_method(self) -> None:
         """Reset logging before each test."""
-        reset_logging()
+        structlog.reset_defaults()
+        structlog.configure()
 
     def teardown_method(self) -> None:
         """Reset logging after each test."""
-        reset_logging()
+        structlog.reset_defaults()
+        structlog.configure()
 
     def test_configure_returns_logger(self) -> None:
         """Test that configure_logging returns a structlog.BoundLogger."""
@@ -177,20 +179,25 @@ class TestConfigureLogging:
         # This should not raise RuntimeError
         asyncio.run(async_log_test())
 
-    def test_reset_logging(self) -> None:
-        """Test that reset_logging properly resets the configuration."""
+    def test_structlog_reset(self) -> None:
+        """Test that structlog reset works properly."""
         # Configure logging
-        configure_logging()
+        logger1 = configure_logging()
 
-        # Reset logging
-        reset_logging()
+        # Reset structlog configuration
+        structlog.reset_defaults()
+        structlog.configure()
 
-        # Check that handlers are removed
-        assert len(logging.root.handlers) == 0
+        # Should be able to configure again without errors
+        logger2 = configure_logging()
 
-        # Check that we can configure again
-        configure_logging()
-        assert len(logging.root.handlers) > 0
+        # Both loggers should be functional
+        assert callable(logger1.info)
+        assert callable(logger2.info)
+
+        # No exceptions when logging
+        logger1.info("Test message 1")
+        logger2.info("Test message 2")
 
     def test_settings_based_configuration(self) -> None:
         """Test configuration using LoggingSettings."""

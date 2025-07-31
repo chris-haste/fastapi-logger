@@ -326,9 +326,10 @@ class TestComponentIntegrationPureDI:
         assert not hasattr(container_module, "set_current_container")
         assert not hasattr(container_module, "cleanup_all_containers")
 
-        # Bootstrap should have container registry (not global state)
-        assert hasattr(bootstrap_module, "_active_containers")
-        assert isinstance(bootstrap_module._active_containers, list)
+        # Bootstrap should be stateless (no global container registry)
+        assert not hasattr(bootstrap_module, "_active_containers")
+        assert hasattr(bootstrap_module, "configure_logging")
+        assert hasattr(bootstrap_module, "create_logger")
 
         # Queue integration should have pure DI functions
         assert hasattr(queue_module, "create_queue_sink")
