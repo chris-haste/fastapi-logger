@@ -23,7 +23,7 @@ import atexit
 import logging
 import threading
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, Generator, List, Optional, cast
 
 import structlog
 
@@ -113,7 +113,9 @@ class LoggingContainer:
         self.shutdown_sync()
 
     @contextmanager
-    def scoped_logger(self, name: str = ""):
+    def scoped_logger(
+        self, name: str = ""
+    ) -> Generator[structlog.BoundLogger, None, None]:
         """Create a scoped logger that's automatically cleaned up.
 
         Args:
@@ -203,7 +205,9 @@ class LoggingContainer:
         try:
             if settings is None:
                 return LoggingSettings()
-            return LoggingSettings.model_validate(settings.model_dump())
+            return cast(
+                LoggingSettings, LoggingSettings.model_validate(settings.model_dump())
+            )
         except Exception as e:
             raise handle_configuration_error(
                 e,
@@ -582,7 +586,7 @@ class LoggingContainer:
         Returns:
             A configured structlog.BoundLogger instance
         """
-        return structlog.get_logger(name)
+        return structlog.get_logger(name)  # type: ignore[no-any-return]
 
     def get_lock_manager(self) -> ProcessorLockManager:
         """Get container-scoped ProcessorLockManager instance.

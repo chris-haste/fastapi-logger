@@ -2,7 +2,7 @@
 
 import importlib.metadata
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import structlog
 
@@ -50,7 +50,7 @@ def _get_version() -> str:
         try:
             with open(pyproject_path, "rb") as f:
                 data = tomllib.load(f)
-                return data["project"]["version"]
+                return cast(str, data["project"]["version"])
         except (KeyError, FileNotFoundError, OSError):
             continue
 
@@ -84,7 +84,7 @@ def get_logger(name: str = "") -> structlog.BoundLogger:
     Returns:
         A configured structlog.BoundLogger instance
     """
-    return structlog.get_logger(name)
+    return structlog.get_logger(name)  # type: ignore[no-any-return]
 
 
 def create_logging_container(

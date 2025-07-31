@@ -4,7 +4,7 @@ This module provides a global registry for custom sinks, allowing developers to
 register custom sink implementations and use them via URI configuration.
 """
 
-from typing import Dict, Optional, Type
+from typing import Callable, Dict, Optional, Type
 
 from ..sinks import Sink
 
@@ -64,7 +64,7 @@ class SinkRegistry:
         cls._sinks.clear()
 
 
-def register_sink(name: str):
+def register_sink(name: str) -> Callable[[Type[Sink]], Type[Sink]]:
     """Decorator to register a sink class.
 
     Args:

@@ -8,7 +8,7 @@ import hashlib
 import json
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 from ..exceptions import ProcessorConfigurationError
 from .async_processor_base import AsyncProcessorBase
@@ -195,7 +195,7 @@ class DeduplicationProcessor(AsyncProcessorBase, CleanupTarget):
                 utilization_check=lambda: len(self._cache._cache) / self.max_cache_size,
             )
 
-            return result
+            return cast(Optional[Dict[str, Any]], result)
 
         except Exception as e:
             # Log error and allow event through to avoid blocking

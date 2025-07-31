@@ -7,7 +7,7 @@ import socket
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, Callable, Dict, List, Optional, Set, cast
 
 from ._internal.context import get_context
 from .exceptions import ConfigurationError
@@ -222,7 +222,7 @@ class EnricherHealthMonitor:
 
     def record_enricher_execution(
         self, enricher_name: str, success: bool, duration_ms: float
-    ):
+    ) -> None:
         """Record enricher execution statistics."""
         if enricher_name not in self.enricher_stats:
             self.enricher_stats[enricher_name] = {
@@ -293,7 +293,9 @@ async def _get_hostname_smart() -> str:
         # Create a new instance per call to avoid global state
         # This will not cache across calls since cache isn't shared
         cache = AsyncSmartCache()
-        return await cache.get_or_compute("hostname", lambda: socket.gethostname())
+        return cast(
+            str, await cache.get_or_compute("hostname", lambda: socket.gethostname())
+        )
     except Exception:
         return "unknown"
 
@@ -309,7 +311,7 @@ async def _get_pid_smart() -> int:
         # Create a new instance per call to avoid global state
         # This will not cache across calls since cache isn't shared
         cache = AsyncSmartCache()
-        return await cache.get_or_compute("pid", lambda: os.getpid())
+        return cast(int, await cache.get_or_compute("pid", lambda: os.getpid()))
     except Exception:
         return -1
 

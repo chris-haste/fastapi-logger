@@ -4,7 +4,7 @@ This module provides a global registry for custom processors, allowing developer
 register custom processor implementations for use in the logging pipeline.
 """
 
-from typing import Dict, Optional, Type
+from typing import Callable, Dict, Optional, Type
 
 from .processor import Processor
 
@@ -66,7 +66,7 @@ class ProcessorRegistry:
         cls._processors.clear()
 
 
-def register_processor(name: str):
+def register_processor(name: str) -> Callable[[Type[Processor]], Type[Processor]]:
     """Decorator to register a processor class.
 
     Args:
