@@ -1,11 +1,11 @@
 """Integration tests for container with metrics."""
 
 import pytest
+import structlog
 
 import fapilog
 from fapilog import configure_logging
 from fapilog._internal.metrics import get_metrics_collector
-from fapilog.bootstrap import reset_logging
 from fapilog.container import LoggingContainer
 from fapilog.monitoring import get_prometheus_exporter, set_prometheus_exporter
 from fapilog.settings import LoggingSettings
@@ -17,7 +17,8 @@ class TestContainerMetricsIntegration:
     def teardown_method(self):
         """Clean up after each test."""
         # Reset logging state
-        reset_logging()
+        structlog.reset_defaults()
+        structlog.configure()
         # Reset prometheus exporter
         set_prometheus_exporter(None)
 
