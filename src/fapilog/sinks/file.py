@@ -5,14 +5,16 @@ import logging
 import logging.handlers
 import time
 from pathlib import Path
-from typing import Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, Optional
 from urllib.parse import parse_qs, urlparse
 
 from .._internal.error_handling import StandardSinkErrorHandling
-from .._internal.metrics import get_metrics_collector
 from .._internal.utils import safe_json_serialize
 from ..exceptions import ConfigurationError
 from .base import Sink
+
+if TYPE_CHECKING:
+    from ..container import LoggingContainer
 
 
 class FileSink(Sink, StandardSinkErrorHandling):
@@ -23,6 +25,7 @@ class FileSink(Sink, StandardSinkErrorHandling):
         file_path: str,
         max_bytes: int = 10 * 1024 * 1024,  # 10 MB default
         backup_count: int = 5,
+        container: Optional["LoggingContainer"] = None,
     ) -> None:
         """Initialize the file sink.
 
@@ -30,8 +33,9 @@ class FileSink(Sink, StandardSinkErrorHandling):
             file_path: Path to the log file
             max_bytes: Maximum file size before rotation (default: 10 MB)
             backup_count: Number of backup files to keep (default: 5)
+            container: Optional LoggingContainer for metrics collection
         """
-        super().__init__()
+        super().__init__(container=container)
         self.file_path = Path(file_path)
         self.max_bytes = max_bytes
         self.backup_count = backup_count
@@ -68,7 +72,7 @@ class FileSink(Sink, StandardSinkErrorHandling):
             event_dict: The structured log event dictionary
         """
         start_time = time.time()
-        metrics = get_metrics_collector()
+        metrics = self._container.get_metrics_collector() if self._container else None
         success = False
         error_msg = None
 
@@ -234,11 +238,14 @@ def parse_file_uri(uri: str) -> tuple[str, int, int]:
         ) from e
 
 
-def create_file_sink_from_uri(uri: str) -> FileSink:
+def create_file_sink_from_uri(
+    uri: str, container: Optional["LoggingContainer"] = None
+) -> FileSink:
     """Create a FileSink instance from a file:// URI.
 
     Args:
         uri: URI string like "file:///var/log/app.log?maxBytes=10485760&backupCount=3"
+        container: Optional LoggingContainer for metrics collection
 
     Returns:
         Configured FileSink instance
@@ -251,4 +258,5 @@ def create_file_sink_from_uri(uri: str) -> FileSink:
         file_path=file_path,
         max_bytes=max_bytes,
         backup_count=backup_count,
+        container=container,
     )

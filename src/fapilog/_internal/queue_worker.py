@@ -9,7 +9,7 @@ import asyncio
 import logging
 import random as rnd
 import time
-from typing import Any, Dict, List, Literal, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional
 
 from ..sinks import Sink
 from .error_handling import (
@@ -17,7 +17,9 @@ from .error_handling import (
     log_error_with_context,
     retry_with_backoff_async,
 )
-from .metrics import get_metrics_collector
+
+if TYPE_CHECKING:
+    from ..container import LoggingContainer
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +37,7 @@ class QueueWorker:
         max_retries: int = 3,
         overflow_strategy: Literal["drop", "block", "sample"] = "drop",
         sampling_rate: float = 1.0,
+        container: Optional["LoggingContainer"] = None,
     ) -> None:
         """Initialize the queue worker.
 
@@ -47,6 +50,7 @@ class QueueWorker:
             max_retries: Maximum number of retries per event
             overflow_strategy: Strategy for handling queue overflow
             sampling_rate: Sampling rate for log messages (0.0 to 1.0)
+            container: Optional LoggingContainer for metrics collection
         """
         self.sinks = sinks
         self.queue: asyncio.Queue[Dict[str, Any]] = asyncio.Queue(
@@ -58,6 +62,7 @@ class QueueWorker:
         self.max_retries = max_retries
         self.overflow_strategy = overflow_strategy
         self.sampling_rate = sampling_rate
+        self._container = container
         self._task: Optional[asyncio.Task[None]] = None
         self._running = False
         self._stopping = False
@@ -263,7 +268,7 @@ class QueueWorker:
     async def _collect_batch(self) -> List[Dict[str, Any]]:
         """Collect a batch of events from the queue."""
         start_time = time.time()
-        metrics = get_metrics_collector()
+        metrics = self._container.get_metrics_collector() if self._container else None
         batch = []
 
         # Get the first event (blocking)
@@ -295,7 +300,7 @@ class QueueWorker:
     async def _process_batch(self, batch: List[Dict[str, Any]]) -> None:
         """Process a batch of events."""
         start_time = time.time()
-        metrics = get_metrics_collector()
+        metrics = self._container.get_metrics_collector() if self._container else None
 
         for event in batch:
             await self._process_event(event)
@@ -307,7 +312,7 @@ class QueueWorker:
     async def _process_event(self, event: Dict[str, Any]) -> None:
         """Process a single event with retry logic."""
         start_time = time.time()
-        metrics = get_metrics_collector()
+        metrics = self._container.get_metrics_collector() if self._container else None
 
         async def process_event_with_sinks() -> None:
             """Process event by writing to all sinks."""
@@ -378,7 +383,7 @@ class QueueWorker:
             QueueError: If enqueue operation fails unexpectedly
         """
         start_time = time.time()
-        metrics = get_metrics_collector()
+        metrics = self._container.get_metrics_collector() if self._container else None
 
         if self._stopping:
             return False

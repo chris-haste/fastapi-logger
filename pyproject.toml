@@ -508,6 +508,8 @@ ignore_names = [
     "container_context",
     # Container API methods
     "get_processor_metrics",
+    # Container internal attributes (used but vulture doesn't detect properly)
+    "_metrics_collector",
 ]
 ignore_decorators = [
     "pytest.fixture",

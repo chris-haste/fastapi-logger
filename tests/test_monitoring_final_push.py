@@ -1,6 +1,6 @@
 """Final push tests for monitoring.py to reach 90% coverage."""
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -26,42 +26,39 @@ class TestMetricsEndpointErrors:
 
     def test_metrics_endpoint_when_collector_disabled(self):
         """Test metrics endpoint when metrics collector is disabled."""
-        exporter = PrometheusExporter(port=9090, enabled=True)
+        # Create mock container with disabled metrics collector
+        mock_collector = Mock()
+        mock_collector.is_enabled.return_value = False
+        mock_container = Mock()
+        mock_container.get_metrics_collector.return_value = mock_collector
 
-        # Mock disabled metrics collector (lines 76-80)
-        with patch("fapilog.monitoring.get_metrics_collector") as mock_get_collector:
-            mock_collector = Mock()
-            mock_collector.is_enabled.return_value = False
-            mock_get_collector.return_value = mock_collector
+        exporter = PrometheusExporter(port=9090, enabled=True, container=mock_container)
 
-            # This should return 503 status
-            exporter._setup_app()
-            assert exporter._app is not None
+        # This should return 503 status
+        exporter._setup_app()
+        assert exporter._app is not None
 
     def test_metrics_endpoint_when_collector_missing(self):
         """Test metrics endpoint when metrics collector is None."""
-        exporter = PrometheusExporter(port=9090, enabled=True)
+        # Create exporter without container (no metrics collector available)
+        exporter = PrometheusExporter(port=9090, enabled=True)  # No container
 
-        # Mock missing metrics collector (lines 76-80)
-        with patch("fapilog.monitoring.get_metrics_collector", return_value=None):
-            exporter._setup_app()
-            assert exporter._app is not None
+        exporter._setup_app()
+        assert exporter._app is not None
 
     def test_metrics_endpoint_generation_error(self):
         """Test metrics endpoint when prometheus metrics generation fails."""
-        exporter = PrometheusExporter(port=9090, enabled=True)
+        # Create mock container with metrics collector that raises exception
+        mock_collector = Mock()
+        mock_collector.is_enabled.return_value = True
+        mock_collector.get_prometheus_metrics.side_effect = Exception("Metrics error")
+        mock_container = Mock()
+        mock_container.get_metrics_collector.return_value = mock_collector
 
-        # Mock metrics collector that raises an exception (lines 85-87)
-        with patch("fapilog.monitoring.get_metrics_collector") as mock_get_collector:
-            mock_collector = Mock()
-            mock_collector.is_enabled.return_value = True
-            mock_collector.get_prometheus_metrics.side_effect = Exception(
-                "Metrics error"
-            )
-            mock_get_collector.return_value = mock_collector
+        exporter = PrometheusExporter(port=9090, enabled=True, container=mock_container)
 
-            exporter._setup_app()
-            assert exporter._app is not None
+        exporter._setup_app()
+        assert exporter._app is not None
 
 
 class TestHealthEndpoint:

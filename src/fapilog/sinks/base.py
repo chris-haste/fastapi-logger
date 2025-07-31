@@ -6,17 +6,24 @@ management for sink operations.
 """
 
 import time
-from typing import Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from .._internal.metrics import get_metrics_collector
+if TYPE_CHECKING:
+    from ..container import LoggingContainer
 
 
 class Sink:
     """Base class for log sinks."""
 
-    def __init__(self):
-        """Initialize the sink."""
+    def __init__(self, container: Optional["LoggingContainer"] = None):
+        """Initialize the sink.
+
+        Args:
+            container: Optional LoggingContainer for metrics collection.
+                      If None, metrics collection will be disabled.
+        """
         self._sink_name = self.__class__.__name__
+        self._container = container
 
     async def write(self, event_dict: Dict[str, Any]) -> None:
         """Write a log event to the sink.
@@ -29,7 +36,7 @@ class Sink:
     async def _write_with_metrics(self, event_dict: Dict[str, Any]) -> None:
         """Write with metrics collection wrapper."""
         start_time = time.time()
-        metrics = get_metrics_collector()
+        metrics = self._container.get_metrics_collector() if self._container else None
         success = False
         error_msg = None
 

@@ -11,13 +11,7 @@ import asyncio
 from typing import Any, Dict
 
 # Import fapilog components
-import fapilog
-from fapilog._internal.metrics import (
-    create_metrics_collector,
-    get_metrics_collector,
-)
 from fapilog.monitoring import (
-    create_prometheus_exporter,
     get_metrics_dict,
     get_metrics_text,
 )
@@ -53,24 +47,24 @@ class MetricsExample:
             metrics_prometheus_host="0.0.0.0",
         )
 
-        # Create metrics collector
-        self.metrics_collector = create_metrics_collector(
-            enabled=True, sample_window=50
-        )
+        # Create logger and container using the new API
+        from fapilog.bootstrap import create_logger
 
-        # Create Prometheus exporter
-        self.prometheus_exporter = create_prometheus_exporter(
+        self.logger, self.container = create_logger(settings)
+
+        # Get metrics collector from container
+        self.metrics_collector = self.container.get_metrics_collector()
+
+        # Create Prometheus exporter with container for metrics access
+        from fapilog.monitoring import PrometheusExporter
+
+        self.prometheus_exporter = PrometheusExporter(
             host="0.0.0.0",
             port=8001,
             path="/metrics",
             enabled=True,
+            container=self.container,
         )
-
-        # Configure logging with the settings
-        fapilog.configure_logging(settings)
-
-        # Get logger
-        self.logger = fapilog.get_logger(__name__)
 
         # Start Prometheus exporter
         try:
@@ -228,10 +222,9 @@ class MetricsExample:
         if self.prometheus_exporter:
             await self.prometheus_exporter.stop()
 
-        # The original code had self.container.cleanup(), but self.container is removed.
-        # Assuming the intent was to remove the cleanup for the container as it's no longer used.
-        # If the user wants to keep it, they need to re-add it or the original code was incomplete.
-        # For now, removing it as per the new_code.
+        # Clean up the container
+        if self.container:
+            await self.container.shutdown()
 
         print("Cleanup completed")
 
@@ -287,32 +280,25 @@ async def main():
 
 
 def manual_metrics_access():
-    """Demonstrate how to access metrics manually."""
+    """Demonstrate how to access metrics manually using container-scoped access."""
     print("\n=== Manual Metrics Access ===")
 
-    # Get metrics as dictionary
+    print("Note: Global metrics functions now require container-scoped access.")
+    print("For proper metrics access, use the container from your logging setup.")
+
+    # Show what the global functions now return
     metrics_dict = get_metrics_dict()
-    if metrics_dict:
-        print("Metrics available as dictionary:")
-        print(f"  Queue size: {metrics_dict.get('queue', {}).get('size', 'N/A')}")
-        print(
-            f"  Total events: {metrics_dict.get('performance', {}).get('total_log_events', 'N/A')}"
-        )
-    else:
-        print("No metrics available (metrics collector not initialized)")
+    print(f"\nGlobal get_metrics_dict() now returns: {metrics_dict}")
 
-    # Get metrics as Prometheus text
     prometheus_text = get_metrics_text()
-    print(f"\nPrometheus format available: {len(prometheus_text)} characters")
+    print(f"Global get_metrics_text() now returns: {prometheus_text}")
 
-    # Check if metrics collector is available
-    collector = get_metrics_collector()
-    if collector:
-        print(
-            f"Metrics collector is {'enabled' if collector.is_enabled() else 'disabled'}"
-        )
-    else:
-        print("No metrics collector available")
+    print("\nFor real metrics access, use:")
+    print("  container = create_logging_container()")
+    print("  metrics = container.get_metrics_collector()")
+    print("  if metrics:")
+    print("      metrics_dict = metrics.get_all_metrics()")
+    print("      prometheus_text = metrics.get_prometheus_metrics()")
 
 
 if __name__ == "__main__":

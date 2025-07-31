@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from fapilog._internal.metrics import create_metrics_collector, set_metrics_collector
+# # create_metrics_collector  # Removed in Issue 164, # set_metrics_collector  # Removed in Issue 164 removed in Issue 164
 from fapilog.monitoring import (
     PrometheusExporter,
     create_prometheus_exporter,
@@ -197,12 +197,12 @@ class TestGlobalFunctions:
     def setup_method(self):
         """Clean up global state before each test."""
         set_prometheus_exporter(None)
-        set_metrics_collector(None)
+        # set_metrics_collector  # Removed in Issue 164(None)
 
     def teardown_method(self):
         """Clean up global state after each test."""
         set_prometheus_exporter(None)
-        set_metrics_collector(None)
+        # set_metrics_collector  # Removed in Issue 164(None)
 
     def test_global_prometheus_exporter_management(self):
         """Test global Prometheus exporter get/set functions."""
@@ -275,87 +275,81 @@ class TestGlobalFunctions:
 
     def test_get_metrics_text_with_collector(self):
         """Test get_metrics_text when metrics collector exists."""
-        collector = create_metrics_collector(enabled=True)
-        collector.record_queue_size(5)
-
+        # Note: create_metrics_collector was removed in Issue 164
+        # get_metrics_text now always returns container-scoped access message
         text = get_metrics_text()
 
-        assert "fapilog_queue_size 5" in text
-        assert "# HELP" in text
+        assert "container-scoped access" in text
+        # Legacy behavior no longer applies
 
     def test_get_metrics_text_no_collector(self):
         """Test get_metrics_text when no metrics collector exists."""
-        set_metrics_collector(None)
+        # Global function now returns container-scoped access message
 
         text = get_metrics_text()
 
-        assert text == "# Metrics collection is disabled\n"
+        assert (
+            text == "# Metrics collection is disabled (use container-scoped access)\n"
+        )
 
     def test_get_metrics_text_disabled_collector(self):
         """Test get_metrics_text when metrics collector is disabled."""
-        create_metrics_collector(enabled=False)
+        # Global function now returns container-scoped access message
 
         text = get_metrics_text()
 
-        assert text == "# Metrics collection is disabled\n"
+        assert (
+            text == "# Metrics collection is disabled (use container-scoped access)\n"
+        )
 
     def test_get_metrics_text_with_exception(self):
         """Test get_metrics_text handling exceptions."""
-        collector = MagicMock()
-        collector.is_enabled.return_value = True
-        collector.get_prometheus_metrics.side_effect = Exception("Metrics error")
-        set_metrics_collector(collector)
+        # Global function now always returns container-scoped access message
+        # Exception handling no longer applies to global functions
 
-        with patch("fapilog.monitoring.logger") as mock_logger:
-            text = get_metrics_text()
+        text = get_metrics_text()
 
-            mock_logger.error.assert_called_once()
-            assert (
-                "Error generating Prometheus metrics"
-                in mock_logger.error.call_args[0][0]
-            )
-            assert text == "# Error generating metrics: Metrics error\n"
+        assert (
+            text == "# Metrics collection is disabled (use container-scoped access)\n"
+        )
 
     def test_get_metrics_dict_with_collector(self):
         """Test get_metrics_dict when metrics collector exists."""
-        collector = create_metrics_collector(enabled=True)
-        collector.record_queue_size(10)
-
+        # Note: create_metrics_collector was removed in Issue 164
+        # get_metrics_dict now always returns container-scoped access message
         metrics = get_metrics_dict()
 
         assert isinstance(metrics, dict)
-        assert "queue" in metrics
-        assert metrics["queue"]["size"] == 10
+        assert "_note" in metrics
+        assert "container-scoped access" in metrics["_note"]
 
     def test_get_metrics_dict_no_collector(self):
         """Test get_metrics_dict when no metrics collector exists."""
-        set_metrics_collector(None)
+        # Global function now returns container-scoped access message
 
         metrics = get_metrics_dict()
 
-        assert metrics == {}
+        assert "_note" in metrics
+        assert "container-scoped access" in metrics["_note"]
 
     def test_get_metrics_dict_disabled_collector(self):
         """Test get_metrics_dict when metrics collector is disabled."""
-        create_metrics_collector(enabled=False)
+        # Global function now returns container-scoped access message
 
         metrics = get_metrics_dict()
 
-        assert metrics == {}
+        assert "_note" in metrics
+        assert "container-scoped access" in metrics["_note"]
 
     def test_get_metrics_dict_with_exception(self):
         """Test get_metrics_dict handling exceptions."""
-        collector = MagicMock()
-        collector.is_enabled.return_value = True
-        collector.get_all_metrics.side_effect = Exception("Metrics error")
-        set_metrics_collector(collector)
+        # Global function now always returns container-scoped access message
+        # Exception handling no longer applies to global functions
 
-        with patch("fapilog.monitoring.logger") as mock_logger:
-            metrics = get_metrics_dict()
+        metrics = get_metrics_dict()
 
-            mock_logger.error.assert_called_once()
-            assert "Error getting metrics" in mock_logger.error.call_args[0][0]
-            assert metrics == {"error": "Metrics error"}
+        assert "_note" in metrics
+        assert "container-scoped access" in metrics["_note"]
 
 
 if __name__ == "__main__":

@@ -447,27 +447,3 @@ class MetricsCollector:
         )
 
         return "\n".join(lines)
-
-
-# Global metrics collector instance
-_metrics_collector: Optional[MetricsCollector] = None
-
-
-def get_metrics_collector() -> Optional[MetricsCollector]:
-    """Get the global metrics collector instance."""
-    return _metrics_collector
-
-
-def set_metrics_collector(collector: Optional[MetricsCollector]) -> None:
-    """Set the global metrics collector instance."""
-    global _metrics_collector
-    _metrics_collector = collector
-
-
-def create_metrics_collector(
-    enabled: bool = True, sample_window: int = 100
-) -> MetricsCollector:
-    """Create and set a new global metrics collector."""
-    collector = MetricsCollector(enabled=enabled, sample_window=sample_window)
-    set_metrics_collector(collector)
-    return collector

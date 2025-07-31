@@ -12,8 +12,8 @@ from fapilog.sinks import Sink
 class MockSink(Sink):
     """Mock sink for testing."""
 
-    def __init__(self, should_fail=False, delay=0.0):
-        super().__init__()
+    def __init__(self, should_fail=False, delay=0.0, container=None):
+        super().__init__(container=container)
         self.should_fail = should_fail
         self.delay = delay
         self.write_calls = []
@@ -305,24 +305,23 @@ class TestQueueWorkerProcessing:
     @pytest.mark.asyncio
     async def test_collect_batch_with_metrics(self):
         """Test batch collection with metrics recording."""
-        sink = MockSink()
-        worker = QueueWorker([sink])
-
+        # Create mock container with metrics collector
         mock_metrics = Mock()
         mock_metrics.record_dequeue = Mock()
+        mock_container = Mock()
+        mock_container.get_metrics_collector.return_value = mock_metrics
 
-        with patch(
-            "fapilog._internal.queue_worker.get_metrics_collector",
-            return_value=mock_metrics,
-        ):
-            event = {"level": "info", "event": "test"}
-            await worker.queue.put(event)
+        sink = MockSink()
+        worker = QueueWorker([sink], container=mock_container)
 
-            batch = await worker._collect_batch()
-            assert len(batch) == 1
+        event = {"level": "info", "event": "test"}
+        await worker.queue.put(event)
 
-            # Should record dequeue metrics
-            assert mock_metrics.record_dequeue.called
+        batch = await worker._collect_batch()
+        assert len(batch) == 1
+
+        # Should record dequeue metrics
+        assert mock_metrics.record_dequeue.called
 
     @pytest.mark.asyncio
     async def test_process_batch(self):
@@ -344,20 +343,19 @@ class TestQueueWorkerProcessing:
     @pytest.mark.asyncio
     async def test_process_batch_with_metrics(self):
         """Test batch processing with metrics."""
-        sink = MockSink()
-        worker = QueueWorker([sink])
-
+        # Create mock container with metrics collector
         mock_metrics = Mock()
         mock_metrics.record_batch_processing = Mock()
+        mock_container = Mock()
+        mock_container.get_metrics_collector.return_value = mock_metrics
 
-        with patch(
-            "fapilog._internal.queue_worker.get_metrics_collector",
-            return_value=mock_metrics,
-        ):
-            events = [{"level": "info", "event": "test"}]
-            await worker._process_batch(events)
+        sink = MockSink()
+        worker = QueueWorker([sink], container=mock_container)
 
-            mock_metrics.record_batch_processing.assert_called_once()
+        events = [{"level": "info", "event": "test"}]
+        await worker._process_batch(events)
+
+        mock_metrics.record_batch_processing.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_process_event_success(self):
@@ -408,20 +406,19 @@ class TestQueueWorkerProcessing:
     @pytest.mark.asyncio
     async def test_process_event_with_metrics(self):
         """Test event processing with metrics recording."""
-        sink = MockSink()
-        worker = QueueWorker([sink])
-
+        # Create mock container with metrics collector
         mock_metrics = Mock()
         mock_metrics.record_log_event = Mock()
+        mock_container = Mock()
+        mock_container.get_metrics_collector.return_value = mock_metrics
 
-        with patch(
-            "fapilog._internal.queue_worker.get_metrics_collector",
-            return_value=mock_metrics,
-        ):
-            event = {"level": "info", "event": "test"}
-            await worker._process_event(event)
+        sink = MockSink()
+        worker = QueueWorker([sink], container=mock_container)
 
-            mock_metrics.record_log_event.assert_called_once()
+        event = {"level": "info", "event": "test"}
+        await worker._process_event(event)
+
+        mock_metrics.record_log_event.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_drain_queue(self):
@@ -628,65 +625,64 @@ class TestQueueWorkerEnqueue:
     @pytest.mark.asyncio
     async def test_enqueue_with_metrics(self):
         """Test enqueue with metrics recording."""
-        sink = MockSink()
-        worker = QueueWorker([sink])
-
+        # Create mock container with metrics collector
         mock_metrics = Mock()
         mock_metrics.record_enqueue = Mock()
         mock_metrics.record_queue_size = Mock()
+        mock_container = Mock()
+        mock_container.get_metrics_collector.return_value = mock_metrics
 
-        with patch(
-            "fapilog._internal.queue_worker.get_metrics_collector",
-            return_value=mock_metrics,
-        ):
-            event = {"level": "info", "event": "test"}
-            result = await worker.enqueue(event)
+        sink = MockSink()
+        worker = QueueWorker([sink], container=mock_container)
 
-            assert result is True
-            mock_metrics.record_enqueue.assert_called_once()
-            mock_metrics.record_queue_size.assert_called_once()
+        event = {"level": "info", "event": "test"}
+        result = await worker.enqueue(event)
+
+        assert result is True
+        mock_metrics.record_enqueue.assert_called_once()
+        mock_metrics.record_queue_size.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_enqueue_with_metrics_sampling(self):
         """Test enqueue with metrics recording for sampled events."""
-        sink = MockSink()
-        worker = QueueWorker([sink], sampling_rate=0.5)
-
+        # Create mock container with metrics collector
         mock_metrics = Mock()
         mock_metrics.record_sampled_event = Mock()
+        mock_container = Mock()
+        mock_container.get_metrics_collector.return_value = mock_metrics
 
-        with patch(
-            "fapilog._internal.queue_worker.get_metrics_collector",
-            return_value=mock_metrics,
-        ):
-            with patch("fapilog._internal.queue_worker.rnd.random", return_value=0.8):
-                event = {"level": "info", "event": "test"}
-                result = await worker.enqueue(event)
-
-                assert result is False
-                mock_metrics.record_sampled_event.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_enqueue_with_metrics_dropped(self):
-        """Test enqueue with metrics recording for dropped events."""
         sink = MockSink()
-        worker = QueueWorker([sink], queue_max_size=1, overflow_strategy="drop")
+        worker = QueueWorker([sink], sampling_rate=0.5, container=mock_container)
 
-        mock_metrics = Mock()
-        mock_metrics.record_dropped_event = Mock()
-
-        # Fill the queue
-        await worker.queue.put({"level": "info", "event": "first"})
-
-        with patch(
-            "fapilog._internal.queue_worker.get_metrics_collector",
-            return_value=mock_metrics,
-        ):
+        with patch("fapilog._internal.queue_worker.rnd.random", return_value=0.8):
             event = {"level": "info", "event": "test"}
             result = await worker.enqueue(event)
 
             assert result is False
-            mock_metrics.record_dropped_event.assert_called_once()
+            mock_metrics.record_sampled_event.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_enqueue_with_metrics_dropped(self):
+        """Test enqueue with metrics recording for dropped events."""
+        # Create mock container with metrics collector
+        mock_metrics = Mock()
+        mock_metrics.record_dropped_event = Mock()
+        mock_container = Mock()
+        mock_container.get_metrics_collector.return_value = mock_metrics
+
+        sink = MockSink()
+        worker = QueueWorker(
+            [sink], queue_max_size=1, overflow_strategy="drop", container=mock_container
+        )
+
+        # Fill the queue
+        await worker.queue.put({"level": "info", "event": "first"})
+
+        event = {"level": "info", "event": "test"}
+        result = await worker.enqueue(event)
+
+        assert result is False
+        mock_metrics.record_dropped_event.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_enqueue_exception_handling(self):
