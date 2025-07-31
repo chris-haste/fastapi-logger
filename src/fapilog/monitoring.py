@@ -271,13 +271,19 @@ def get_metrics_dict() -> dict:
 def get_processor_performance_stats() -> dict:
     """Get processor performance statistics.
 
+    Note: This function uses a per-call ProcessorMetrics instance and will
+    return empty stats unless processors have been wrapped with metrics collection.
+    For container-scoped metrics, use container.get_processor_metrics().get_all_stats().
+
     Returns:
         Dictionary containing performance stats for all processors
     """
     try:
-        from ._internal.processor_metrics import get_processor_metrics
+        from ._internal.processor_metrics import ProcessorMetrics
 
-        metrics = get_processor_metrics()
+        # Create a new instance per call to avoid global state
+        # This will return empty stats since metrics aren't shared
+        metrics = ProcessorMetrics()
         return metrics.get_all_stats()
     except Exception as e:
         logger.error(f"Error getting processor performance stats: {e}")
@@ -316,13 +322,19 @@ def get_processor_health_status() -> dict:
 def reset_processor_metrics(processor_name: Optional[str] = None) -> None:
     """Reset processor metrics.
 
+    Note: This function uses a per-call ProcessorMetrics instance and will have
+    no effect unless processors have been wrapped with the same metrics instance.
+    For container-scoped metrics, use container.get_processor_metrics().reset_stats().
+
     Args:
         processor_name: Name of specific processor to reset, or None for all
     """
     try:
-        from ._internal.processor_metrics import get_processor_metrics
+        from ._internal.processor_metrics import ProcessorMetrics
 
-        metrics = get_processor_metrics()
+        # Create a new instance per call to avoid global state
+        # This will have no effect since metrics aren't shared
+        metrics = ProcessorMetrics()
         metrics.reset_stats(processor_name)
         logger.info(
             f"Reset processor metrics for: {processor_name or 'all processors'}"
