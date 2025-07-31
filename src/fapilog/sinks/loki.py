@@ -2,7 +2,7 @@
 
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from urllib.parse import parse_qs, urlparse
 
 try:
@@ -14,13 +14,15 @@ from .._internal.batch_manager import BatchManager
 from .._internal.error_handling import StandardSinkErrorHandling
 from .._internal.loki_http_client import LokiHttpClient
 from .._internal.loki_payload_formatter import LokiPayloadFormatter
-from .._internal.metrics import get_metrics_collector
 from ..exceptions import (
     ConfigurationError,
     SinkConfigurationError,
     SinkErrorContextBuilder,
 )
 from .base import Sink
+
+if TYPE_CHECKING:
+    from ..container import LoggingContainer
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +39,7 @@ class LokiSink(Sink, StandardSinkErrorHandling):
         timeout: float = 30.0,
         max_retries: int = 3,
         retry_delay: float = 1.0,
+        container: Optional["LoggingContainer"] = None,
     ) -> None:
         """Initialize the Loki sink.
 
@@ -48,7 +51,9 @@ class LokiSink(Sink, StandardSinkErrorHandling):
             timeout: HTTP request timeout in seconds (default: 30.0s)
             max_retries: Maximum number of retries on failure (default: 3)
             retry_delay: Base delay between retries in seconds (default: 1.0s)
+            container: Optional LoggingContainer for metrics collection
         """
+        super().__init__(container=container)
         if httpx is None:
             context = SinkErrorContextBuilder.build_write_context(
                 sink_name="loki", event_dict={"url": url}, operation="initialize"
@@ -78,7 +83,7 @@ class LokiSink(Sink, StandardSinkErrorHandling):
             event_dict: The structured log event dictionary
         """
         start_time = time.time()
-        metrics = get_metrics_collector()
+        metrics = self._container.get_metrics_collector() if self._container else None
         success = False
         error_msg = None
 
@@ -131,7 +136,7 @@ class LokiSink(Sink, StandardSinkErrorHandling):
             return
 
         start_time = time.time()
-        metrics = get_metrics_collector()
+        metrics = self._container.get_metrics_collector() if self._container else None
         success = False
         error_msg = None
 
@@ -307,11 +312,14 @@ def parse_loki_uri(uri: str) -> tuple[str, Dict[str, str], int, float]:
         ) from e
 
 
-def create_loki_sink_from_uri(uri: str) -> LokiSink:
+def create_loki_sink_from_uri(
+    uri: str, container: Optional["LoggingContainer"] = None
+) -> LokiSink:
     """Create a LokiSink instance from a loki:// or https:// URI.
 
     Args:
         uri: URI string like "loki://loki:3100?labels=app=myapi,env=prod&batch_size=50"
+        container: Optional LoggingContainer for metrics collection
 
     Returns:
         Configured LokiSink instance
@@ -326,4 +334,5 @@ def create_loki_sink_from_uri(uri: str) -> LokiSink:
         labels=labels,
         batch_size=batch_size,
         batch_interval=batch_interval,
+        container=container,
     )

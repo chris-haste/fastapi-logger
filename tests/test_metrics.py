@@ -10,7 +10,6 @@ from fapilog._internal.metrics import (
     MetricsCollector,
     PerformanceMetrics,
     QueueMetrics,
-    set_metrics_collector,
 )
 from fapilog._internal.queue_worker import QueueWorker
 from fapilog.monitoring import (
@@ -220,9 +219,9 @@ class TestMetricsIntegration:
     def metrics_collector(self):
         """Create a metrics collector for testing."""
         collector = MetricsCollector(enabled=True)
-        set_metrics_collector(collector)
+        # set_metrics_collector  # Removed in Issue 164 - use container-scoped metrics(collector)
         yield collector
-        set_metrics_collector(None)
+        # set_metrics_collector  # Removed in Issue 164 - use container-scoped metrics(None)
 
     @pytest.fixture
     def mock_sink(self):
@@ -244,11 +243,18 @@ class TestMetricsIntegration:
     @pytest.mark.asyncio
     async def test_queue_worker_metrics(self, metrics_collector, mock_sink):
         """Test that queue worker records metrics correctly."""
+        # Create mock container with metrics collector
+        from unittest.mock import Mock
+
+        mock_container = Mock()
+        mock_container.get_metrics_collector.return_value = metrics_collector
+
         worker = QueueWorker(
             sinks=[mock_sink],
             queue_max_size=10,
             batch_size=2,
             batch_timeout=0.1,
+            container=mock_container,
         )
 
         await worker.start()
@@ -326,9 +332,9 @@ class TestPrometheusExporter:
         collector.record_enqueue(10.0)
         collector.record_sink_write("TestSink", 5.0, True, 1)
         collector.record_log_event(8.0)
-        set_metrics_collector(collector)
+        # set_metrics_collector  # Removed in Issue 164 - use container-scoped metrics(collector)
         yield collector
-        set_metrics_collector(None)
+        # set_metrics_collector  # Removed in Issue 164 - use container-scoped metrics(None)
 
     def test_prometheus_exporter_initialization(self):
         """Test Prometheus exporter initialization."""
@@ -379,31 +385,30 @@ class TestPrometheusExporter:
 
     def test_get_metrics_text(self, metrics_collector):
         """Test getting metrics as text."""
+        # Global function now returns container-scoped access message
         text = get_metrics_text()
 
-        assert "fapilog_queue_size" in text
-        assert "fapilog_events_total" in text
-        assert "# HELP" in text
-        assert "# TYPE" in text
+        assert "container-scoped access" in text
+        assert "# Metrics collection is disabled" in text
 
     def test_get_metrics_dict(self, metrics_collector):
         """Test getting metrics as dictionary."""
+        # Global function now returns container-scoped access message
         metrics_dict = get_metrics_dict()
 
-        assert "queue" in metrics_dict
-        assert "sinks" in metrics_dict
-        assert "performance" in metrics_dict
-        assert metrics_dict["queue"]["size"] == 5
+        assert "_note" in metrics_dict
+        assert "container-scoped access" in metrics_dict["_note"]
 
     def test_metrics_functions_with_no_collector(self):
         """Test metrics functions when no collector is set."""
-        set_metrics_collector(None)
+        # Global functions now always return container-scoped access message
 
         text = get_metrics_text()
-        assert "disabled" in text
+        assert "container-scoped access" in text
 
         metrics_dict = get_metrics_dict()
-        assert metrics_dict == {}
+        assert "_note" in metrics_dict
+        assert "container-scoped access" in metrics_dict["_note"]
 
 
 class TestSinkMetricsIntegration:
@@ -413,18 +418,27 @@ class TestSinkMetricsIntegration:
     def metrics_collector(self):
         """Create a metrics collector for testing."""
         collector = MetricsCollector(enabled=True)
-        set_metrics_collector(collector)
+        # set_metrics_collector  # Removed in Issue 164 - use container-scoped metrics(collector)
         yield collector
-        set_metrics_collector(None)
+        # set_metrics_collector  # Removed in Issue 164 - use container-scoped metrics(None)
 
     @pytest.mark.asyncio
-    async def test_stdout_sink_metrics(self, metrics_collector):
+    async def test_stdout_sink_metrics(self):
         """Test StdoutSink metrics recording."""
-        sink = StdoutSink(mode="json")
+        # Create fresh metrics collector for this test
+        from unittest.mock import Mock
+
+        metrics_collector = MetricsCollector(enabled=True)
+        mock_container = Mock()
+        mock_container.get_metrics_collector.return_value = metrics_collector
+
+        sink = StdoutSink(mode="json", container=mock_container)
 
         with patch("builtins.print"):  # Mock print to avoid output
             event = {"message": "test", "level": "info"}
-            await sink.write(event)
+            await sink.write(
+                event
+            )  # write() method already includes metrics collection
 
         metrics = metrics_collector.get_all_metrics()
         sink_metrics = metrics["sinks"].get("StdoutSink", {})
@@ -434,14 +448,23 @@ class TestSinkMetricsIntegration:
         assert sink_metrics.get("total_failures", 0) == 0
 
     @pytest.mark.asyncio
-    async def test_file_sink_metrics(self, metrics_collector, tmp_path):
+    async def test_file_sink_metrics(self, tmp_path):
         """Test FileSink metrics recording."""
+        # Create fresh metrics collector for this test
+        from unittest.mock import Mock
+
+        metrics_collector = MetricsCollector(enabled=True)
+        mock_container = Mock()
+        mock_container.get_metrics_collector.return_value = metrics_collector
+
         log_file = tmp_path / "test.log"
-        sink = FileSink(str(log_file))
+        sink = FileSink(str(log_file), container=mock_container)
 
         try:
             event = {"message": "test", "level": "info"}
-            await sink.write(event)
+            await sink.write(
+                event
+            )  # write() method already includes metrics collection
 
             metrics = metrics_collector.get_all_metrics()
             sink_metrics = metrics["sinks"].get("FileSink", {})

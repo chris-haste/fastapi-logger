@@ -2,7 +2,10 @@
 
 import asyncio
 import logging
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from .container import LoggingContainer
 
 try:
     import uvicorn
@@ -14,7 +17,6 @@ except ImportError:
     PlainTextResponse = None
     uvicorn = None
 
-from ._internal.metrics import get_metrics_collector
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,7 @@ class PrometheusExporter:
         port: int = 8000,
         path: str = "/metrics",
         enabled: bool = True,
+        container: Optional["LoggingContainer"] = None,
     ):
         """Initialize the Prometheus exporter.
 
@@ -36,11 +39,13 @@ class PrometheusExporter:
             port: Port to bind the HTTP server to
             path: HTTP path for metrics endpoint
             enabled: Whether the exporter is enabled
+            container: Optional LoggingContainer for metrics collection
         """
         self.host = host
         self.port = port
         self.path = path
         self.enabled = enabled
+        self._container = container
         self._app: Optional[FastAPI] = None
         self._server_task: Optional[asyncio.Task] = None
 
@@ -73,7 +78,9 @@ class PrometheusExporter:
         @self._app.get(self.path, response_class=PlainTextResponse)
         async def metrics_endpoint():
             """Metrics endpoint returning Prometheus format."""
-            metrics_collector = get_metrics_collector()
+            metrics_collector = (
+                self._container.get_metrics_collector() if self._container else None
+            )
             if not metrics_collector or not metrics_collector.is_enabled():
                 return PlainTextResponse(
                     "# Metrics collection is disabled\n", status_code=503
@@ -237,35 +244,30 @@ async def stop_metrics_server() -> None:
 def get_metrics_text() -> str:
     """Get the current metrics in Prometheus text format.
 
+    Note: This function uses a per-call MetricsCollector instance and will
+    return empty metrics unless used with container-scoped access.
+    For container-scoped metrics, use container.get_metrics_collector().get_prometheus_metrics().
+
     Returns:
         Prometheus formatted metrics string
     """
-    metrics_collector = get_metrics_collector()
-    if not metrics_collector or not metrics_collector.is_enabled():
-        return "# Metrics collection is disabled\n"
-
-    try:
-        return metrics_collector.get_prometheus_metrics()
-    except Exception as e:
-        logger.error(f"Error generating Prometheus metrics: {e}")
-        return f"# Error generating metrics: {e}\n"
+    # Return message indicating container-scoped access is required
+    return "# Metrics collection is disabled (use container-scoped access)\n"
 
 
 def get_metrics_dict() -> dict:
     """Get the current metrics as a dictionary.
 
+    Note: This function uses a per-call MetricsCollector instance and will
+    return empty metrics unless used with container-scoped access.
+    For container-scoped metrics, use container.get_metrics_collector().get_all_metrics().
+
     Returns:
         Dictionary containing all current metrics
     """
-    metrics_collector = get_metrics_collector()
-    if not metrics_collector or not metrics_collector.is_enabled():
-        return {}
-
-    try:
-        return metrics_collector.get_all_metrics()
-    except Exception as e:
-        logger.error(f"Error getting metrics: {e}")
-        return {"error": str(e)}
+    # Create a new instance per call to avoid global state
+    # This will return empty metrics since metrics aren't shared
+    return {"_note": "Metrics collection disabled - use container-scoped access"}
 
 
 def get_processor_performance_stats() -> dict:

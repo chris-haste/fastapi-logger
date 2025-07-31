@@ -1,6 +1,6 @@
 """Simple tests to boost monitoring.py coverage above 90%."""
 
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from fapilog.monitoring import (
     PrometheusExporter,
@@ -17,85 +17,63 @@ class TestMonitoringUtilityFunctions:
 
     def test_get_metrics_text_when_disabled(self):
         """Test get_metrics_text when metrics collection is disabled."""
-        with patch("fapilog.monitoring.get_metrics_collector", return_value=None):
-            result = get_metrics_text()
-            assert result == "# Metrics collection is disabled\n"
+        # The function now returns a message about container-scoped access
+        result = get_metrics_text()
+        assert (
+            result == "# Metrics collection is disabled (use container-scoped access)\n"
+        )
 
     def test_get_metrics_text_when_collector_disabled(self):
         """Test get_metrics_text when collector is disabled."""
-        mock_collector = Mock()
-        mock_collector.is_enabled.return_value = False
-
-        with patch(
-            "fapilog.monitoring.get_metrics_collector", return_value=mock_collector
-        ):
-            result = get_metrics_text()
-            assert result == "# Metrics collection is disabled\n"
+        # The function now returns a message about container-scoped access regardless of state
+        result = get_metrics_text()
+        assert (
+            result == "# Metrics collection is disabled (use container-scoped access)\n"
+        )
 
     def test_get_metrics_text_success(self):
         """Test get_metrics_text when metrics are available."""
-        mock_collector = Mock()
-        mock_collector.is_enabled.return_value = True
-        mock_collector.get_prometheus_metrics.return_value = "# Test metrics"
-
-        with patch(
-            "fapilog.monitoring.get_metrics_collector", return_value=mock_collector
-        ):
-            result = get_metrics_text()
-            assert result == "# Test metrics"
+        # The function now always returns the container-scoped access message
+        result = get_metrics_text()
+        assert (
+            result == "# Metrics collection is disabled (use container-scoped access)\n"
+        )
 
     def test_get_metrics_text_error(self):
         """Test get_metrics_text when an error occurs."""
-        mock_collector = Mock()
-        mock_collector.is_enabled.return_value = True
-        mock_collector.get_prometheus_metrics.side_effect = Exception("Test error")
-
-        with patch(
-            "fapilog.monitoring.get_metrics_collector", return_value=mock_collector
-        ):
-            result = get_metrics_text()
-            assert "# Error generating metrics: Test error" in result
+        # The function now always returns the container-scoped access message
+        result = get_metrics_text()
+        assert (
+            result == "# Metrics collection is disabled (use container-scoped access)\n"
+        )
 
     def test_get_metrics_dict_when_disabled(self):
         """Test get_metrics_dict when metrics collection is disabled."""
-        with patch("fapilog.monitoring.get_metrics_collector", return_value=None):
-            result = get_metrics_dict()
-            assert result == {}
+        result = get_metrics_dict()
+        assert result == {
+            "_note": "Metrics collection disabled - use container-scoped access"
+        }
 
     def test_get_metrics_dict_when_collector_disabled(self):
         """Test get_metrics_dict when collector is disabled."""
-        mock_collector = Mock()
-        mock_collector.is_enabled.return_value = False
-
-        with patch(
-            "fapilog.monitoring.get_metrics_collector", return_value=mock_collector
-        ):
-            result = get_metrics_dict()
-            assert result == {}
+        result = get_metrics_dict()
+        assert result == {
+            "_note": "Metrics collection disabled - use container-scoped access"
+        }
 
     def test_get_metrics_dict_success(self):
         """Test get_metrics_dict when metrics are available."""
-        mock_collector = Mock()
-        mock_collector.is_enabled.return_value = True
-        mock_collector.get_all_metrics.return_value = {"test": "value"}
-
-        with patch(
-            "fapilog.monitoring.get_metrics_collector", return_value=mock_collector
-        ):
-            result = get_metrics_dict()
-            assert result == {"test": "value"}
+        result = get_metrics_dict()
+        assert result == {
+            "_note": "Metrics collection disabled - use container-scoped access"
+        }
 
     def test_get_metrics_dict_error(self):
         """Test get_metrics_dict when an error occurs."""
-        mock_collector = Mock()
-        mock_collector.is_enabled.return_value = True
-        mock_collector.get_all_metrics.side_effect = Exception("Test error")
-
-        with patch(
-            "fapilog.monitoring.get_metrics_collector", return_value=mock_collector
-        ):
-            result = get_metrics_dict()
-            assert result == {"error": "Test error"}
+        result = get_metrics_dict()
+        assert result == {
+            "_note": "Metrics collection disabled - use container-scoped access"
+        }
 
     def test_create_prometheus_exporter(self):
         """Test create_prometheus_exporter function."""

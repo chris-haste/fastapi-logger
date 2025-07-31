@@ -2,14 +2,16 @@
 
 import sys
 import time
-from typing import Any, Dict, Literal
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional
 
 import structlog
 
 from .._internal.error_handling import StandardSinkErrorHandling
-from .._internal.metrics import get_metrics_collector
 from .._internal.utils import safe_json_serialize
 from .base import Sink
+
+if TYPE_CHECKING:
+    from ..container import LoggingContainer
 
 StdoutMode = Literal["json", "pretty", "auto"]
 
@@ -17,7 +19,9 @@ StdoutMode = Literal["json", "pretty", "auto"]
 class StdoutSink(Sink, StandardSinkErrorHandling):
     """Sink that writes log events to stdout."""
 
-    def __init__(self, mode: StdoutMode = "auto") -> None:
+    def __init__(
+        self, mode: StdoutMode = "auto", container: Optional["LoggingContainer"] = None
+    ) -> None:
         """Initialize the stdout sink.
 
         Args:
@@ -28,7 +32,9 @@ class StdoutSink(Sink, StandardSinkErrorHandling):
                     Force pretty console output
                 - "auto":
                     Pretty if TTY, JSON otherwise
+            container: Optional LoggingContainer for metrics collection
         """
+        super().__init__(container=container)
         self.mode = mode
         self._pretty = self._determine_pretty_mode()
         self._console_renderer = None
@@ -54,7 +60,7 @@ class StdoutSink(Sink, StandardSinkErrorHandling):
             event_dict: The structured log event dictionary
         """
         start_time = time.time()
-        metrics = get_metrics_collector()
+        metrics = self._container.get_metrics_collector() if self._container else None
         success = False
         error_msg = None
 

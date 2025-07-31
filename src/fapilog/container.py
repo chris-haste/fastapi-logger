@@ -271,10 +271,12 @@ class LoggingContainer:
                     mode = "json"
                 else:
                     mode = "auto"
-                self._sinks.append(StdoutSink(mode=mode))
+                self._sinks.append(StdoutSink(mode=mode, container=self))
             elif sink_uri.startswith("file://"):
                 try:
-                    self._sinks.append(create_file_sink_from_uri(sink_uri))
+                    self._sinks.append(
+                        create_file_sink_from_uri(sink_uri, container=self)
+                    )
                 except Exception as e:
                     context = SinkErrorContextBuilder.build_write_context(
                         sink_name="file",
@@ -284,7 +286,9 @@ class LoggingContainer:
                     raise SinkConfigurationError(str(e), "file", context) from e
             elif sink_uri.startswith(("loki://", "https://")) and "loki" in sink_uri:
                 try:
-                    self._sinks.append(create_loki_sink_from_uri(sink_uri))
+                    self._sinks.append(
+                        create_loki_sink_from_uri(sink_uri, container=self)
+                    )
                 except ImportError as e:
                     context = SinkErrorContextBuilder.build_write_context(
                         sink_name="loki",
@@ -335,6 +339,7 @@ class LoggingContainer:
                 max_retries=self._settings.queue_max_retries,
                 overflow_strategy=self._settings.queue_overflow,
                 sampling_rate=self._settings.sampling_rate,
+                container=self,
             )
         except Exception as e:
             queue_config = {
@@ -389,22 +394,23 @@ class LoggingContainer:
         """Configure metrics collection and Prometheus exporter."""
         # Initialize metrics collector if enabled
         if self._settings.metrics_enabled:
-            from ._internal.metrics import create_metrics_collector
+            from ._internal.metrics import MetricsCollector
 
-            self._metrics_collector = create_metrics_collector(
+            self._metrics_collector = MetricsCollector(
                 enabled=True,
                 sample_window=self._settings.metrics_sample_window,
             )
 
         # Initialize Prometheus exporter if enabled
         if self._settings.metrics_prometheus_enabled:
-            from .monitoring import create_prometheus_exporter
+            from .monitoring import PrometheusExporter
 
-            self._prometheus_exporter = create_prometheus_exporter(
+            self._prometheus_exporter = PrometheusExporter(
                 host=self._settings.metrics_prometheus_host,
                 port=self._settings.metrics_prometheus_port,
                 path="/metrics",
                 enabled=True,
+                container=self,
             )
 
     def _configure_httpx_trace_propagation(self) -> None:

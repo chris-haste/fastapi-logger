@@ -19,8 +19,9 @@ import pytest
 # Import container-scoped components to baseline
 from fapilog._internal.async_lock_manager import ProcessorLockManager
 from fapilog._internal.metrics import (
-    create_metrics_collector,
-    get_metrics_collector,
+    MetricsCollector,
+    # create_metrics_collector,  # Removed in Issue 164
+    # get_metrics_collector,     # Removed in Issue 164
 )
 from fapilog._internal.processor_metrics import ProcessorMetrics
 from fapilog.container import LoggingContainer
@@ -549,11 +550,11 @@ class TestPerformanceBaseline:
     @pytest.mark.slow
     def test_metrics_collector_baseline(self):
         """Establish baseline for MetricsCollector access."""
-        # Create collector first
-        create_metrics_collector(enabled=True)
+        # Use direct instantiation since global access was removed in Issue 164
+        from fapilog._internal.metrics import MetricsCollector
 
         stats = self.baseline.measure_access_time(
-            get_metrics_collector, "metrics_collector_access", iterations=1000
+            lambda: MetricsCollector(), "metrics_collector_access", iterations=1000
         )
 
         assert stats.mean_ns < 1_000_000  # Less than 1ms on average
@@ -561,7 +562,7 @@ class TestPerformanceBaseline:
 
         # Test concurrent access
         concurrent_stats = self.baseline.measure_concurrent_access(
-            get_metrics_collector,
+            lambda: MetricsCollector(),
             "metrics_collector_access",
             thread_count=10,
             operations_per_thread=100,
@@ -688,14 +689,14 @@ class TestPerformanceBaseline:
     def test_comprehensive_baseline_suite(self):
         """Run comprehensive baseline measurement suite."""
         # Create all global components
-        create_metrics_collector(enabled=True)
+        # create_metrics_collector  # Removed in Issue 164(enabled=True)
         create_prometheus_exporter(enabled=False)
 
         # Global component access baselines
         global_components = [
             (lambda: ProcessorLockManager(), "processor_lock_manager"),
             (lambda: ProcessorMetrics(), "processor_metrics"),
-            (get_metrics_collector, "metrics_collector"),
+            (lambda: MetricsCollector(), "metrics_collector"),
             (get_prometheus_exporter, "prometheus_exporter"),
         ]
 
@@ -763,14 +764,14 @@ def run_baseline_suite() -> Dict[str, Any]:
     baseline = PerformanceBaseline()
 
     # Initialize global components
-    create_metrics_collector(enabled=True)
+    # create_metrics_collector  # Removed in Issue 164(enabled=True)
     create_prometheus_exporter(enabled=False)
 
     # Run all baselines
     operations = [
         (lambda: ProcessorLockManager(), "processor_lock_manager"),
         (lambda: ProcessorMetrics(), "processor_metrics"),
-        (get_metrics_collector, "metrics_collector"),
+        (lambda: MetricsCollector(), "metrics_collector"),
         (get_prometheus_exporter, "prometheus_exporter"),
     ]
 
