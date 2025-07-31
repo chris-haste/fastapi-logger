@@ -16,8 +16,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import psutil
 import pytest
 
-# Import global state components to baseline
-from fapilog._internal.async_lock_manager import get_processor_lock_manager
+# Import container-scoped components to baseline
+from fapilog._internal.async_lock_manager import ProcessorLockManager
 from fapilog._internal.metrics import (
     create_metrics_collector,
     get_metrics_collector,
@@ -505,7 +505,9 @@ class TestPerformanceBaseline:
         """Establish baseline for ProcessorLockManager access."""
         # Single-threaded baseline
         stats = self.baseline.measure_access_time(
-            get_processor_lock_manager, "processor_lock_manager_access", iterations=1000
+            lambda: ProcessorLockManager(),
+            "processor_lock_manager_access",
+            iterations=1000,
         )
 
         # Validate reasonable performance
@@ -515,7 +517,7 @@ class TestPerformanceBaseline:
 
         # Concurrent access baseline
         concurrent_stats = self.baseline.measure_concurrent_access(
-            get_processor_lock_manager,
+            lambda: ProcessorLockManager(),
             "processor_lock_manager_access",
             thread_count=10,
             operations_per_thread=100,
@@ -621,7 +623,9 @@ class TestPerformanceBaseline:
         """Establish memory usage baselines for global state operations."""
         # Test ProcessorLockManager memory usage
         lock_memory = self.baseline.measure_memory_usage(
-            get_processor_lock_manager, "processor_lock_manager_memory", iterations=100
+            lambda: ProcessorLockManager(),
+            "processor_lock_manager_memory",
+            iterations=100,
         )
 
         assert "net_memory_delta_bytes" in lock_memory
@@ -638,7 +642,7 @@ class TestPerformanceBaseline:
         """Test baseline report generation and validation framework."""
         # Run a few baselines
         self.baseline.measure_access_time(
-            get_processor_lock_manager, "test_operation", iterations=100
+            lambda: ProcessorLockManager(), "test_operation", iterations=100
         )
 
         # Generate report
@@ -689,7 +693,7 @@ class TestPerformanceBaseline:
 
         # Global component access baselines
         global_components = [
-            (get_processor_lock_manager, "processor_lock_manager"),
+            (lambda: ProcessorLockManager(), "processor_lock_manager"),
             (get_processor_metrics, "processor_metrics"),
             (get_metrics_collector, "metrics_collector"),
             (get_prometheus_exporter, "prometheus_exporter"),
@@ -764,7 +768,7 @@ def run_baseline_suite() -> Dict[str, Any]:
 
     # Run all baselines
     operations = [
-        (get_processor_lock_manager, "processor_lock_manager"),
+        (lambda: ProcessorLockManager(), "processor_lock_manager"),
         (get_processor_metrics, "processor_metrics"),
         (get_metrics_collector, "metrics_collector"),
         (get_prometheus_exporter, "prometheus_exporter"),

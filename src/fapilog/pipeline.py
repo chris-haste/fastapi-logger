@@ -128,22 +128,28 @@ def build_processor_chain(
 
     # 14. Throttling processor - class-based with error handling (if enabled)
     if settings.enable_throttling:
-        throttle_processor = ThrottleProcessor(
-            max_rate=settings.throttle_max_rate,
-            window_seconds=settings.throttle_window_seconds,
-            key_field=settings.throttle_key_field,
-            strategy=settings.throttle_strategy,
-        )
+        throttle_config = {
+            "max_rate": settings.throttle_max_rate,
+            "window_seconds": settings.throttle_window_seconds,
+            "key_field": settings.throttle_key_field,
+            "strategy": settings.throttle_strategy,
+        }
+        if container is not None:
+            throttle_config["container"] = container
+        throttle_processor = ThrottleProcessor(**throttle_config)
         processors.append(_create_safe_processor(throttle_processor))
 
     # 15. Deduplication processor - class-based with error handling (if enabled)
     if settings.enable_deduplication:
-        dedupe_processor = DeduplicationProcessor(
-            window_seconds=settings.dedupe_window_seconds,
-            dedupe_fields=settings.dedupe_fields,
-            max_cache_size=settings.dedupe_max_cache_size,
-            hash_algorithm=settings.dedupe_hash_algorithm,
-        )
+        dedupe_config = {
+            "window_seconds": settings.dedupe_window_seconds,
+            "dedupe_fields": settings.dedupe_fields,
+            "max_cache_size": settings.dedupe_max_cache_size,
+            "hash_algorithm": settings.dedupe_hash_algorithm,
+        }
+        if container is not None:
+            dedupe_config["container"] = container
+        dedupe_processor = DeduplicationProcessor(**dedupe_config)
         processors.append(_create_safe_processor(dedupe_processor))
 
     # 16. Sampling processor - class-based with error handling
