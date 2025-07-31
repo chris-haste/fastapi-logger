@@ -17,7 +17,7 @@ keywords = [
     "context", "correlation", "distributed", "cloud-native", "opentelemetry"
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
@@ -508,6 +508,11 @@ ignore_names = [
     "container_context",
     # Container API methods
     "get_processor_metrics",
+    # Enricher container methods (Issue 165)
+    "get_async_smart_cache",
+    "get_enricher_error_handler",
+    "get_enricher_health_monitor",
+    "get_retry_coordinator",
     # Container internal attributes (used but vulture doesn't detect properly)
     "_metrics_collector",
 ]

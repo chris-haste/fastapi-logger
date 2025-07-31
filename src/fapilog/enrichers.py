@@ -274,12 +274,7 @@ class EnricherHealthMonitor:
         return total_successful / total_calls if total_calls > 0 else 1.0
 
 
-# Global async smart cache instance
-_async_smart_cache = AsyncSmartCache()
-
-# Global error handler and health monitor
-_error_handler = EnricherErrorHandler()
-_health_monitor = EnricherHealthMonitor()
+# Note: Global instances removed in Issue 165 - use container-scoped access
 
 
 # ============================================================================
@@ -288,25 +283,44 @@ _health_monitor = EnricherHealthMonitor()
 
 
 async def _get_hostname_smart() -> str:
-    """Get hostname using async SmartCache with fallback error handling."""
+    """Get hostname using async SmartCache with fallback error handling.
+
+    Note: This function uses a per-call AsyncSmartCache instance and will not
+    cache across calls unless used with container-scoped access.
+    For container-scoped caching, use container.get_async_smart_cache().
+    """
     try:
-        return await _async_smart_cache.get_or_compute(
-            "hostname", lambda: socket.gethostname()
-        )
+        # Create a new instance per call to avoid global state
+        # This will not cache across calls since cache isn't shared
+        cache = AsyncSmartCache()
+        return await cache.get_or_compute("hostname", lambda: socket.gethostname())
     except Exception:
         return "unknown"
 
 
 async def _get_pid_smart() -> int:
-    """Get process ID using async SmartCache with fallback error handling."""
+    """Get process ID using async SmartCache with fallback error handling.
+
+    Note: This function uses a per-call AsyncSmartCache instance and will not
+    cache across calls unless used with container-scoped access.
+    For container-scoped caching, use container.get_async_smart_cache().
+    """
     try:
-        return await _async_smart_cache.get_or_compute("pid", lambda: os.getpid())
+        # Create a new instance per call to avoid global state
+        # This will not cache across calls since cache isn't shared
+        cache = AsyncSmartCache()
+        return await cache.get_or_compute("pid", lambda: os.getpid())
     except Exception:
         return -1
 
 
 async def _get_process_smart() -> Optional[Any]:
-    """Get psutil Process instance using async SmartCache with error handling."""
+    """Get psutil Process instance using async SmartCache with error handling.
+
+    Note: This function uses a per-call AsyncSmartCache instance and will not
+    cache across calls unless used with container-scoped access.
+    For container-scoped caching, use container.get_async_smart_cache().
+    """
 
     def _create_process():
         try:
@@ -318,7 +332,10 @@ async def _get_process_smart() -> Optional[Any]:
         except Exception:
             return None
 
-    return await _async_smart_cache.get_or_compute("psutil_process", _create_process)
+    # Create a new instance per call to avoid global state
+    # This will not cache across calls since cache isn't shared
+    cache = AsyncSmartCache()
+    return await cache.get_or_compute("psutil_process", _create_process)
 
 
 # ============================================================================
@@ -347,8 +364,7 @@ class RetryCoordinator:
             return await retry_func()
 
 
-# Global retry coordinator instance
-_retry_coordinator = RetryCoordinator()
+# Note: Global retry coordinator removed in Issue 165 - use container-scoped access
 
 
 # ============================================================================
@@ -357,14 +373,28 @@ _retry_coordinator = RetryCoordinator()
 
 
 def configure_enricher_error_handling(strategy: EnricherErrorStrategy) -> None:
-    """Configure global enricher error handling strategy."""
-    global _error_handler
-    _error_handler = EnricherErrorHandler(strategy)
+    """Configure enricher error handling strategy.
+
+    Note: This function has no effect since global enricher state was removed in Issue 165.
+    For container-scoped error handling, use:
+    container.get_enricher_error_handler().strategy = strategy
+    """
+    # This function is kept for backward compatibility but has no effect
+    # since global enricher state was removed in Issue 165
+    pass
 
 
 def get_enricher_health_report() -> Dict[str, Any]:
-    """Get current enricher health report."""
-    return _health_monitor.get_health_report()
+    """Get current enricher health report.
+
+    Note: This function uses a per-call EnricherHealthMonitor instance and will
+    return empty health report unless enrichers have been used with the same monitor.
+    For container-scoped health monitoring, use container.get_enricher_health_monitor().
+    """
+    # Create a new instance per call to avoid global state
+    # This will return empty health report since monitors aren't shared
+    monitor = EnricherHealthMonitor()
+    return monitor.get_health_report()
 
 
 # ============================================================================
@@ -718,6 +748,10 @@ def run_registered_enrichers(
 ) -> Dict[str, Any]:
     """Run all registered custom enrichers in registration order.
 
+    Note: This function uses per-call EnricherHealthMonitor and EnricherErrorHandler
+    instances and will not share state across calls. For container-scoped enricher
+    management, use container.get_enricher_*() methods.
+
     Args:
         logger: The logger instance
         method_name: The logging method name
@@ -726,6 +760,11 @@ def run_registered_enrichers(
     Returns:
         The enriched event dictionary
     """
+    # Create per-call instances to avoid global state
+    # This will not share state across calls since instances aren't shared
+    health_monitor = EnricherHealthMonitor()
+    error_handler = EnricherErrorHandler()
+
     result = event_dict
     for enricher in _registered_enrichers:
         enricher_name = getattr(enricher, "__name__", str(enricher))
@@ -735,15 +774,15 @@ def run_registered_enrichers(
             result = enricher(logger, method_name, result)
             # Record successful execution
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
-            _health_monitor.record_enricher_execution(enricher_name, True, duration_ms)
+            health_monitor.record_enricher_execution(enricher_name, True, duration_ms)
 
         except Exception as e:
             # Record failed execution
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
-            _health_monitor.record_enricher_execution(enricher_name, False, duration_ms)
+            health_monitor.record_enricher_execution(enricher_name, False, duration_ms)
 
             # Handle error according to strategy
-            should_continue = _error_handler.handle_enricher_error(enricher, e, result)
+            should_continue = error_handler.handle_enricher_error(enricher, e, result)
             if not should_continue:
                 break
 
@@ -751,11 +790,15 @@ def run_registered_enrichers(
 
 
 def clear_smart_cache() -> None:
-    """Clear the global async smart cache for testing purposes."""
-    global _async_smart_cache
-    # For structlog compatibility, we can't await here
-    # The cache will be cleared on next access
-    _async_smart_cache._cache.clear()
+    """Clear async smart cache for testing purposes.
+
+    Note: This function has no effect since global async smart cache was removed in Issue 165.
+    For container-scoped cache clearing, use:
+    container.get_async_smart_cache()._cache.clear()
+    """
+    # This function is kept for backward compatibility but has no effect
+    # since global async smart cache was removed in Issue 165
+    pass
 
 
 # ============================================================================

@@ -10,6 +10,12 @@ from typing import TYPE_CHECKING, Optional
 from fapilog._internal.async_lock_manager import ProcessorLockManager
 from fapilog._internal.metrics import MetricsCollector
 from fapilog._internal.processor_metrics import ProcessorMetrics
+from fapilog.enrichers import (
+    AsyncSmartCache,
+    EnricherErrorHandler,
+    EnricherHealthMonitor,
+    RetryCoordinator,
+)
 from fapilog.monitoring import PrometheusExporter
 from fapilog.settings import LoggingSettings
 
@@ -124,6 +130,66 @@ class ComponentFactory:
             port=self._settings.metrics_prometheus_port,
             enabled=True,
         )
+
+    def create_async_smart_cache(self) -> AsyncSmartCache:
+        """Create AsyncSmartCache for container.
+
+        Creates a new AsyncSmartCache instance for this container,
+        providing async-safe caching with proper locking for enrichers.
+
+        Returns:
+            AsyncSmartCache: New async smart cache instance
+
+        Example:
+            cache = factory.create_async_smart_cache()
+            result = await cache.get_or_compute("key", lambda: "value")
+        """
+        return AsyncSmartCache()
+
+    def create_enricher_error_handler(self) -> EnricherErrorHandler:
+        """Create EnricherErrorHandler for container.
+
+        Creates a new EnricherErrorHandler instance for this container,
+        providing enricher error handling and strategy management.
+
+        Returns:
+            EnricherErrorHandler: New enricher error handler instance
+
+        Example:
+            handler = factory.create_enricher_error_handler()
+            continue_processing = handler.handle_enricher_error(enricher, error, result)
+        """
+        return EnricherErrorHandler()
+
+    def create_enricher_health_monitor(self) -> EnricherHealthMonitor:
+        """Create EnricherHealthMonitor for container.
+
+        Creates a new EnricherHealthMonitor instance for this container,
+        providing enricher health tracking and statistics.
+
+        Returns:
+            EnricherHealthMonitor: New enricher health monitor instance
+
+        Example:
+            monitor = factory.create_enricher_health_monitor()
+            monitor.record_enricher_execution("my_enricher", True, 10.5)
+        """
+        return EnricherHealthMonitor()
+
+    def create_retry_coordinator(self) -> RetryCoordinator:
+        """Create RetryCoordinator for container.
+
+        Creates a new RetryCoordinator instance for this container,
+        providing retry coordination and locking for enricher operations.
+
+        Returns:
+            RetryCoordinator: New retry coordinator instance
+
+        Example:
+            coordinator = factory.create_retry_coordinator()
+            result = await coordinator.coordinate_retry("key", retry_func)
+        """
+        return RetryCoordinator()
 
     def __repr__(self) -> str:
         """Return string representation of factory."""

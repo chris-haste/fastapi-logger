@@ -529,36 +529,53 @@ class TestAsyncSmartCacheIntegration:
     """Test AsyncSmartCache integration with enrichers."""
 
     @pytest.mark.asyncio
-    async def test_async_smart_cache_global_instance(self):
-        """Test the global AsyncSmartCache instance."""
-        from fapilog.enrichers import _async_smart_cache
+    async def test_async_smart_cache_container_scoped_instance(self):
+        """Test container-scoped AsyncSmartCache instance."""
+        from fapilog.container import LoggingContainer
 
-        # Test that the global instance exists and works
-        assert isinstance(_async_smart_cache, AsyncSmartCache)
+        # Test container-scoped instance
+        container = LoggingContainer()
+        cache = container.get_async_smart_cache()
+        assert isinstance(cache, AsyncSmartCache)
 
         # Test basic functionality
-        result = await _async_smart_cache.get_or_compute(
-            "test_key", lambda: "test_value"
-        )
+        result = await cache.get_or_compute("test_key", lambda: "test_value")
         assert result == "test_value"
 
         # Test caching
-        result2 = await _async_smart_cache.get_or_compute(
-            "test_key", lambda: "different_value"
-        )
+        result2 = await cache.get_or_compute("test_key", lambda: "different_value")
         assert result2 == "test_value"  # Should return cached value
+
+        # Test isolation - different containers have different caches
+        container2 = LoggingContainer()
+        cache2 = container2.get_async_smart_cache()
+        assert cache is not cache2  # Different instances
+
+        # Same container returns same cache instance
+        cache_same = container.get_async_smart_cache()
+        assert cache is cache_same
 
     @pytest.mark.asyncio
     async def test_async_smart_cache_clear_function(self):
-        """Test the clear_smart_cache function."""
-        from fapilog.enrichers import _async_smart_cache
+        """Test container-scoped cache clearing."""
+        from fapilog.container import LoggingContainer
+        from fapilog.enrichers import clear_smart_cache
+
+        # Test container-scoped cache clearing
+        container = LoggingContainer()
+        cache = container.get_async_smart_cache()
 
         # Add some data to cache
-        await _async_smart_cache.get_or_compute("test_key", lambda: "test_value")
+        await cache.get_or_compute("test_key", lambda: "test_value")
 
-        # Clear the cache
-        clear_smart_cache()
+        # Test that global clear_smart_cache function does nothing (backward compatibility)
+        clear_smart_cache()  # Should have no effect
 
-        # Verify cache is cleared
-        stats = await _async_smart_cache.get_cache_stats()
+        # Verify cache is not cleared by global function
+        stats = await cache.get_cache_stats()
+        assert stats["total_entries"] == 1  # Should still have the entry
+
+        # Test direct cache clearing
+        cache._cache.clear()
+        stats = await cache.get_cache_stats()
         assert stats["total_entries"] == 0
