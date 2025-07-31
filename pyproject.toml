@@ -283,7 +283,7 @@ ignore_names = [
     "record_sink_retry",
     "_write_with_metrics",
     "get_queue_worker",
-    "_shutdown_queue_worker",
+
     "is_configured",
     "setup",
     "configure_httpx_trace_propagation",
@@ -333,7 +333,7 @@ ignore_names = [
     # Queue and async functions
     "enqueue",
     
-    "reset_logging",
+    "create_logger",
     # Cache monitoring methods (public API for observability)
     "get_cache_stats",
     # Enricher functions
@@ -490,9 +490,7 @@ ignore_names = [
     "example_basic_processing",
     "example_rate_limiting", 
     "example_concurrent_access",
-    # Public API functions (may be used by external code)
-    "shutdown_logging",
-    "get_active_containers", 
+    # Public API functions (may be used by external code) 
     "configure_with_container",
     "scoped_logger",
     # Component management methods (used extensively in tests - false positives)

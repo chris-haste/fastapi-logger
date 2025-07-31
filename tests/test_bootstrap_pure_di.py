@@ -1,4 +1,4 @@
-"""Tests for bootstrap integration with pure dependency injection."""
+"""Tests for stateless bootstrap functionality."""
 
 import logging
 from unittest.mock import Mock
@@ -8,27 +8,23 @@ import structlog
 
 from fapilog.bootstrap import (
     _determine_console_format,
-    _shutdown_queue_worker,
     configure_logging,
     configure_with_container,
-    get_active_containers,
-    reset_logging,
-    shutdown_logging,
+    create_logger,
 )
 from fapilog.container import LoggingContainer
 from fapilog.exceptions import ConfigurationError
 from fapilog.settings import LoggingSettings
 
 
-class TestBootstrapPureDependencyInjection:
-    """Test bootstrap functionality with pure dependency injection."""
+class TestStatelessBootstrap:
+    """Test stateless bootstrap functionality without global state."""
 
     def setup_method(self) -> None:
         """Clean up before each test."""
-        # Reset any existing bootstrap state
-        reset_logging()
-        # Reset structlog
+        # Reset structlog configuration for test isolation
         structlog.reset_defaults()
+        structlog.configure()
         # Clear root logger handlers
         root_logger = logging.getLogger()
         for handler in root_logger.handlers[:]:
@@ -36,33 +32,111 @@ class TestBootstrapPureDependencyInjection:
 
     def teardown_method(self) -> None:
         """Clean up after each test."""
-        # Reset bootstrap state
-        reset_logging()
-        # Reset structlog
+        # Reset structlog configuration
         structlog.reset_defaults()
+        structlog.configure()
         # Clear root logger handlers
         root_logger = logging.getLogger()
         for handler in root_logger.handlers[:]:
             root_logger.removeHandler(handler)
 
-    def test_configure_logging_creates_isolated_containers(self) -> None:
-        """Test that configure_logging creates isolated container instances."""
-        # First call
+    def test_configure_logging_creates_functional_loggers(self) -> None:
+        """Test that configure_logging creates functional logger instances."""
+        # Multiple calls should work independently
         logger1 = configure_logging()
-        containers_after_first = get_active_containers()
-
-        # Second call
         logger2 = configure_logging()
-        containers_after_second = get_active_containers()
-
-        # Should have created separate containers
-        assert len(containers_after_first) == 1
-        assert len(containers_after_second) == 2
-        assert containers_after_first[0] is not containers_after_second[1]
 
         # Both loggers should be functional
         assert callable(logger1.info)
         assert callable(logger2.info)
+
+        # No exceptions when logging
+        logger1.info("Test message 1")
+        logger2.info("Test message 2")
+
+    def test_create_logger_returns_logger_and_container(self) -> None:
+        """Test that create_logger returns both logger and container."""
+        logger, container = create_logger()
+
+        # Should return both components
+        assert logger is not None
+        assert container is not None
+        assert isinstance(container, LoggingContainer)
+        assert callable(logger.info)
+
+        # Container should have lifecycle methods
+        assert hasattr(container, "shutdown_sync")
+        assert hasattr(container, "reset")
+
+    def test_configure_with_container_alias(self) -> None:
+        """Test that configure_with_container is an alias for create_logger."""
+        logger1, container1 = configure_with_container()
+        logger2, container2 = create_logger()
+
+        # Both should return the same types
+        assert type(logger1) is type(logger2)
+        assert type(container1) is type(container2)
+
+        # Both should be functional
+        logger1.info("Test with configure_with_container")
+        logger2.info("Test with create_logger")
+
+    def test_configure_logging_with_settings(self) -> None:
+        """Test configure_logging with custom settings."""
+        settings = LoggingSettings(level="DEBUG", json_console="json")
+
+        logger = configure_logging(settings=settings)
+        assert callable(logger.info)
+        logger.debug("Debug message")
+
+    def test_create_logger_with_settings(self) -> None:
+        """Test create_logger with custom settings."""
+        settings = LoggingSettings(level="WARNING", json_console="pretty")
+
+        logger, container = create_logger(settings=settings)
+        assert callable(logger.warning)
+        logger.warning("Warning message")
+
+        # Cleanup
+        container.shutdown_sync()
+
+    def test_configure_logging_with_sinks_override(self) -> None:
+        """Test configure_logging with sinks parameter override."""
+        logger = configure_logging(sinks=["stdout"])
+        assert callable(logger.info)
+        logger.info("Message to stdout sink")
+
+    def test_create_logger_explicit_lifecycle_management(self) -> None:
+        """Test explicit container lifecycle management with create_logger."""
+        logger, container = create_logger()
+
+        try:
+            # Use the logger
+            logger.info("Application started")
+            assert callable(logger.error)
+        finally:
+            # Explicit cleanup
+            container.shutdown_sync()
+
+        # Container should handle multiple shutdowns gracefully
+        container.shutdown_sync()  # Should not raise
+
+    def test_no_global_state_isolation(self) -> None:
+        """Test that there's no shared global state between calls."""
+        # Create multiple loggers with different settings
+        settings1 = LoggingSettings(level="DEBUG")
+        settings2 = LoggingSettings(level="ERROR")
+
+        logger1 = configure_logging(settings=settings1)
+        logger2 = configure_logging(settings=settings2)
+
+        # Both should work independently
+        logger1.debug("Debug message")
+        logger2.error("Error message")
+
+        # No shared state should interfere
+        logger1.info("Info message")
+        logger2.critical("Critical message")
 
     def test_configure_logging_backward_compatibility(self) -> None:
         """Test that configure_logging maintains backward compatibility."""
@@ -86,123 +160,9 @@ class TestBootstrapPureDependencyInjection:
         )
 
         logger = configure_logging(settings=settings)
-        containers = get_active_containers()
-
+        assert callable(logger.warning)
+        logger.warning("Test warning message")
         assert callable(logger.info)
-        assert len(containers) == 1
-        assert containers[0].settings.level == "WARNING"
-        assert containers[0].settings.queue_enabled is False
-
-    def test_configure_logging_with_sinks_override(self) -> None:
-        """Test configure_logging with sinks parameter override."""
-        # Override sinks parameter
-        logger = configure_logging(sinks=["stdout"])
-        containers = get_active_containers()
-
-        assert callable(logger.info)
-        assert len(containers) == 1
-        assert "stdout" in containers[0].settings.sinks
-
-        # Override with settings and sinks
-        settings = LoggingSettings(level="INFO")
-        configure_logging(settings=settings, sinks=["stdout"])
-        containers2 = get_active_containers()
-
-        assert len(containers2) == 2
-        assert "stdout" in containers2[1].settings.sinks
-
-    def test_configure_with_container_function(self) -> None:
-        """Test configure_with_container returns both logger and container."""
-        settings = LoggingSettings(level="INFO", queue_enabled=False)
-
-        logger, container = configure_with_container(settings=settings)
-
-        # Should return both logger and container
-        assert callable(logger.info)
-        assert isinstance(container, LoggingContainer)
-        assert container.is_configured
-        assert container.settings.level == "INFO"
-
-        # Container should be registered
-        active_containers = get_active_containers()
-        assert len(active_containers) == 1
-        assert active_containers[0] is container
-
-    def test_multiple_configure_calls_isolation(self) -> None:
-        """Test that multiple configure_logging calls create isolated containers."""
-        # Create containers with different settings
-        logger1 = configure_logging(LoggingSettings(level="INFO"))
-        logger2 = configure_logging(LoggingSettings(level="DEBUG"))
-        logger3 = configure_logging(LoggingSettings(level="ERROR"))
-
-        containers = get_active_containers()
-        assert len(containers) == 3
-
-        # Each container should have its own settings
-        assert containers[0].settings.level == "INFO"
-        assert containers[1].settings.level == "DEBUG"
-        assert containers[2].settings.level == "ERROR"
-
-        # All loggers should be functional
-        assert callable(logger1.info)
-        assert callable(logger2.info)
-        assert callable(logger3.info)
-
-    def test_reset_logging_functionality(self) -> None:
-        """Test reset_logging clears all active containers."""
-        # Create multiple containers
-        configure_logging()
-        configure_logging()
-        configure_logging()
-
-        containers_before = get_active_containers()
-        assert len(containers_before) == 3
-
-        # Reset logging
-        reset_logging()
-
-        containers_after = get_active_containers()
-        assert len(containers_after) == 0
-
-    def test_shutdown_logging_functionality(self) -> None:
-        """Test shutdown_logging properly shuts down all containers."""
-        # Create containers
-        configure_logging(LoggingSettings(queue_enabled=True))
-        configure_logging(LoggingSettings(queue_enabled=False))
-
-        containers_before = get_active_containers()
-        assert len(containers_before) == 2
-
-        # Shutdown logging
-        shutdown_logging()
-
-        containers_after = get_active_containers()
-        assert len(containers_after) == 0
-
-    def test_shutdown_queue_worker_backward_compatibility(self) -> None:
-        """Test _shutdown_queue_worker for backward compatibility."""
-        # Create container with queue
-        configure_logging(LoggingSettings(queue_enabled=True, sinks=["stdout"]))
-
-        containers = get_active_containers()
-        assert len(containers) == 1
-        assert containers[0].queue_worker is not None
-
-        # Should not raise exception
-        _shutdown_queue_worker()
-
-    def test_get_active_containers_returns_copy(self) -> None:
-        """Test get_active_containers returns a copy, not reference."""
-        configure_logging()
-
-        containers1 = get_active_containers()
-        containers2 = get_active_containers()
-
-        # Should be different lists
-        assert containers1 is not containers2
-        assert len(containers1) == len(containers2) == 1
-        # But contain the same container instances
-        assert containers1[0] is containers2[0]
 
     def test_determine_console_format_utility(self) -> None:
         """Test _determine_console_format utility function."""
@@ -233,135 +193,3 @@ class TestBootstrapPureDependencyInjection:
 
         # Logger should be functional
         assert callable(logger.info)
-
-    def test_container_lifecycle_management(self) -> None:
-        """Test proper container lifecycle management."""
-        # Create containers
-        logger1, container1 = configure_with_container()
-        logger2, container2 = configure_with_container()
-
-        # Both should be configured
-        assert container1.is_configured
-        assert container2.is_configured
-
-        active_containers = get_active_containers()
-        assert len(active_containers) == 2
-
-        # Reset should clear all
-        reset_logging()
-
-        # Containers should be reset
-        assert not container1.is_configured
-        assert not container2.is_configured
-        assert len(get_active_containers()) == 0
-
-    def test_error_handling_during_reset(self) -> None:
-        """Test error handling during reset operations."""
-        # Create a container and force an error
-        logger, container = configure_with_container()
-
-        # Mock the reset method to raise an exception
-        original_reset = container.reset
-        container.reset = Mock(side_effect=Exception("Reset error"))
-
-        # Reset should not raise despite the error
-        reset_logging()  # Should not raise
-
-        # Should still clear the registry
-        assert len(get_active_containers()) == 0
-
-        # Restore original method
-        container.reset = original_reset
-
-    def test_error_handling_during_shutdown(self) -> None:
-        """Test error handling during shutdown operations."""
-        # Create a container and force an error
-        logger, container = configure_with_container()
-
-        # Mock the shutdown method to raise an exception
-        original_shutdown = container.shutdown_sync
-        container.shutdown_sync = Mock(side_effect=Exception("Shutdown error"))
-
-        # Shutdown should not raise despite the error
-        shutdown_logging()  # Should not raise
-
-        # Should still clear the registry
-        assert len(get_active_containers()) == 0
-
-        # Restore original method
-        container.shutdown_sync = original_shutdown
-
-    def test_no_global_state_dependencies(self) -> None:
-        """Test that bootstrap has no global state dependencies."""
-        # This test verifies the pure DI implementation
-        import fapilog.bootstrap as bootstrap_module
-
-        # Should not have global container variables
-        assert not hasattr(bootstrap_module, "_default_container")
-        assert not hasattr(bootstrap_module, "_get_default_container")
-
-        # Should have registry for lifecycle management (this is NOT global state)
-        assert hasattr(bootstrap_module, "_active_containers")
-        assert isinstance(bootstrap_module._active_containers, list)
-
-    def test_memory_management_without_leaks(self) -> None:
-        """Test that containers can be garbage collected properly."""
-        import gc
-        import weakref
-
-        # Create containers and track with weak references
-        container_refs = []
-
-        for _ in range(5):
-            logger, container = configure_with_container()
-            container_refs.append(weakref.ref(container))
-            # Delete strong reference
-            del logger, container
-
-        # Reset logging to clear registry
-        reset_logging()
-
-        # Force garbage collection
-        gc.collect()
-
-        # Some containers should be garbage collected
-        alive_containers = sum(1 for ref in container_refs if ref() is not None)
-        # Allow for GC timing variations
-        assert alive_containers <= len(container_refs)
-
-    def test_concurrent_configure_calls(self) -> None:
-        """Test concurrent configure_logging calls create isolated containers."""
-        import threading
-        import time
-
-        results = {}
-
-        def configure_worker(worker_id: int) -> None:
-            """Worker function for concurrent testing."""
-            settings = LoggingSettings(level="INFO", queue_enabled=(worker_id % 2 == 0))
-            logger = configure_logging(settings=settings)
-            time.sleep(0.1)  # Simulate some work
-            results[worker_id] = {
-                "logger_callable": callable(logger.info),
-                "queue_enabled": settings.queue_enabled,
-            }
-
-        # Create multiple threads
-        threads = []
-        for i in range(10):
-            thread = threading.Thread(target=configure_worker, args=(i,))
-            threads.append(thread)
-            thread.start()
-
-        # Wait for all threads to complete
-        for thread in threads:
-            thread.join()
-
-        # Verify all workers completed successfully
-        assert len(results) == 10
-        for i, result in results.items():
-            assert result["logger_callable"] is True
-            assert result["queue_enabled"] == (i % 2 == 0)
-
-        # Should have created 10 containers
-        assert len(get_active_containers()) == 10

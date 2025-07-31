@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from fapilog._internal.queue_worker import QueueWorker
-from fapilog.bootstrap import configure_logging, reset_logging
+from fapilog.bootstrap import configure_logging
 from fapilog.exceptions import SinkError
 from fapilog.settings import LoggingSettings
 from fapilog.sinks import Sink
@@ -40,11 +40,17 @@ class TestMultiSinkConfiguration:
 
     def setup_method(self) -> None:
         """Reset logging before each test."""
-        reset_logging()
+        import structlog
+
+        structlog.reset_defaults()
+        structlog.configure()
 
     def teardown_method(self) -> None:
         """Reset logging after each test."""
-        reset_logging()
+        import structlog
+
+        structlog.reset_defaults()
+        structlog.configure()
 
     def test_multiple_sinks_from_environment(self) -> None:
         """Test that multiple sinks can be configured from environment."""
@@ -99,11 +105,17 @@ class TestMultiSinkFunctionality:
 
     def setup_method(self) -> None:
         """Reset logging before each test."""
-        reset_logging()
+        import structlog
+
+        structlog.reset_defaults()
+        structlog.configure()
 
     def teardown_method(self) -> None:
         """Reset logging after each test."""
-        reset_logging()
+        import structlog
+
+        structlog.reset_defaults()
+        structlog.configure()
 
     @pytest.mark.asyncio
     async def test_both_sinks_receive_logs(self) -> None:
