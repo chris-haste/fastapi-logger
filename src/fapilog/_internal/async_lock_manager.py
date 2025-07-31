@@ -1,8 +1,8 @@
 """Centralized async lock management for processors.
 
-This module provides thread-safe async lock management to eliminate race conditions
-in processor operations. It addresses the mixed threading.Lock/asyncio.Lock patterns
-identified in the current codebase.
+This module provides thread-safe async lock management to eliminate race
+conditions in processor operations. It addresses the mixed
+threading.Lock/asyncio.Lock patterns identified in the current codebase.
 """
 
 import asyncio
@@ -109,23 +109,3 @@ class ProcessorLockManager:
     async def __aexit__(self, _exc_type, _exc_val, _exc_tb):
         """Async context manager exit with cleanup."""
         await self.cleanup_unused_locks()
-
-
-# Global instance for processor use
-_global_lock_manager = None
-_global_lock_manager_lock = threading.Lock()
-
-
-def get_processor_lock_manager() -> ProcessorLockManager:
-    """Get global processor lock manager instance.
-
-    Returns:
-        ProcessorLockManager: Global lock manager instance
-    """
-    global _global_lock_manager
-    if _global_lock_manager is None:
-        with _global_lock_manager_lock:
-            if _global_lock_manager is None:
-                _global_lock_manager = ProcessorLockManager()
-                logger.info("Initialized global ProcessorLockManager")
-    return _global_lock_manager

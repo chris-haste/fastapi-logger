@@ -70,19 +70,33 @@ class TestFoundationIntegration:
     """Integration tests for all foundation components."""
 
     @pytest.mark.asyncio
-    async def test_multiple_processors_shared_lock_manager(self):
-        """Test multiple processors sharing the global lock manager."""
-        processor1 = MockAsyncProcessor(processor_id="proc1")
-        processor2 = MockAsyncProcessor(processor_id="proc2")
-        processor3 = MockAsyncProcessor(processor_id="proc3")
+    async def test_container_scoped_lock_manager_behavior(self):
+        """Test container-scoped lock manager behavior in integration scenarios."""
+        from fapilog.container import LoggingContainer
 
-        # All should share the same lock manager
+        # Test 1: Processors with same container share lock manager
+        container = LoggingContainer()
+        processor1 = MockAsyncProcessor(processor_id="proc1", container=container)
+        processor2 = MockAsyncProcessor(processor_id="proc2", container=container)
+
         assert processor1._lock_manager is processor2._lock_manager
-        assert processor2._lock_manager is processor3._lock_manager
 
-        # But have separate caches
+        # Test 2: Processors without container get independent lock managers
+        processor3 = MockAsyncProcessor(processor_id="proc3")
+        processor4 = MockAsyncProcessor(processor_id="proc4")
+
+        assert processor3._lock_manager is not processor4._lock_manager
+        assert processor1._lock_manager is not processor3._lock_manager
+
+        # Test 3: Different containers have isolated lock managers
+        container2 = LoggingContainer()
+        processor5 = MockAsyncProcessor(processor_id="proc5", container=container2)
+
+        assert processor1._lock_manager is not processor5._lock_manager
+
+        # But all processors have separate caches regardless
         assert processor1._cache is not processor2._cache
-        assert processor2._cache is not processor3._cache
+        assert processor3._cache is not processor4._cache
 
     @pytest.mark.asyncio
     async def test_concurrent_processor_operations(self):

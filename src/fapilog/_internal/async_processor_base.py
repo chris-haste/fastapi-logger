@@ -10,10 +10,7 @@ import logging
 from abc import abstractmethod
 from typing import Any, Awaitable, Callable, Dict, Optional
 
-from .async_lock_manager import (
-    ProcessorLockManager,
-    get_processor_lock_manager,
-)
+from .async_lock_manager import ProcessorLockManager
 from .processor import Processor
 from .safe_async_cache import SafeAsyncCache
 
@@ -27,14 +24,26 @@ class AsyncProcessorBase(Processor):
     race conditions and ensure consistent async patterns across processors.
     """
 
-    def __init__(self, **config: Any):
+    def __init__(
+        self, lock_manager: Optional[ProcessorLockManager] = None, **config: Any
+    ):
         """Initialize async processor with foundation components.
 
         Args:
+            lock_manager: Optional ProcessorLockManager instance. If not provided,
+                         will try to get from container in config, or create a new instance.
             **config: Configuration parameters for the processor
         """
         super().__init__(**config)
-        self._lock_manager: ProcessorLockManager = get_processor_lock_manager()
+
+        # Get lock manager from parameter, container, or create new instance
+        if lock_manager is not None:
+            self._lock_manager = lock_manager
+        elif "container" in config and hasattr(config["container"], "get_lock_manager"):
+            self._lock_manager = config["container"].get_lock_manager()
+        else:
+            # Fallback: create a new instance for backward compatibility
+            self._lock_manager = ProcessorLockManager()
 
         # Configure cache with processor-specific settings
         cache_max_size = config.get("cache_max_size", 1000)

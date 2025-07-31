@@ -414,16 +414,28 @@ class TestAsyncProcessorIntegration:
         assert stats["cache_stats"]["size"] <= 50
 
     @pytest.mark.asyncio
-    async def test_global_lock_manager_sharing(self):
-        """Test that processors share the global lock manager."""
-        processor1 = TestAsyncProcessor(processor_id="proc1")
-        processor2 = TestAsyncProcessor(processor_id="proc2")
+    async def test_container_scoped_lock_manager_sharing(self):
+        """Test that processors from same container share lock manager."""
+        from fapilog.container import LoggingContainer
 
-        # Both should use the same lock manager instance
+        container = LoggingContainer()
+
+        # Processors with same container should share lock manager
+        processor1 = TestAsyncProcessor(processor_id="proc1", container=container)
+        processor2 = TestAsyncProcessor(processor_id="proc2", container=container)
+
         assert processor1._lock_manager is processor2._lock_manager
 
-        # But have different cache instances
+        # Processors without container should have independent lock managers
+        processor3 = TestAsyncProcessor(processor_id="proc3")
+        processor4 = TestAsyncProcessor(processor_id="proc4")
+
+        assert processor3._lock_manager is not processor4._lock_manager
+        assert processor1._lock_manager is not processor3._lock_manager
+
+        # But have different cache instances regardless
         assert processor1._cache is not processor2._cache
+        assert processor3._cache is not processor4._cache
 
 
 class TestRaceConditionPrevention:

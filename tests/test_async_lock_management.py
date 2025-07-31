@@ -10,10 +10,7 @@ from unittest.mock import patch
 
 import pytest
 
-from fapilog._internal.async_lock_manager import (
-    ProcessorLockManager,
-    get_processor_lock_manager,
-)
+from fapilog._internal.async_lock_manager import ProcessorLockManager
 
 
 class TestProcessorLockManager:
@@ -233,42 +230,47 @@ class TestProcessorLockManager:
         assert all(result > 0 for result in results)
 
 
-class TestGlobalLockManager:
-    """Test cases for global lock manager singleton."""
+class TestContainerScopedLockManager:
+    """Test cases for container-scoped lock manager behavior."""
 
-    def test_global_lock_manager_singleton(self):
-        """Test global lock manager is a singleton."""
-        manager1 = get_processor_lock_manager()
-        manager2 = get_processor_lock_manager()
+    def test_lock_manager_isolation(self):
+        """Test that ProcessorLockManager instances are independent."""
+        manager1 = ProcessorLockManager()
+        manager2 = ProcessorLockManager()
 
-        assert manager1 is manager2
+        assert manager1 is not manager2
         assert isinstance(manager1, ProcessorLockManager)
+        assert isinstance(manager2, ProcessorLockManager)
 
-    def test_global_lock_manager_thread_safety(self):
-        """Test global lock manager creation is thread-safe."""
-        managers = []
-        barrier = threading.Barrier(3)
+    def test_lock_manager_independence(self):
+        """Test that different ProcessorLockManager instances maintain separate lock state."""
+        manager1 = ProcessorLockManager()
+        manager2 = ProcessorLockManager()
 
-        def get_manager():
-            barrier.wait()  # Synchronize start
-            with patch(
-                "fapilog._internal.async_lock_manager._global_lock_manager", None
-            ):
-                manager = get_processor_lock_manager()
-                managers.append(manager)
+        # Create locks in each manager
+        lock1 = manager1.get_sync_lock("test_lock")
+        lock2 = manager2.get_sync_lock("test_lock")
 
-        # Reset global state for this test
-        with patch("fapilog._internal.async_lock_manager._global_lock_manager", None):
-            threads = [threading.Thread(target=get_manager) for _ in range(3)]
-            for thread in threads:
-                thread.start()
-            for thread in threads:
-                thread.join()
+        # Locks should be different instances even with same name
+        assert lock1 is not lock2
 
-        # All should get the same instance (singleton)
-        assert len(managers) == 3
-        # Note: Due to patching, they might be different instances in this test
-        # but the test verifies the threading safety of the creation logic
+        # Lock stats should be independent
+        stats1 = manager1.get_lock_stats()
+        stats2 = manager2.get_lock_stats()
+
+        assert stats1["sync_locks"] == 1
+        assert stats2["sync_locks"] == 1
+        assert stats1["async_locks"] == 0
+        assert stats2["async_locks"] == 0
+
+    def test_no_global_state_remains(self):
+        """Test that no global state remains in async_lock_manager module."""
+        import fapilog._internal.async_lock_manager as lock_module
+
+        # Verify global variables are not present
+        assert not hasattr(lock_module, "_global_lock_manager")
+        assert not hasattr(lock_module, "_global_lock_manager_lock")
+        assert not hasattr(lock_module, "get_processor_lock_manager")
 
 
 class TestRaceConditionPrevention:
