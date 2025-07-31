@@ -125,33 +125,19 @@ class ProcessorMetrics:
                 self._metrics.clear()
 
 
-# Global metrics instance
-_processor_metrics: Optional[ProcessorMetrics] = None
-
-
-def get_processor_metrics() -> ProcessorMetrics:
-    """Get the global processor metrics instance.
-
-    Returns:
-        The global ProcessorMetrics instance
-    """
-    global _processor_metrics
-    if _processor_metrics is None:
-        _processor_metrics = ProcessorMetrics()
-    return _processor_metrics
-
-
-def wrap_processor_with_metrics(processor: Processor) -> Callable:
+def wrap_processor_with_metrics(
+    processor: Processor, metrics: ProcessorMetrics
+) -> Callable:
     """Wrap processor with metrics collection.
 
     Args:
         processor: The processor instance to wrap
+        metrics: ProcessorMetrics instance to use for collection
 
     Returns:
         Wrapped processor function with metrics collection
     """
     processor_name = processor.__class__.__name__
-    metrics = get_processor_metrics()
 
     def wrapped_processor(
         logger, method_name: str, event_dict: Dict[str, Any]

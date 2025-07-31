@@ -22,7 +22,7 @@ from fapilog._internal.metrics import (
     create_metrics_collector,
     get_metrics_collector,
 )
-from fapilog._internal.processor_metrics import get_processor_metrics
+from fapilog._internal.processor_metrics import ProcessorMetrics
 from fapilog.container import LoggingContainer
 from fapilog.monitoring import (
     create_prometheus_exporter,
@@ -530,7 +530,7 @@ class TestPerformanceBaseline:
     def test_processor_metrics_baseline(self):
         """Establish baseline for ProcessorMetrics access."""
         stats = self.baseline.measure_access_time(
-            get_processor_metrics, "processor_metrics_access", iterations=1000
+            lambda: ProcessorMetrics(), "processor_metrics_access", iterations=1000
         )
 
         assert stats.mean_ns < 1_000_000  # Less than 1ms on average
@@ -538,7 +538,7 @@ class TestPerformanceBaseline:
 
         # Test concurrent access
         concurrent_stats = self.baseline.measure_concurrent_access(
-            get_processor_metrics,
+            lambda: ProcessorMetrics(),
             "processor_metrics_access",
             thread_count=10,
             operations_per_thread=100,
@@ -633,7 +633,7 @@ class TestPerformanceBaseline:
 
         # Test ProcessorMetrics memory usage
         metrics_memory = self.baseline.measure_memory_usage(
-            get_processor_metrics, "processor_metrics_memory", iterations=100
+            lambda: ProcessorMetrics(), "processor_metrics_memory", iterations=100
         )
 
         assert "net_memory_delta_bytes" in metrics_memory
@@ -694,7 +694,7 @@ class TestPerformanceBaseline:
         # Global component access baselines
         global_components = [
             (lambda: ProcessorLockManager(), "processor_lock_manager"),
-            (get_processor_metrics, "processor_metrics"),
+            (lambda: ProcessorMetrics(), "processor_metrics"),
             (get_metrics_collector, "metrics_collector"),
             (get_prometheus_exporter, "prometheus_exporter"),
         ]
@@ -769,7 +769,7 @@ def run_baseline_suite() -> Dict[str, Any]:
     # Run all baselines
     operations = [
         (lambda: ProcessorLockManager(), "processor_lock_manager"),
-        (get_processor_metrics, "processor_metrics"),
+        (lambda: ProcessorMetrics(), "processor_metrics"),
         (get_metrics_collector, "metrics_collector"),
         (get_prometheus_exporter, "prometheus_exporter"),
     ]

@@ -385,7 +385,6 @@ ignore_names = [
     "processor_metrics_reset_interval",
     "validate_processor_metrics_reset_interval",
     "ProcessorMetrics",
-    "get_processor_metrics",
     "wrap_processor_with_metrics",
 
     "get_processor_performance_stats",
@@ -507,6 +506,8 @@ ignore_names = [
     "get_component_count",
     "get_component_types",
     "container_context",
+    # Container API methods
+    "get_processor_metrics",
 ]
 ignore_decorators = [
     "pytest.fixture",
