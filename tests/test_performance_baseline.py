@@ -500,6 +500,7 @@ class TestPerformanceBaseline:
         # Warm up the system
         gc.collect()
 
+    @pytest.mark.slow
     def test_processor_lock_manager_baseline(self):
         """Establish baseline for ProcessorLockManager access."""
         # Single-threaded baseline
@@ -523,6 +524,7 @@ class TestPerformanceBaseline:
         assert concurrent_stats.sample_count == 1000
         assert concurrent_stats.mean_ns > 0
 
+    @pytest.mark.slow
     def test_processor_metrics_baseline(self):
         """Establish baseline for ProcessorMetrics access."""
         stats = self.baseline.measure_access_time(
@@ -542,6 +544,7 @@ class TestPerformanceBaseline:
 
         assert concurrent_stats.sample_count == 1000
 
+    @pytest.mark.slow
     def test_metrics_collector_baseline(self):
         """Establish baseline for MetricsCollector access."""
         # Create collector first
@@ -564,6 +567,7 @@ class TestPerformanceBaseline:
 
         assert concurrent_stats.sample_count == 1000
 
+    @pytest.mark.slow
     def test_prometheus_exporter_baseline(self):
         """Establish baseline for PrometheusExporter access."""
         # Create exporter first
@@ -676,6 +680,7 @@ class TestPerformanceBaseline:
         assert validation_result["target_met"] is False
         assert validation_result["overhead_percent"] > 3.0
 
+    @pytest.mark.slow
     def test_comprehensive_baseline_suite(self):
         """Run comprehensive baseline measurement suite."""
         # Create all global components
