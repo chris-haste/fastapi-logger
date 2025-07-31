@@ -12,7 +12,7 @@ import gc
 import random
 import statistics
 import time
-from typing import List
+from typing import Any, Dict, List
 
 import psutil
 import pytest
@@ -73,7 +73,7 @@ class TestSmartCachePerformance:
         metrics = PerformanceMetrics()
         metrics.operation_count = 1000
 
-        def compute_function(value: int):
+        def compute_function(value: int) -> str:
             # Simulate lightweight computation
             return f"result_{value}_{hash(value) % 1000}"
 
@@ -115,7 +115,7 @@ class TestSmartCachePerformance:
         metrics.operation_count = 5000
 
         # Use varied computation patterns
-        def compute_patterns(pattern_id: int, value: int):
+        def compute_patterns(pattern_id: int, value: int) -> Dict[str, Any]:
             if pattern_id == 0:
                 return {"type": "simple", "value": value}
             elif pattern_id == 1:
@@ -241,7 +241,7 @@ class TestSmartCachePerformance:
         # Create cache entries for memory analysis
         cache_large = AsyncSmartCache()
 
-        def generate_data(size: int):
+        def generate_data(size: int) -> Dict[str, Any]:
             return {
                 "data": list(range(size)),
                 "metadata": {"size": size, "created": time.time()},
@@ -288,7 +288,7 @@ class TestSmartCachePerformance:
         """Test throughput benchmarking with focus on concurrent safety."""
 
         # Baseline performance without caching (simple computation)
-        def baseline_compute(value: int):
+        def baseline_compute(value: int) -> Dict[str, Any]:
             # Very simple computation to avoid async overhead dominating
             return {"computed": value, "result": value * 2}
 
@@ -331,7 +331,7 @@ class TestSmartCachePerformance:
             metrics = PerformanceMetrics()
             metrics.operation_count = op_count
 
-            def scale_compute(value: int):
+            def scale_compute(value: int) -> Dict[str, Any]:
                 return {"scaled_value": value, "metadata": f"scale_{value}"}
 
             # Create separate cache for each scale test
@@ -370,7 +370,7 @@ class TestSmartCachePerformance:
         )
 
         print("\nScalability Stress Test:")
-        for op_count, metrics in scalability_results.items():
+        for op_count, result in scalability_results.items():
             print(
-                f"  {op_count:>5} ops: {metrics['throughput']:>6.1f} ops/sec, {metrics['duration']:>5.2f}s, {metrics['memory_delta_mb']:>4.1f}MB"
+                f"  {op_count:>5} ops: {result['throughput']:>6.1f} ops/sec, {result['duration']:>5.2f}s, {result['memory_delta_mb']:>4.1f}MB"
             )

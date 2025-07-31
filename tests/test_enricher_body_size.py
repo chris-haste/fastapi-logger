@@ -1,5 +1,7 @@
 """Tests for body size enricher."""
 
+from typing import Any, Dict
+
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
@@ -22,7 +24,7 @@ def make_app():
         return {"status": "ok"}
 
     @app.post("/echo")
-    async def echo(data: dict):
+    async def echo(data: dict) -> Dict[str, Any]:
         return {"echo": data}
 
     @app.get("/large-response")

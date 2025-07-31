@@ -150,7 +150,7 @@ class TestRedactionProcessor:
 
         # Invalid pattern in list
         with pytest.raises(ValueError, match="All patterns must be strings"):
-            RedactionProcessor(patterns=["valid", 123])
+            RedactionProcessor(patterns=["valid", 123])  # type: ignore[list-item]
 
         # Invalid regex pattern
         with pytest.raises(ValueError, match="Invalid regex pattern"):

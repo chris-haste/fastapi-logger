@@ -297,7 +297,7 @@ class TestContextualComponentManagerThreadSafety:
         results = {}
         barrier = threading.Barrier(2)
 
-        def thread_worker(thread_id: int):
+        def thread_worker(thread_id: int) -> None:
             """Worker function for thread testing."""
             with ContextualComponentManager.container_context():
                 service = MockService(f"service_{thread_id}")
@@ -329,7 +329,7 @@ class TestContextualComponentManagerThreadSafety:
         num_threads = 10
         results = {}
 
-        def worker(thread_id: int):
+        def worker(thread_id: int) -> None:
             """Worker that creates isolated context."""
             with ContextualComponentManager.container_context():
                 service = MockService(f"service_{thread_id}")
@@ -403,7 +403,7 @@ class TestContextualComponentManagerAsyncSupport:
         """Test that different async tasks have isolated contexts."""
         results = {}
 
-        async def async_worker(task_id: int):
+        async def async_worker(task_id: int) -> None:
             """Async worker with isolated context."""
             with ContextualComponentManager.container_context():
                 service = MockService(f"async_service_{task_id}")
@@ -561,7 +561,7 @@ class TestContextualComponentManagerIntegration:
     async def test_async_request_processing(self):
         """Test async request processing with component isolation."""
 
-        async def async_request_handler(request_id: str) -> str:
+        async def async_request_handler(request_id: str) -> Any:
             """Async request handler."""
             with ContextualComponentManager.container_context():
                 service = MockService(f"async_req_{request_id}")

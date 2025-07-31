@@ -259,7 +259,7 @@ class TestTemplateProcessorWithFramework:
 
         # Test basic processing
         event = {"user_id": "123", "message": "test"}
-        result = await processor.process_async(None, "info", event)
+        result = await processor.process_async(None, "info", event)  # type: ignore[attr-defined]
         assert result is not None
 
         await processor.stop()
@@ -276,7 +276,7 @@ class TestTemplateProcessorWithFramework:
         # Send more events than allowed
         for i in range(10):
             event = {"user_id": "123", "message": f"test_{i}"}
-            result = await processor.process_async(None, "info", event)
+            result = await processor.process_async(None, "info", event)  # type: ignore[attr-defined]
             if i < 5:  # First 5 should be processed
                 assert result is not None
             else:  # Rest should be dropped

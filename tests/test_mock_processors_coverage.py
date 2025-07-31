@@ -174,9 +174,9 @@ class TestRecordingProcessor:
         stats = processor.get_stats()
         assert stats["total_events"] == 4
         assert stats["process_count"] == 4
-        assert stats["level_counts"]["INFO"] == 2
-        assert stats["level_counts"]["ERROR"] == 1
-        assert stats["level_counts"]["DEBUG"] == 1
+        assert stats["level_counts"]["INFO"] == 2  # type: ignore[index]
+        assert stats["level_counts"]["ERROR"] == 1  # type: ignore[index]
+        assert stats["level_counts"]["DEBUG"] == 1  # type: ignore[index]
 
     def test_get_stats_unknown_level(self):
         """Test stats with events without level."""
@@ -187,7 +187,7 @@ class TestRecordingProcessor:
         processor.process(logger, "log", {"message": "no_level"})
 
         stats = processor.get_stats()
-        assert stats["level_counts"]["unknown"] == 1
+        assert stats["level_counts"]["unknown"] == 1  # type: ignore[index]
 
 
 class TestFailingProcessor:
@@ -922,8 +922,8 @@ class TestProcessorIntegration:
 
         # Check stats
         stats = recording_processor.get_stats()
-        assert stats["level_counts"]["INFO"] == 2
-        assert stats["level_counts"]["ERROR"] == 1
+        assert stats["level_counts"]["INFO"] == 2  # type: ignore[index]
+        assert stats["level_counts"]["ERROR"] == 1  # type: ignore[index]
 
     def test_slow_and_transform_combined(self):
         """Test processor patterns that modify event timing and content."""

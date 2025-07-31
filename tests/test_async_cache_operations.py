@@ -4,6 +4,7 @@ Tests cache operations, concurrent access scenarios, and race condition preventi
 """
 
 import asyncio
+from typing import Any
 
 import pytest
 
@@ -330,7 +331,7 @@ class TestConcurrentAccess:
         """Test concurrent set operations."""
         cache = SafeAsyncCache()
 
-        async def setter(key: str, value: str):
+        async def setter(key: str, value: str) -> Any:
             await cache.set(key, value)
             return await cache.get(key)
 
@@ -351,13 +352,13 @@ class TestConcurrentAccess:
         """Test mixed concurrent operations."""
         cache = SafeAsyncCache(max_size=20)
 
-        async def reader(key: str):
+        async def reader(key: str) -> Any:
             return await cache.get(key)
 
-        async def writer(key: str, value: str):
+        async def writer(key: str, value: str) -> None:
             await cache.set(key, value)
 
-        async def deleter(key: str):
+        async def deleter(key: str) -> Any:
             return await cache.delete(key)
 
         # Mix of operations
@@ -413,7 +414,7 @@ class TestConcurrentAccess:
         """Test memory consistency under concurrent load."""
         cache = SafeAsyncCache(max_size=100)
 
-        async def worker(worker_id: int):
+        async def worker(worker_id: int) -> None:
             for i in range(20):
                 key = f"worker_{worker_id}_key_{i}"
                 value = f"worker_{worker_id}_value_{i}"

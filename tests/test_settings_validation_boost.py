@@ -47,7 +47,7 @@ class TestSettingsValidationBoost:
         assert settings.sinks == ["stdout", "file://test.log"]
 
         # List with mixed types
-        settings = LoggingSettings(sinks=["stdout", 123, None])
+        settings = LoggingSettings(sinks=["stdout", 123, None])  # type: ignore[list-item]
         assert len(settings.sinks) == 3
         assert settings.sinks[0] == "stdout"
         assert settings.sinks[1] == "123"  # Converted to string

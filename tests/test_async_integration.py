@@ -40,7 +40,7 @@ class MockAsyncProcessor(AsyncProcessorBase):
 
     async def process_async(
         self, logger: Any, method_name: str, event_dict: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Any:
         """Mock async process implementation with cache usage."""
         try:
             event_id = event_dict.get("id", "default")
@@ -103,7 +103,9 @@ class TestFoundationIntegration:
         """Test concurrent operations across multiple processors."""
         processors = [MockAsyncProcessor(processor_id=f"proc_{i}") for i in range(3)]
 
-        async def processor_worker(processor: MockAsyncProcessor, worker_id: int):
+        async def processor_worker(
+            processor: MockAsyncProcessor, worker_id: int
+        ) -> None:
             for i in range(10):
                 event = {
                     "id": f"event_{worker_id}_{i}",
@@ -163,7 +165,9 @@ class TestFoundationIntegration:
 
         execution_order = []
 
-        async def coordinated_operation(processor: MockAsyncProcessor, op_id: str):
+        async def coordinated_operation(
+            processor: MockAsyncProcessor, op_id: str
+        ) -> Any:
             async def operation():
                 execution_order.append(f"start_{op_id}")
                 await asyncio.sleep(0.01)  # Simulate work
@@ -230,7 +234,7 @@ class TestFoundationIntegration:
             for i in range(5)
         ]
 
-        async def stress_worker(processor: MockAsyncProcessor, worker_id: int):
+        async def stress_worker(processor: MockAsyncProcessor, worker_id: int) -> None:
             for i in range(20):
                 event_id = f"worker_{worker_id}_event_{i}"
                 event = {
@@ -382,7 +386,7 @@ class TestPerformanceIntegration:
         """Benchmark concurrent performance of foundation components."""
         processor = MockAsyncProcessor(processor_id="perf_test", cache_max_size=100)
 
-        async def benchmark_worker(worker_id: int, operations: int):
+        async def benchmark_worker(worker_id: int, operations: int) -> float:
             worker_start = time.time()
 
             for i in range(operations):

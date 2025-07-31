@@ -282,7 +282,7 @@ def test_context_copy_with_multiple_tasks():
     app = FastAPI()
     task_results = []
 
-    async def background_task(task_id: int):
+    async def background_task(task_id: int) -> None:
         """Background task that logs its context."""
         context = get_context()
         task_results.append(

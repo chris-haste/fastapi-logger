@@ -18,7 +18,7 @@ import time
 import tracemalloc
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
-from typing import Any, List, Optional
+from typing import Any, Generator, List, Optional
 
 import pytest
 
@@ -232,7 +232,9 @@ class ContainerIsolationTestFramework:
                 )
 
     @contextmanager
-    def check_memory_leaks(self, containers: List[LoggingContainer]):
+    def check_memory_leaks(
+        self, containers: List[LoggingContainer]
+    ) -> Generator[None, None, None]:
         """Context manager for memory leak detection.
 
         Args:
@@ -293,7 +295,7 @@ class ContainerIsolationTestFramework:
             import psutil
 
             process = psutil.Process()
-            return process.memory_info().rss
+            return int(process.memory_info().rss)
         except ImportError:
             # Fallback to tracemalloc if psutil not available
             current, peak = tracemalloc.get_traced_memory()

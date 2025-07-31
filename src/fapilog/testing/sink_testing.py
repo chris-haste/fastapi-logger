@@ -15,7 +15,7 @@ class SinkTestFramework:
         self.recorded_events: List[Dict[str, Any]] = []
         self.errors: List[Exception] = []
 
-    def create_test_sink(self, sink_class: Type[Sink], **kwargs) -> Sink:
+    def create_test_sink(self, sink_class: Type[Sink], **kwargs: Any) -> Sink:
         """Create a test instance of a sink.
 
         Args:

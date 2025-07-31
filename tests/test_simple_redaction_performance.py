@@ -595,7 +595,7 @@ class TestRedactionProcessorBasics:
             RedactionProcessor(patterns="not_a_list")
 
         with pytest.raises(ValueError, match="All patterns must be strings"):
-            RedactionProcessor(patterns=["valid", 123])
+            RedactionProcessor(patterns=["valid", 123])  # type: ignore[list-item]
 
         with pytest.raises(ValueError, match="Invalid regex pattern"):
             RedactionProcessor(patterns=["[invalid"])
@@ -931,19 +931,19 @@ class TestInPlaceRedactionMemoryEfficiency:
         result = processor.process(None, "info", event)
 
         # Verify redaction occurred correctly
-        assert result["password"] == "[REDACTED]"
-        assert result["data"]["token"] == "[REDACTED]"
-        assert result["items"][0]["password"] == "[REDACTED]"
-        assert result["items"][1]["token"] == "[REDACTED]"
+        assert result["password"] == "[REDACTED]"  # type: ignore[index]
+        assert result["data"]["token"] == "[REDACTED]"  # type: ignore[index]
+        assert result["items"][0]["password"] == "[REDACTED]"  # type: ignore[index]
+        assert result["items"][1]["token"] == "[REDACTED]"  # type: ignore[index]
 
         # Verify unchanged fields
-        assert result["user_id"] == "123"
-        assert result["data"]["public_info"] == "safe"
-        assert result["items"][0]["name"] == "item1"
-        assert result["items"][1]["value"] == "item_value"
+        assert result["user_id"] == "123"  # type: ignore[index]
+        assert result["data"]["public_info"] == "safe"  # type: ignore[index]
+        assert result["items"][0]["name"] == "item1"  # type: ignore[index]
+        assert result["items"][1]["value"] == "item_value"  # type: ignore[index]
 
     @pytest.mark.asyncio
-    async def test_original_object_modified(self):
+    async def test_original_object_modified(self) -> None:
         """Test that the original event object is modified in-place."""
         original_event = {
             "password": "secret",
@@ -961,17 +961,23 @@ class TestInPlaceRedactionMemoryEfficiency:
 
         result = processor.process(None, "info", original_event)
 
-        # Original object should be modified in-place
-        assert original_event["password"] == "[REDACTED]"
-        assert original_event["data"]["token"] == "[REDACTED]"
-        assert original_event["public"] == "safe"  # Unchanged
-
         # Verify result is same object reference
         assert result is original_event
 
+        # Validate in-place modification
+        assert result["password"] == "[REDACTED]"  # type: ignore[index]
+        assert result["data"]["token"] == "[REDACTED]"  # type: ignore[index]
+        assert result["public"] == "safe"  # type: ignore[index]
+
+        # Validate the copy is unmodified
+        assert event_copy["password"] == "secret"  # type: ignore[index]
+        assert event_copy["data"] is not None
+        assert event_copy["data"]["token"] == "abc123"  # type: ignore[index]
+
         # Our copy should be unchanged (demonstrates in-place modification)
-        assert event_copy["password"] == "secret"
-        assert event_copy["data"]["token"] == "abc123"
+        assert event_copy["password"] == "secret"  # type: ignore[index]
+        assert event_copy["data"] is not None
+        assert event_copy["data"]["token"] == "abc123"  # type: ignore[index]
 
     @pytest.mark.asyncio
     async def test_nested_list_redaction(self):
@@ -992,12 +998,12 @@ class TestInPlaceRedactionMemoryEfficiency:
         result = processor.process(None, "info", event)
 
         # Verify nested list redaction
-        assert result["users"][0]["password"] == "[REDACTED]"
-        assert result["users"][1]["token"] == "[REDACTED]"
-        assert result["users"][2][0]["nested_password"] == "[REDACTED]"
-        assert result["data"]["items"][0]["password"] == "[REDACTED]"
+        assert result["users"][0]["password"] == "[REDACTED]"  # type: ignore[index]
+        assert result["users"][1]["token"] == "[REDACTED]"  # type: ignore[index]
+        assert result["users"][2][0]["nested_password"] == "[REDACTED]"  # type: ignore[index]
+        assert result["data"]["items"][0]["password"] == "[REDACTED]"  # type: ignore[index]
 
         # Verify unchanged fields
-        assert result["users"][0]["name"] == "user1"
-        assert result["users"][1]["name"] == "user2"
-        assert result["data"]["items"][1]["public"] == "safe_data"
+        assert result["users"][0]["name"] == "user1"  # type: ignore[index]
+        assert result["users"][1]["name"] == "user2"  # type: ignore[index]
+        assert result["data"]["items"][1]["public"] == "safe_data"  # type: ignore[index]

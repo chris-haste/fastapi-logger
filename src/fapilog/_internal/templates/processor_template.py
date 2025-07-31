@@ -15,7 +15,7 @@ Features:
 import asyncio
 import logging
 import time
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, cast
 
 from ...exceptions import ProcessorConfigurationError
 from ..async_processor_base import AsyncProcessorBase
@@ -174,7 +174,7 @@ class TemplateProcessor(AsyncProcessorBase):
             await self._atomic_update("metrics", self._update_metrics)
 
             # Return the result directly - None means drop the event
-            return result
+            return cast(Optional[Dict[str, Any]], result)
 
         except Exception as e:
             # Step 5: Handle errors with standardized patterns
@@ -270,7 +270,9 @@ class TemplateProcessor(AsyncProcessorBase):
         # This method can be used for periodic metric updates
         pass
 
-    async def _safe_operation(self, operation: Callable, *args, **kwargs) -> Any:
+    async def _safe_operation(
+        self, operation: Callable[..., Any], *args: Any, **kwargs: Any
+    ) -> Any:
         """Execute operation with standardized error handling.
 
         Args:
