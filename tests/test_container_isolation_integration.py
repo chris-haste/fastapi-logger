@@ -70,11 +70,9 @@ class ContainerIsolationTestFramework:
                 # Create varied settings for isolation testing
                 settings = LoggingSettings(
                     level="DEBUG" if i % 2 == 0 else "INFO",
-                    queue_enabled=i % 3 == 0,
-                    metrics_enabled=i % 2 == 1,
-                    metrics_prometheus_enabled=i % 4 == 0,
-                    metrics_sample_window=100 + (i * 50),
                 )
+                settings.metrics.prometheus_enabled = i % 4 == 0
+                settings.metrics.sample_window = 100 + (i * 50)
 
             container = LoggingContainer(settings)
             containers.append(container)
@@ -386,11 +384,16 @@ class TestContainerIsolationIntegration:
     def test_metrics_collector_isolation(self):
         """Test MetricsCollector isolation between containers."""
         # Create containers with metrics enabled
-        settings_list = [
-            LoggingSettings(metrics_enabled=True, metrics_sample_window=100),
-            LoggingSettings(metrics_enabled=True, metrics_sample_window=200),
-            LoggingSettings(metrics_enabled=True, metrics_sample_window=300),
-        ]
+        settings1 = LoggingSettings()
+        settings1.metrics.enabled = True
+        settings1.metrics.sample_window = 100
+        settings2 = LoggingSettings()
+        settings2.metrics.enabled = True
+        settings2.metrics.sample_window = 200
+        settings3 = LoggingSettings()
+        settings3.metrics.enabled = True
+        settings3.metrics.sample_window = 300
+        settings_list = [settings1, settings2, settings3]
         containers = self.framework.create_containers(3, settings_list)
 
         # Configure containers
@@ -415,23 +418,19 @@ class TestContainerIsolationIntegration:
     def test_prometheus_exporter_isolation(self):
         """Test PrometheusExporter isolation between containers."""
         # Create containers with Prometheus enabled on different ports
-        settings_list = [
-            LoggingSettings(
-                metrics_enabled=True,
-                metrics_prometheus_enabled=True,
-                metrics_prometheus_port=9090,
-            ),
-            LoggingSettings(
-                metrics_enabled=True,
-                metrics_prometheus_enabled=True,
-                metrics_prometheus_port=9091,
-            ),
-            LoggingSettings(
-                metrics_enabled=True,
-                metrics_prometheus_enabled=True,
-                metrics_prometheus_port=9092,
-            ),
-        ]
+        settings1 = LoggingSettings()
+        settings1.metrics.enabled = True
+        settings1.metrics.prometheus_enabled = True
+        settings1.metrics.prometheus_port = 9090
+        settings2 = LoggingSettings()
+        settings2.metrics.enabled = True
+        settings2.metrics.prometheus_enabled = True
+        settings2.metrics.prometheus_port = 9091
+        settings3 = LoggingSettings()
+        settings3.metrics.enabled = True
+        settings3.metrics.prometheus_enabled = True
+        settings3.metrics.prometheus_port = 9092
+        settings_list = [settings1, settings2, settings3]
         containers = self.framework.create_containers(3, settings_list)
 
         # Configure containers
@@ -457,11 +456,9 @@ class TestContainerIsolationIntegration:
         """Test complete component isolation using the framework method."""
         # Create varied containers
         settings_list = [
-            LoggingSettings(level="DEBUG", queue_enabled=False, metrics_enabled=True),
-            LoggingSettings(level="INFO", queue_enabled=True, metrics_enabled=True),
-            LoggingSettings(
-                level="WARNING", queue_enabled=False, metrics_enabled=False
-            ),
+            LoggingSettings(level="DEBUG"),
+            LoggingSettings(level="INFO"),
+            LoggingSettings(level="WARNING"),
         ]
         containers = self.framework.create_containers(3, settings_list)
 

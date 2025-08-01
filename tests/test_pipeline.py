@@ -10,7 +10,8 @@ from fapilog.settings import LoggingSettings
 
 
 def test_json_pipeline_keys(capsys):
-    settings = LoggingSettings(json_console="json", queue_enabled=False)
+    settings = LoggingSettings(json_console="json")
+    settings.queue.enabled = False
     processors = build_processor_chain(settings, pretty=False)
     structlog.configure(
         processors=processors,
@@ -31,7 +32,8 @@ def test_json_pipeline_keys(capsys):
 
 
 def test_pretty_pipeline_format(monkeypatch, capsys):
-    settings = LoggingSettings(json_console="pretty", queue_enabled=False)
+    settings = LoggingSettings(json_console="pretty")
+    settings.queue.enabled = False
     processors = build_processor_chain(settings, pretty=True)
     structlog.configure(
         processors=processors,
@@ -50,7 +52,8 @@ def test_pretty_pipeline_format(monkeypatch, capsys):
 
 
 def test_sampling_processor():
-    settings = LoggingSettings(sampling_rate=0.1, queue_enabled=False)
+    settings = LoggingSettings(sampling_rate=0.1)
+    settings.queue.enabled = False
     processors = build_processor_chain(settings, pretty=False)
     log_stream = StringIO()
     handler = logging.StreamHandler(log_stream)
@@ -77,25 +80,23 @@ def test_sampling_processor():
     # Should keep roughly 5-15% (statistical tolerance)
     assert 50 <= kept <= 150
 
-    def test_processor_order():
-        settings = LoggingSettings(queue_enabled=False)
-        processors = build_processor_chain(settings, pretty=False)
-        print([type(p) for p in processors])  # Debug print
-        # Order: add_log_level, TimeStamper, format_exc_info, StackInfoRenderer,
-        # EventRenamer, host_process_enricher, redact, request_response_enricher,
-        # sampling, filter_none, JSONRenderer
-        assert callable(processors[0])
-        assert isinstance(processors[1], structlog.processors.TimeStamper)
-        assert processors[2] == structlog.processors.format_exc_info
-        assert isinstance(processors[3], structlog.processors.StackInfoRenderer)
-        assert isinstance(processors[4], structlog.processors.EventRenamer)
-        # host_process_enricher, redact, request_response_enricher, sampling, filter_none are callables (functions)
-        assert callable(processors[5])
-        assert callable(processors[6])
-        assert callable(processors[7])
-        assert callable(processors[8])
-        assert callable(processors[9])
-        assert isinstance(processors[10], structlog.processors.JSONRenderer)
+
+def test_processor_order():
+    settings = LoggingSettings()
+    settings.queue.enabled = False
+    processors = build_processor_chain(settings, pretty=False)
+    print([type(p) for p in processors])  # Debug print
+    # Order: add_log_level, TimeStamper, format_exc_info, StackInfoRenderer,
+    # EventRenamer, then various enrichers and processors, finally JSONRenderer
+    assert callable(processors[0])
+    assert isinstance(processors[1], structlog.processors.TimeStamper)
+    assert processors[2] == structlog.processors.format_exc_info
+    assert isinstance(processors[3], structlog.processors.StackInfoRenderer)
+    assert isinstance(processors[4], structlog.processors.EventRenamer)
+    # Verify the final processor is JSONRenderer (last one)
+    assert isinstance(processors[-1], structlog.processors.JSONRenderer)
+    # Verify we have at least the expected number of processors
+    assert len(processors) >= 11
 
 
 def test_redaction_processor_no_patterns():

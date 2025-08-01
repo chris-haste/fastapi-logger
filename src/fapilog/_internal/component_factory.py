@@ -99,11 +99,11 @@ class ComponentFactory:
             if collector:
                 collector.record_enqueue(latency_ms=10.0)
         """
-        if not self._settings.metrics_enabled:
+        if not self._settings.metrics.enabled:
             return None
 
         return MetricsCollector(
-            enabled=True, sample_window=self._settings.metrics_sample_window
+            enabled=True, sample_window=self._settings.metrics.sample_window
         )
 
     def create_prometheus_exporter(self) -> Optional[PrometheusExporter]:
@@ -122,12 +122,12 @@ class ComponentFactory:
                 await exporter.start()
                 # Prometheus metrics available at configured endpoint
         """
-        if not self._settings.metrics_prometheus_enabled:
+        if not self._settings.metrics.prometheus_enabled:
             return None
 
         return PrometheusExporter(
-            host=self._settings.metrics_prometheus_host,
-            port=self._settings.metrics_prometheus_port,
+            host=self._settings.metrics.prometheus_host,
+            port=self._settings.metrics.prometheus_port,
             enabled=True,
         )
 

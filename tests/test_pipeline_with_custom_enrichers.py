@@ -114,7 +114,8 @@ def test_custom_enrichers_with_actual_logging():
     register_enricher(session_enricher)
 
     # Create a minimal processor chain without queue
-    settings = LoggingSettings(queue_enabled=False)
+    settings = LoggingSettings()
+    settings.queue.enabled = False
     processors = build_processor_chain(settings)
 
     # Use CapturingLogger to capture output
@@ -157,7 +158,8 @@ def test_custom_enrichers_exception_handling():
     register_enricher(working_enricher)
 
     # Create a minimal processor chain without queue
-    settings = LoggingSettings(queue_enabled=False)
+    settings = LoggingSettings()
+    settings.queue.enabled = False
     processors = build_processor_chain(settings)
 
     cap_logger = CapturingLogger()
@@ -189,7 +191,8 @@ def test_custom_enrichers_clear_functionality():
     register_enricher(test_enricher)
 
     # Create a minimal processor chain without queue
-    settings = LoggingSettings(queue_enabled=False)
+    settings = LoggingSettings()
+    settings.queue.enabled = False
     processors = build_processor_chain(settings)
 
     cap_logger = CapturingLogger()

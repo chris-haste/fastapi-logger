@@ -319,9 +319,9 @@ class TestQueueIntegrationEdgeCases:
     def test_container_with_actual_queue_worker(self):
         """Test create_queue_sink with actual QueueWorker instance."""
         # Create real container with queue enabled
-        settings = LoggingSettings(
-            level="INFO", queue_enabled=True, sinks=["stdout"], queue_maxsize=5
-        )
+        settings = LoggingSettings(level="INFO", sinks=["stdout"])
+        settings.queue.enabled = True
+        settings.queue.maxsize = 5
 
         container = LoggingContainer.create_from_settings(settings)
         container.configure()

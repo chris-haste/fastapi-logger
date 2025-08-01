@@ -68,18 +68,17 @@ class TestContainerEasyWins:
 
     def test_settings_validation_exception_handling(self):
         """Test exception handling in settings validation (line 141)."""
-        # Mock LoggingSettings.model_validate to raise an exception
+        container = LoggingContainer()
+
+        # Mock LoggingSettings constructor to raise an exception during validation
         with patch(
-            "fapilog.settings.LoggingSettings.model_validate",
-            side_effect=ValueError("Validation failed"),
+            "fapilog.container.LoggingSettings",
+            side_effect=ValueError("Settings validation failed"),
         ):
-            container = LoggingContainer()
-
-            # Create a mock settings object
-            mock_settings = LoggingSettings()
-
             with pytest.raises(ConfigurationError):
-                container._validate_and_get_settings(mock_settings)
+                container._validate_and_get_settings(
+                    None
+                )  # This should trigger validation
 
     def test_log_level_attribute_error_handling(self):
         """Test AttributeError handling in logging setup (lines 189-190)."""

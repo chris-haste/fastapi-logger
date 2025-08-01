@@ -36,19 +36,21 @@ class TestComponentFactoryBasicOperations:
 
     def test_factory_with_custom_settings(self):
         """Test ComponentFactory with custom LoggingSettings."""
-        custom_settings = LoggingSettings(
-            metrics_enabled=True,
-            metrics_sample_window=200,
-            metrics_prometheus_enabled=True,
-            metrics_prometheus_host="localhost",
-            metrics_prometheus_port=9090,
-        )
+        # Test that backward compatibility properties work
+        custom_settings = LoggingSettings()
+        # Use properties to set values
+        custom_settings.metrics.enabled = True
+        custom_settings.metrics.sample_window = 200
+        custom_settings.metrics.prometheus_enabled = True
+        custom_settings.metrics.prometheus_host = "localhost"
+        custom_settings.metrics.prometheus_port = 9090
+
         container = LoggingContainer(custom_settings)
         factory = ComponentFactory(container)
 
         assert factory._settings is custom_settings
-        assert factory._settings.metrics_enabled is True
-        assert factory._settings.metrics_sample_window == 200
+        assert factory._settings.metrics.enabled is True
+        assert factory._settings.metrics.sample_window == 200
 
 
 class TestComponentFactoryLockManager:
@@ -140,7 +142,9 @@ class TestComponentFactoryMetricsCollector:
 
     def test_create_metrics_collector_enabled(self):
         """Test metrics collector creation when enabled."""
-        settings = LoggingSettings(metrics_enabled=True, metrics_sample_window=150)
+        settings = LoggingSettings()
+        settings.metrics.enabled = True
+        settings.metrics.sample_window = 150
         container = LoggingContainer(settings)
         factory = ComponentFactory(container)
 
@@ -152,7 +156,8 @@ class TestComponentFactoryMetricsCollector:
 
     def test_create_metrics_collector_disabled(self):
         """Test metrics collector creation when disabled."""
-        settings = LoggingSettings(metrics_enabled=False)
+        settings = LoggingSettings()
+        settings.metrics.enabled = False
         container = LoggingContainer(settings)
         factory = ComponentFactory(container)
 
@@ -168,7 +173,7 @@ class TestComponentFactoryMetricsCollector:
 
         collector = factory.create_metrics_collector()
 
-        if container._settings.metrics_enabled:
+        if container._settings.metrics.enabled:
             assert isinstance(collector, MetricsCollector)
             assert collector.enabled is True
         else:
@@ -176,7 +181,8 @@ class TestComponentFactoryMetricsCollector:
 
     def test_metrics_collector_functionality(self):
         """Test metrics collector basic functionality."""
-        settings = LoggingSettings(metrics_enabled=True)
+        settings = LoggingSettings()
+        settings.metrics.enabled = True
         container = LoggingContainer(settings)
         factory = ComponentFactory(container)
 
@@ -193,11 +199,10 @@ class TestComponentFactoryPrometheusExporter:
 
     def test_create_prometheus_exporter_enabled(self):
         """Test Prometheus exporter creation when enabled."""
-        settings = LoggingSettings(
-            metrics_prometheus_enabled=True,
-            metrics_prometheus_host="custom.host",
-            metrics_prometheus_port=8080,
-        )
+        settings = LoggingSettings()
+        settings.metrics.prometheus_enabled = True
+        settings.metrics.prometheus_host = "custom.host"
+        settings.metrics.prometheus_port = 8080
         container = LoggingContainer(settings)
         factory = ComponentFactory(container)
 
@@ -210,7 +215,8 @@ class TestComponentFactoryPrometheusExporter:
 
     def test_create_prometheus_exporter_disabled(self):
         """Test Prometheus exporter creation when disabled."""
-        settings = LoggingSettings(metrics_prometheus_enabled=False)
+        settings = LoggingSettings()
+        settings.metrics.prometheus_enabled = False
         container = LoggingContainer(settings)
         factory = ComponentFactory(container)
 
@@ -221,8 +227,10 @@ class TestComponentFactoryPrometheusExporter:
     def test_create_prometheus_exporter_default_config(self):
         """Test Prometheus exporter with default configuration."""
         settings = LoggingSettings(
-            metrics_prometheus_enabled=True
             # Use default host and port
+        )
+        settings.metrics.prometheus_enabled = (
+            True  # Enable Prometheus to create exporter
         )
         container = LoggingContainer(settings)
         factory = ComponentFactory(container)
@@ -230,13 +238,14 @@ class TestComponentFactoryPrometheusExporter:
         exporter = factory.create_prometheus_exporter()
 
         assert isinstance(exporter, PrometheusExporter)
-        assert exporter.host == settings.metrics_prometheus_host
-        assert exporter.port == settings.metrics_prometheus_port
+        assert exporter.host == settings.metrics.prometheus_host
+        assert exporter.port == settings.metrics.prometheus_port
         assert exporter.enabled is True
 
     def test_prometheus_exporter_functionality(self):
         """Test Prometheus exporter basic functionality."""
-        settings = LoggingSettings(metrics_prometheus_enabled=True)
+        settings = LoggingSettings()
+        settings.metrics.prometheus_enabled = True
         container = LoggingContainer(settings)
         factory = ComponentFactory(container)
 
@@ -252,13 +261,12 @@ class TestComponentFactorySettingsIntegration:
 
     def test_all_components_enabled(self):
         """Test factory with all components enabled."""
-        settings = LoggingSettings(
-            metrics_enabled=True,
-            metrics_sample_window=100,
-            metrics_prometheus_enabled=True,
-            metrics_prometheus_host="0.0.0.0",
-            metrics_prometheus_port=8000,
-        )
+        settings = LoggingSettings()
+        settings.metrics.enabled = True
+        settings.metrics.sample_window = 100
+        settings.metrics.prometheus_enabled = True
+        settings.metrics.prometheus_host = "0.0.0.0"
+        settings.metrics.prometheus_port = 8000
         container = LoggingContainer(settings)
         factory = ComponentFactory(container)
 
@@ -276,9 +284,9 @@ class TestComponentFactorySettingsIntegration:
 
     def test_all_optional_components_disabled(self):
         """Test factory with optional components disabled."""
-        settings = LoggingSettings(
-            metrics_enabled=False, metrics_prometheus_enabled=False
-        )
+        settings = LoggingSettings()
+        settings.metrics.enabled = False
+        settings.metrics.prometheus_enabled = False
         container = LoggingContainer(settings)
         factory = ComponentFactory(container)
 
@@ -298,10 +306,9 @@ class TestComponentFactorySettingsIntegration:
 
     def test_partial_component_enablement(self):
         """Test factory with partial component enablement."""
-        settings = LoggingSettings(
-            metrics_enabled=True,
-            metrics_prometheus_enabled=False,  # Only metrics, no Prometheus
-        )
+        settings = LoggingSettings()
+        settings.metrics.enabled = True
+        settings.metrics.prometheus_enabled = False  # Only metrics, no Prometheus
         container = LoggingContainer(settings)
         factory = ComponentFactory(container)
 
@@ -343,8 +350,12 @@ class TestComponentFactoryContainerIntegration:
 
     def test_factory_isolation_between_containers(self):
         """Test that factories are properly isolated between containers."""
-        settings1 = LoggingSettings(metrics_enabled=True, metrics_sample_window=100)
-        settings2 = LoggingSettings(metrics_enabled=True, metrics_sample_window=200)
+        settings1 = LoggingSettings()
+        settings1.metrics.enabled = True
+        settings1.metrics.sample_window = 100
+        settings2 = LoggingSettings()
+        settings2.metrics.enabled = True
+        settings2.metrics.sample_window = 200
 
         container1 = LoggingContainer(settings1)
         container2 = LoggingContainer(settings2)
@@ -374,9 +385,10 @@ class TestComponentFactoryErrorHandling:
         """Test factory with mock container."""
         mock_container = Mock()
         mock_settings = Mock()
-        mock_settings.metrics_enabled = True
-        mock_settings.metrics_sample_window = 100
-        mock_settings.metrics_prometheus_enabled = False
+        mock_settings.metrics = Mock()
+        mock_settings.metrics.enabled = True
+        mock_settings.metrics.sample_window = 100
+        mock_settings.metrics.prometheus_enabled = False
         mock_container._settings = mock_settings
 
         factory = ComponentFactory(mock_container)
@@ -434,9 +446,9 @@ class TestComponentFactoryTypeHints:
     def test_optional_type_consistency(self):
         """Test optional components return consistent types based on settings."""
         # Test with enabled settings
-        enabled_settings = LoggingSettings(
-            metrics_enabled=True, metrics_prometheus_enabled=True
-        )
+        enabled_settings = LoggingSettings()
+        enabled_settings.metrics.enabled = True
+        enabled_settings.metrics.prometheus_enabled = True
         container_enabled = LoggingContainer(enabled_settings)
         factory_enabled = ComponentFactory(container_enabled)
 
@@ -447,9 +459,9 @@ class TestComponentFactoryTypeHints:
         assert isinstance(exporter_enabled, PrometheusExporter)
 
         # Test with disabled settings
-        disabled_settings = LoggingSettings(
-            metrics_enabled=False, metrics_prometheus_enabled=False
-        )
+        disabled_settings = LoggingSettings()
+        disabled_settings.metrics.enabled = False
+        disabled_settings.metrics.prometheus_enabled = False
         container_disabled = LoggingContainer(disabled_settings)
         factory_disabled = ComponentFactory(container_disabled)
 

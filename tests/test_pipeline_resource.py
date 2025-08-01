@@ -67,8 +67,8 @@ def test_pipeline_with_resource_metrics():
         enable_resource_metrics=True,
         level="INFO",
         sinks=["stdout"],
-        queue_enabled=False,
     )
+    settings.queue.enabled = False
 
     with patch("psutil.Process") as mock_process_class:
         mock_process = Mock()

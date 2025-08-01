@@ -77,7 +77,10 @@ class QueueWorker:
         self._stopping = False
         self._loop = asyncio.get_running_loop()
         self._task = asyncio.create_task(self._run())
-        logger.debug("QueueWorker started")
+        try:
+            logger.debug("QueueWorker started")
+        except Exception:
+            pass  # Ignore logging errors
 
     async def stop(self) -> None:
         """Stop the queue worker gracefully."""
@@ -94,7 +97,10 @@ class QueueWorker:
             except asyncio.CancelledError:
                 pass
 
-        logger.debug("QueueWorker stopped")
+        try:
+            logger.debug("QueueWorker stopped")
+        except Exception:
+            pass  # Ignore logging errors
 
     async def shutdown(self) -> None:
         """Shutdown the worker gracefully."""
@@ -122,11 +128,17 @@ class QueueWorker:
                         # Ignore logging errors during shutdown
                         pass
             except asyncio.TimeoutError:
-                logger.warning("Worker task shutdown timed out")
+                try:
+                    logger.warning("Worker task shutdown timed out")
+                except Exception:
+                    pass  # Ignore logging errors during shutdown
             except asyncio.CancelledError:
                 pass
             except Exception as e:
-                logger.warning(f"Error during worker task shutdown: {e}")
+                try:
+                    logger.warning(f"Error during worker task shutdown: {e}")
+                except Exception:
+                    pass  # Ignore logging errors during shutdown
 
         # Drain any remaining events in the queue
         await self._drain_queue()
@@ -157,8 +169,10 @@ class QueueWorker:
         try:
             asyncio_logger = logging.getLogger("asyncio")
             asyncio_logger.disabled = True
+            # Also disable the main logger to prevent I/O errors during shutdown
+            logger.disabled = True
         except Exception:
-            pass
+            pass  # Ignore any errors during logger disabling
 
         # Try to cancel the task if it exists
         if self._task is not None and not self._task.done():
@@ -238,7 +252,10 @@ class QueueWorker:
 
         # Process all drained events
         if drained_events:
-            logger.debug(f"Draining {len(drained_events)} remaining events")
+            try:
+                logger.debug(f"Draining {len(drained_events)} remaining events")
+            except Exception:
+                pass  # Ignore logging errors during shutdown
             for event in drained_events:
                 await self._process_event(event)
 
@@ -256,8 +273,7 @@ class QueueWorker:
                 try:
                     logger.error(f"Error in queue worker: {e}")
                 except Exception:
-                    # Ignore logging errors during shutdown
-                    pass
+                    pass  # Ignore logging errors during shutdown
                 if not self._stopping:
                     await asyncio.sleep(self.retry_delay)
 

@@ -17,7 +17,7 @@ class TestSettingsValidationBoost:
     def test_invalid_redact_level_validation(self):
         """Test validation error for invalid redact level."""
         with pytest.raises(ConfigurationError, match="Invalid redact_level 'INVALID'"):
-            LoggingSettings(redact_level="INVALID")
+            LoggingSettings(security={"redact_level": "INVALID"})
 
     def test_level_validation_case_insensitive(self):
         """Test that level validation handles different cases."""
@@ -34,11 +34,11 @@ class TestSettingsValidationBoost:
     def test_redact_level_validation_case_insensitive(self):
         """Test that redact_level validation handles different cases."""
         # These should work
-        settings = LoggingSettings(redact_level="error")
-        assert settings.redact_level == "ERROR"
+        settings = LoggingSettings(security={"redact_level": "error"})
+        assert settings.security.redact_level == "ERROR"
 
-        settings = LoggingSettings(redact_level="Critical")
-        assert settings.redact_level == "CRITICAL"
+        settings = LoggingSettings(security={"redact_level": "Critical"})
+        assert settings.security.redact_level == "CRITICAL"
 
     def test_parse_sinks_mixed_types(self):
         """Test sinks parsing with mixed types."""
@@ -56,48 +56,64 @@ class TestSettingsValidationBoost:
     def test_parse_redact_patterns_various_inputs(self):
         """Test redact_patterns parsing with various input types."""
         # String input
-        settings = LoggingSettings(redact_patterns="password,secret,token")
-        assert settings.redact_patterns == ["password", "secret", "token"]
+        settings = LoggingSettings(
+            security={"redact_patterns": "password,secret,token"}
+        )
+        assert settings.security.redact_patterns == ["password", "secret", "token"]
 
         # List input
-        settings = LoggingSettings(redact_patterns=["password", "secret"])
-        assert settings.redact_patterns == ["password", "secret"]
+        settings = LoggingSettings(security={"redact_patterns": ["password", "secret"]})
+        assert settings.security.redact_patterns == ["password", "secret"]
 
         # Tuple input
-        settings = LoggingSettings(redact_patterns=("password", "secret"))
-        assert settings.redact_patterns == ["password", "secret"]
+        settings = LoggingSettings(security={"redact_patterns": ("password", "secret")})
+        assert settings.security.redact_patterns == ["password", "secret"]
 
         # Single string that's not a list
-        settings = LoggingSettings(redact_patterns="single_pattern")
-        assert settings.redact_patterns == ["single_pattern"]
+        settings = LoggingSettings(security={"redact_patterns": "single_pattern"})
+        assert settings.security.redact_patterns == ["single_pattern"]
 
     def test_parse_redact_fields_various_inputs(self):
         """Test redact_fields parsing with various input types."""
         # String input
-        settings = LoggingSettings(redact_fields="user.name,user.email,password")
-        assert settings.redact_fields == ["user.name", "user.email", "password"]
+        settings = LoggingSettings(
+            security={"redact_fields": "user.name,user.email,password"}
+        )
+        assert settings.security.redact_fields == [
+            "user.name",
+            "user.email",
+            "password",
+        ]
 
         # List input
-        settings = LoggingSettings(redact_fields=["user.name", "password"])
-        assert settings.redact_fields == ["user.name", "password"]
+        settings = LoggingSettings(
+            security={"redact_fields": ["user.name", "password"]}
+        )
+        assert settings.security.redact_fields == ["user.name", "password"]
 
         # Tuple input
-        settings = LoggingSettings(redact_fields=("user.name", "password"))
-        assert settings.redact_fields == ["user.name", "password"]
+        settings = LoggingSettings(
+            security={"redact_fields": ("user.name", "password")}
+        )
+        assert settings.security.redact_fields == ["user.name", "password"]
 
     def test_parse_custom_pii_patterns_various_inputs(self):
         """Test custom_pii_patterns parsing with various input types."""
         # String input
-        settings = LoggingSettings(custom_pii_patterns="ssn,credit_card")
-        assert settings.custom_pii_patterns == ["ssn", "credit_card"]
+        settings = LoggingSettings(security={"custom_pii_patterns": "ssn,credit_card"})
+        assert settings.security.custom_pii_patterns == ["ssn", "credit_card"]
 
         # List input
-        settings = LoggingSettings(custom_pii_patterns=["ssn", "credit_card"])
-        assert settings.custom_pii_patterns == ["ssn", "credit_card"]
+        settings = LoggingSettings(
+            security={"custom_pii_patterns": ["ssn", "credit_card"]}
+        )
+        assert settings.security.custom_pii_patterns == ["ssn", "credit_card"]
 
         # Tuple input
-        settings = LoggingSettings(custom_pii_patterns=("ssn", "credit_card"))
-        assert settings.custom_pii_patterns == ["ssn", "credit_card"]
+        settings = LoggingSettings(
+            security={"custom_pii_patterns": ("ssn", "credit_card")}
+        )
+        assert settings.security.custom_pii_patterns == ["ssn", "credit_card"]
 
     def test_parse_sinks_empty_string_handling(self):
         """Test sinks parsing handles empty strings correctly."""
@@ -108,14 +124,14 @@ class TestSettingsValidationBoost:
     def test_parse_patterns_empty_string_handling(self):
         """Test patterns parsing handles empty strings correctly."""
         # Empty items should be filtered out
-        settings = LoggingSettings(redact_patterns="password,,secret, ")
-        assert settings.redact_patterns == ["password", "secret"]
+        settings = LoggingSettings(security={"redact_patterns": "password,,secret, "})
+        assert settings.security.redact_patterns == ["password", "secret"]
 
-        settings = LoggingSettings(redact_fields="user.name,,password, ")
-        assert settings.redact_fields == ["user.name", "password"]
+        settings = LoggingSettings(security={"redact_fields": "user.name,,password, "})
+        assert settings.security.redact_fields == ["user.name", "password"]
 
-        settings = LoggingSettings(custom_pii_patterns="ssn,,credit, ")
-        assert settings.custom_pii_patterns == ["ssn", "credit"]
+        settings = LoggingSettings(security={"custom_pii_patterns": "ssn,,credit, "})
+        assert settings.security.custom_pii_patterns == ["ssn", "credit"]
 
     def test_settings_with_various_defaults(self):
         """Test settings initialization with various default behaviors."""
@@ -123,17 +139,17 @@ class TestSettingsValidationBoost:
 
         # Check default factory functions are called
         assert settings.sinks == ["stdout"]
-        assert settings.redact_patterns == []
-        assert settings.redact_fields == []
-        assert settings.custom_pii_patterns == []
+        assert settings.security.redact_patterns == []
+        assert settings.security.redact_fields == []
+        assert settings.security.custom_pii_patterns == []
 
         # Check other defaults
         assert settings.level == "INFO"
         assert settings.json_console == "auto"
-        assert settings.redact_replacement == "REDACTED"
-        assert settings.redact_level == "INFO"
-        assert settings.queue_enabled is True
-        assert settings.queue_maxsize == 1000
+        assert settings.security.redact_replacement == "REDACTED"
+        assert settings.security.redact_level == "INFO"
+        assert settings.queue.enabled is True
+        assert settings.queue.maxsize == 1000
 
     def test_environment_variable_mapping(self):
         """Test that environment variable mapping works correctly."""

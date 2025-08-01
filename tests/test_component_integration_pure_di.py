@@ -26,6 +26,9 @@ class TestComponentIntegrationPureDI:
         for handler in root_logger.handlers[:]:
             root_logger.removeHandler(handler)
 
+        # Track containers for cleanup
+        self._containers_to_cleanup = []
+
     def teardown_method(self) -> None:
         """Clean up after each test."""
         # Reset structlog
@@ -37,10 +40,12 @@ class TestComponentIntegrationPureDI:
 
     def test_container_pipeline_integration(self) -> None:
         """Test container and pipeline integration with pure DI."""
-        settings = LoggingSettings(level="INFO", queue_enabled=False, sinks=["stdout"])
+        settings = LoggingSettings(level="INFO", sinks=["stdout"])
+        settings.queue.enabled = False
 
         # Create container with explicit settings
         container = LoggingContainer.create_from_settings(settings)
+        self._containers_to_cleanup.append(container)
 
         # Configure container (calls build_processor_chain with container)
         logger = container.configure()
@@ -57,13 +62,14 @@ class TestComponentIntegrationPureDI:
         """Test container and queue integration with pure DI."""
         settings = LoggingSettings(
             level="INFO",
-            queue_enabled=True,
             sinks=["stdout"],
-            queue_maxsize=10,
         )
+        settings.queue.enabled = True
+        settings.queue.maxsize = 10
 
         # Create container with queue enabled
         container = LoggingContainer.create_from_settings(settings)
+        self._containers_to_cleanup.append(container)
 
         # Configure container
         logger = container.configure()
@@ -77,7 +83,8 @@ class TestComponentIntegrationPureDI:
 
     def test_queue_sink_pure_di_creation(self) -> None:
         """Test create_queue_sink function with explicit container."""
-        settings = LoggingSettings(level="INFO", queue_enabled=True, sinks=["stdout"])
+        settings = LoggingSettings(level="INFO", sinks=["stdout"])
+        settings.queue.enabled = True
 
         # Create container
         container = LoggingContainer.create_from_settings(settings)
@@ -98,7 +105,8 @@ class TestComponentIntegrationPureDI:
 
     def test_pipeline_container_integration(self) -> None:
         """Test pipeline build_processor_chain with container parameter."""
-        settings = LoggingSettings(level="INFO", queue_enabled=True, sinks=["stdout"])
+        settings = LoggingSettings(level="INFO", sinks=["stdout"])
+        settings.queue.enabled = True
 
         # Create container
         container = LoggingContainer.create_from_settings(settings)
@@ -117,7 +125,8 @@ class TestComponentIntegrationPureDI:
 
     def test_pipeline_without_container_fallback(self) -> None:
         """Test pipeline falls back gracefully without container."""
-        settings = LoggingSettings(level="INFO", queue_enabled=True, sinks=["stdout"])
+        settings = LoggingSettings(level="INFO", sinks=["stdout"])
+        settings.queue.enabled = True
 
         # Build processor chain without container (legacy mode)
         processors = build_processor_chain(
@@ -133,9 +142,12 @@ class TestComponentIntegrationPureDI:
     def test_multiple_isolated_containers(self) -> None:
         """Test multiple containers with complete isolation."""
         # Create multiple containers with different settings
-        settings1 = LoggingSettings(level="INFO", queue_enabled=False)
-        settings2 = LoggingSettings(level="DEBUG", queue_enabled=True)
-        settings3 = LoggingSettings(level="WARNING", queue_enabled=False)
+        settings1 = LoggingSettings(level="INFO")
+        settings1.queue.enabled = False
+        settings2 = LoggingSettings(level="DEBUG")
+        settings2.queue.enabled = True
+        settings3 = LoggingSettings(level="WARNING")
+        settings3.queue.enabled = False
 
         containers = [
             LoggingContainer.create_from_settings(settings1),
@@ -153,9 +165,9 @@ class TestComponentIntegrationPureDI:
         assert containers[1].settings.level == "DEBUG"
         assert containers[2].settings.level == "WARNING"
 
-        assert containers[0].settings.queue_enabled is False
-        assert containers[1].settings.queue_enabled is True
-        assert containers[2].settings.queue_enabled is False
+        assert containers[0].settings.queue.enabled is False
+        assert containers[1].settings.queue.enabled is True
+        assert containers[2].settings.queue.enabled is False
 
         # Only container 1 should have queue worker
         assert containers[0].queue_worker is None
@@ -173,9 +185,9 @@ class TestComponentIntegrationPureDI:
         assert callable(logger1.info)
 
         # Test configure_with_container
-        logger2, container = configure_with_container(
-            LoggingSettings(level="DEBUG", queue_enabled=True)
-        )
+        bootstrap_settings = LoggingSettings(level="DEBUG")
+        bootstrap_settings.queue.enabled = True
+        logger2, container = configure_with_container(bootstrap_settings)
 
         assert callable(logger2.info)
         assert isinstance(container, LoggingContainer)
@@ -199,10 +211,10 @@ class TestComponentIntegrationPureDI:
         """Test async integration with pure dependency injection."""
         settings = LoggingSettings(
             level="INFO",
-            queue_enabled=True,
             sinks=["stdout"],
-            metrics_enabled=True,
         )
+        settings.queue.enabled = True
+        settings.metrics.enabled = True
 
         # Create container
         container = LoggingContainer.create_from_settings(settings)
@@ -224,7 +236,6 @@ class TestComponentIntegrationPureDI:
         # Create settings for comprehensive test
         settings = LoggingSettings(
             level="INFO",
-            queue_enabled=False,  # Use synchronous for easier testing
             sinks=["stdout"],
             enable_auto_redact_pii=True,
             enable_throttling=False,  # Disable for testing
@@ -232,6 +243,7 @@ class TestComponentIntegrationPureDI:
             user_context_enabled=True,
             enable_resource_metrics=True,
         )
+        settings.queue.enabled = False  # Use synchronous for easier testing
 
         # Create and configure container
         container = LoggingContainer.create_from_settings(settings)
@@ -259,9 +271,10 @@ class TestComponentIntegrationPureDI:
             """Worker function for concurrent container testing."""
             settings = LoggingSettings(
                 level="INFO",
-                queue_enabled=(worker_id % 2 == 0),
                 sinks=["stdout"],
             )
+            # Alternate queue enabled status based on worker_id
+            settings.queue.enabled = worker_id % 2 == 0
 
             # Create and configure container
             container = LoggingContainer.create_from_settings(settings)
@@ -276,7 +289,7 @@ class TestComponentIntegrationPureDI:
             results[worker_id] = {
                 "configured": container.is_configured,
                 "has_queue": container.queue_worker is not None,
-                "queue_enabled": settings.queue_enabled,
+                "queue_enabled": settings.queue.enabled,
             }
 
         # Create and start threads
@@ -307,9 +320,9 @@ class TestComponentIntegrationPureDI:
         for i in range(3):
             settings = LoggingSettings(
                 level=["DEBUG", "INFO", "WARNING"][i],
-                queue_enabled=(i == 1),  # Only middle container has queue
                 sinks=["stdout"],
             )
+            settings.queue.enabled = i == 1  # Only middle container has queue
             container = LoggingContainer.create_from_settings(settings)
             logger = container.configure()
 
@@ -347,7 +360,8 @@ class TestComponentIntegrationPureDI:
         mock_app.add_event_handler = Mock()
 
         # Configure logging with app integration
-        settings = LoggingSettings(level="INFO", queue_enabled=True, sinks=["stdout"])
+        settings = LoggingSettings(level="INFO", sinks=["stdout"])
+        settings.queue.enabled = True
 
         logger = configure_logging(settings=settings, app=mock_app)
 

@@ -15,6 +15,7 @@ repos:
       - id: mypy
         additional_dependencies: [types-requests, types-PyYAML]
         args: [--ignore-missing-imports]
+        exclude: ^examples/
 
   # Vulture for dead code detection
   - repo: https://github.com/jendrikseipp/vulture

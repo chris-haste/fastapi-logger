@@ -28,9 +28,9 @@ class TestLoggingContainerComponentRegistry:
         self.settings = LoggingSettings(
             level="INFO",
             sinks=["stdout"],
-            metrics_enabled=True,
-            metrics_prometheus_enabled=True,
         )
+        self.settings.metrics.enabled = True
+        self.settings.metrics.prometheus_enabled = True
 
     def test_container_has_registry_and_factory(self):
         """Test that container initializes with registry and factory."""
@@ -97,8 +97,8 @@ class TestLoggingContainerComponentRegistry:
         settings = LoggingSettings(
             level="INFO",
             sinks=["stdout"],
-            metrics_enabled=False,
         )
+        settings.metrics.enabled = False
         container = LoggingContainer(settings)
 
         # Should return None when disabled
@@ -122,8 +122,8 @@ class TestLoggingContainerComponentRegistry:
         settings = LoggingSettings(
             level="INFO",
             sinks=["stdout"],
-            metrics_prometheus_enabled=False,
         )
+        settings.metrics.prometheus_enabled = False
         container = LoggingContainer(settings)
 
         # Should return None when disabled
@@ -237,12 +237,12 @@ class TestLoggingContainerComponentRegistry:
         settings = LoggingSettings(
             level="DEBUG",
             sinks=["stdout"],
-            metrics_enabled=True,
-            metrics_sample_window=200,
-            metrics_prometheus_enabled=True,
-            metrics_prometheus_port=9000,
-            metrics_prometheus_host="127.0.0.1",
         )
+        settings.metrics.enabled = True
+        settings.metrics.sample_window = 200
+        settings.metrics.prometheus_enabled = True
+        settings.metrics.prometheus_port = 9000
+        settings.metrics.prometheus_host = "127.0.0.1"
         container = LoggingContainer(settings)
 
         # Get components
@@ -285,8 +285,8 @@ class TestContainerAsyncSupport:
         self.settings = LoggingSettings(
             level="INFO",
             sinks=["stdout"],
-            metrics_prometheus_enabled=True,
         )
+        self.settings.metrics.prometheus_enabled = True
 
     @pytest.mark.asyncio
     async def test_async_shutdown_with_registry_cleanup(self):
@@ -377,8 +377,8 @@ class TestContainerPerformanceCharacteristics:
         self.settings = LoggingSettings(
             level="INFO",
             sinks=["stdout"],
-            metrics_enabled=True,
         )
+        self.settings.metrics.enabled = True
 
     def test_component_creation_performance(self):
         """Test that component creation is reasonably fast."""
