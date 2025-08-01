@@ -37,20 +37,10 @@ from ._internal.lifecycle_manager import LifecycleManager
 from ._internal.metrics import MetricsCollector
 from ._internal.processor_metrics import ProcessorMetrics
 from ._internal.queue_worker import QueueWorker
-from ._internal.sink_factory import (
-    create_custom_sink_from_uri,
-)
-from .exceptions import (
-    SinkConfigurationError,
-    SinkErrorContextBuilder,
-)
+from ._internal.sink_manager import SinkManager
 from .httpx_patch import HttpxTracePropagation
 from .monitoring import PrometheusExporter
 from .settings import LoggingSettings
-from .sinks import Sink
-from .sinks.file import create_file_sink_from_uri
-from .sinks.loki import create_loki_sink_from_uri
-from .sinks.stdout import StdoutSink
 
 if TYPE_CHECKING:
     from .enrichers import (
@@ -100,6 +90,7 @@ class LoggingContainer:
         self._registry = ComponentRegistry(self._container_id)
         self._factory = ComponentFactory(self)
         self._lifecycle_manager = LifecycleManager(self._container_id)
+        self._sink_manager = SinkManager(self._container_id)
         self._queue_worker: Optional[QueueWorker] = None
         self._sinks: List[Any] = []
         self._httpx_propagation: Optional[HttpxTracePropagation] = None
@@ -185,7 +176,10 @@ class LoggingContainer:
 
             # Initialize queue worker if enabled
             if self._settings.queue.enabled:
-                self._queue_worker = self._setup_queue_worker(console_format)
+                self._queue_worker = self._sink_manager.setup_queue_worker(
+                    self._settings, console_format, self
+                )
+                self._sinks = self._sink_manager.get_sinks()
 
             # Initialize metrics if enabled
             self._configure_metrics()
@@ -247,113 +241,6 @@ class LoggingContainer:
             return "pretty" if sys.stderr.isatty() else "json"
         return console_format
 
-    def _setup_queue_worker(self, console_format: str) -> QueueWorker:
-        """Set up the queue worker with appropriate sinks."""
-        # Create sinks based on settings
-        self._sinks = []
-
-        for sink_item in self._settings.sinks:
-            # Handle direct Sink instances
-            if isinstance(sink_item, Sink):
-                self._sinks.append(sink_item)
-                continue
-
-            # Handle string URIs (existing logic)
-            sink_uri = sink_item
-            if sink_uri == "stdout":
-                # Map console_format to StdoutSink mode
-                if console_format == "pretty":
-                    mode = "pretty"
-                elif console_format == "json":
-                    mode = "json"
-                else:
-                    mode = "auto"
-                self._sinks.append(StdoutSink(mode=mode, container=self))
-            elif sink_uri.startswith("file://"):
-                try:
-                    self._sinks.append(
-                        create_file_sink_from_uri(sink_uri, container=self)
-                    )
-                except Exception as e:
-                    context = SinkErrorContextBuilder.build_write_context(
-                        sink_name="file",
-                        event_dict={"uri": sink_uri},
-                        operation="initialize",
-                    )
-                    raise SinkConfigurationError(str(e), "file", context) from e
-            elif sink_uri.startswith(("loki://", "https://")) and "loki" in sink_uri:
-                try:
-                    self._sinks.append(
-                        create_loki_sink_from_uri(sink_uri, container=self)
-                    )
-                except ImportError as e:
-                    context = SinkErrorContextBuilder.build_write_context(
-                        sink_name="loki",
-                        event_dict={"uri": sink_uri},
-                        operation="initialize",
-                    )
-                    raise SinkConfigurationError(str(e), "loki", context) from e
-                except Exception as e:
-                    context = SinkErrorContextBuilder.build_write_context(
-                        sink_name="loki",
-                        event_dict={"uri": sink_uri},
-                        operation="initialize",
-                    )
-                    raise SinkConfigurationError(str(e), "loki", context) from e
-            else:
-                # Try custom sink from registry
-                try:
-                    self._sinks.append(create_custom_sink_from_uri(sink_uri))
-                except SinkConfigurationError as e:
-                    # If it's a custom sink error, re-raise with sink error handling
-                    context = SinkErrorContextBuilder.build_write_context(
-                        sink_name=e.sink_name or "custom",
-                        event_dict={"uri": sink_uri},
-                        operation="initialize",
-                    )
-                    raise SinkConfigurationError(
-                        str(e), e.sink_name or "custom", context
-                    ) from e
-                except Exception as e:
-                    # Unknown sink type or other error
-                    context = SinkErrorContextBuilder.build_write_context(
-                        sink_name="unknown",
-                        event_dict={"uri": sink_uri},
-                        operation="initialize",
-                    )
-                    raise SinkConfigurationError(
-                        f"Unknown sink type: {sink_uri}", "unknown", context
-                    ) from e
-
-        # Create queue worker with error handling
-        try:
-            worker = QueueWorker(
-                sinks=self._sinks,
-                queue_max_size=self._settings.queue.maxsize,
-                batch_size=self._settings.queue.batch_size,
-                batch_timeout=self._settings.queue.batch_timeout,
-                retry_delay=self._settings.queue.retry_delay,
-                max_retries=self._settings.queue.max_retries,
-                overflow_strategy=self._settings.queue.overflow,
-                sampling_rate=self._settings.sampling_rate,
-                container=self,
-            )
-        except Exception as e:
-            queue_config = {
-                "queue_max_size": self._settings.queue.maxsize,
-                "batch_size": self._settings.queue.batch_size,
-                "batch_timeout": self._settings.queue.batch_timeout,
-                "retry_delay": self._settings.queue.retry_delay,
-                "max_retries": self._settings.queue.max_retries,
-                "overflow_strategy": self._settings.queue.overflow,
-                "sampling_rate": self._settings.sampling_rate,
-            }
-            raise handle_configuration_error(
-                e, "queue_worker", queue_config, "valid queue configuration"
-            ) from e
-
-        return worker
-
     def _configure_structlog(self, console_format: str, log_level: str) -> None:
         """Configure container-specific logging with factory approach.
 
@@ -400,6 +287,9 @@ class LoggingContainer:
             sinks=self._sinks,
         )
 
+        # Clean up sink manager
+        self._sink_manager.cleanup_sinks()
+
         # Reset component references after shutdown
         self._queue_worker = None
         self._httpx_propagation = None
@@ -414,6 +304,9 @@ class LoggingContainer:
             metrics_collector=self._metrics_collector,
             sinks=self._sinks,
         )
+
+        # Clean up sink manager
+        self._sink_manager.cleanup_sinks()
 
         # Reset component references after shutdown
         self._queue_worker = None

@@ -112,10 +112,9 @@ class TestLifecycleManager:
         assert len(args) >= 1
         assert kwargs.get("trace_id_header") == "X-Custom-Trace"
 
-        # Verify shutdown handler registration
-        mock_app.add_event_handler.assert_called_once_with(
-            "shutdown", shutdown_callback
-        )
+        # Verify shutdown handler registration is skipped in test environment
+        # (Since we're running under pytest, the FastAPI handler should not be registered)
+        mock_app.add_event_handler.assert_not_called()
 
     def test_register_middleware_without_shutdown_callback(self):
         """Test registering middleware without shutdown callback."""

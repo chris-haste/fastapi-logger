@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 
 from fapilog.container import LoggingContainer
-from fapilog.exceptions import ConfigurationError, SinkError
+from fapilog.exceptions import ConfigurationError, SinkConfigurationError
 from fapilog.settings import LoggingSettings
 
 
@@ -23,17 +23,22 @@ class TestContainerEasyWins:
         assert "Invalid console_format" in str(exc_info.value)
 
     def test_loki_sink_import_error_handling(self):
-        """Test ImportError handling for loki sink creation (line 223)."""
-        settings = LoggingSettings(sinks=["loki://localhost:3100/loki/api/v1/push"])
+        """Test ImportError handling for loki sink creation via SinkManager."""
+        settings = LoggingSettings(
+            sinks=["loki://localhost:3100/loki/api/v1/push"], queue={"enabled": True}
+        )
         container = LoggingContainer(settings)
 
-        # Mock create_loki_sink_from_uri to raise ImportError
+        # Mock create_loki_sink_from_uri in SinkManager to raise ImportError
         with patch(
-            "fapilog.container.create_loki_sink_from_uri",
+            "fapilog._internal.sink_manager.create_loki_sink_from_uri",
             side_effect=ImportError("Loki not available"),
         ):
-            with pytest.raises(SinkError):
+            with pytest.raises(SinkConfigurationError) as exc_info:
                 container.configure()
+
+            assert "Loki not available" in str(exc_info.value)
+            assert exc_info.value.sink_name == "loki"
 
     def test_console_format_pretty_branch(self):
         """Test console format pretty branch (around line 206)."""
@@ -52,17 +57,17 @@ class TestContainerEasyWins:
         assert result == "json"
 
     def test_queue_worker_creation_exception_handling(self):
-        """Test exception handling in queue worker creation (lines 251-261)."""
-        settings = LoggingSettings()
+        """Test exception handling in queue worker creation via SinkManager."""
+        settings = LoggingSettings(queue={"enabled": True})
         container = LoggingContainer(settings)
 
-        # Mock QueueWorker to raise an exception during creation
+        # Mock QueueWorker in SinkManager to raise an exception during creation
         with patch(
-            "fapilog.container.QueueWorker",
+            "fapilog._internal.sink_manager.QueueWorker",
             side_effect=Exception("Queue creation error"),
         ):
             with pytest.raises(ConfigurationError) as exc_info:
-                container._setup_queue_worker("pretty")
+                container.configure()
 
             assert "queue_worker" in str(exc_info.value)
 
