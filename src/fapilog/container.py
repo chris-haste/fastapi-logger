@@ -1,14 +1,14 @@
 """Pure dependency injection container for fapilog logging components.
 
 This module provides a completely redesigned LoggingContainer that implements
-pure dependency injection without any global state. Key improvements:
+pure dependency injection without ANY global state. Key improvements:
 
-- Zero global variables or state (structlog global state: #154)
-- Complete container isolation (structlog global state: #154)
+- Zero global variables or state (including structlog configuration)
+- Complete container isolation (no exceptions)
 - Perfect thread safety without global locks
+- Factory-based logger creation for optimal performance
 - Context manager support for scoped access
-- Factory methods for clean instantiation
-- Memory efficient without global registry
+- Memory efficient with container-specific configuration
 
 Breaking Changes from Previous Version:
 - Removed get_current_container() and set_current_container() functions
@@ -67,16 +67,17 @@ logger = logging.getLogger(__name__)
 class LoggingContainer:
     """Container that manages all logging dependencies and lifecycle.
 
-    This is a pure dependency injection container with no global state,
+    This is a pure dependency injection container with NO global state,
     allowing multiple logging configurations to coexist safely while
-    maintaining thread-safety and complete isolation between instances.
+    maintaining thread-safety and COMPLETE isolation between instances.
 
     Key Principles:
-    - Zero global state variables
+    - Zero global state variables (including structlog configuration)
     - Explicit dependency passing
-    - Complete container isolation
+    - COMPLETE container isolation (no exceptions)
     - Context manager support for scoped access
     - Thread-safe operations without global locks
+    - Factory-based logger creation for optimal performance
     """
 
     def __init__(self, settings: Optional[LoggingSettings] = None) -> None:
@@ -383,7 +384,16 @@ class LoggingContainer:
         return worker
 
     def _configure_structlog(self, console_format: str, log_level: str) -> None:
-        """Configure container-specific logging without global state."""
+        """Configure container-specific logging with factory approach.
+
+        Creates a ContainerLoggerFactory that generates loggers with
+        container-specific configuration without any global state.
+        No structlog.configure() calls are made.
+
+        Args:
+            console_format: Format style for console output
+            log_level: Log level for this container
+        """
         # Store format for factory
         self._console_format = console_format
 
@@ -566,14 +576,20 @@ class LoggingContainer:
                     logger.warning(f"Failed to start Prometheus exporter: {e}")
 
     def get_logger(self, name: str = "") -> structlog.BoundLogger:
-        """Get container-specific logger.
+        """Get container-specific logger using factory approach.
+
+        Returns a logger created by this container's factory with
+        container-specific processors and configuration. Each container
+        has completely independent loggers.
 
         Args:
             name: Optional logger name
 
         Returns:
-            A configured structlog.BoundLogger instance with container-specific
-            configuration
+            Container-specific structlog.BoundLogger instance
+
+        Raises:
+            RuntimeError: If container not properly configured
         """
         if not self._configured:
             self.configure()
