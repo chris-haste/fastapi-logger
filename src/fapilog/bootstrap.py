@@ -101,3 +101,24 @@ def configure_logging(
 configure_with_container = create_logger
 
 
+def _determine_console_format(console_format: str) -> str:
+    """Determine the console output format.
+
+    This utility function is used internally for console format validation.
+    """
+    import sys
+
+    valid_formats = {"auto", "pretty", "json"}
+    if console_format not in valid_formats:
+        from ._internal.error_handling import handle_configuration_error
+
+        raise handle_configuration_error(
+            ValueError(f"Invalid console_format: {console_format}"),
+            "console_format",
+            console_format,
+            f"one of {', '.join(valid_formats)}",
+        )
+
+    if console_format == "auto":
+        return "pretty" if sys.stderr.isatty() else "json"
+    return console_format

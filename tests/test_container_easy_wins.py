@@ -14,15 +14,13 @@ class TestContainerEasyWins:
 
     def test_invalid_console_format_error(self):
         """Test invalid console format validation (line 157)."""
-        from fapilog._internal.configuration_manager import ConfigurationManager
+        container = LoggingContainer()
 
         # Try to use an invalid console format
         with pytest.raises(ConfigurationError) as exc_info:
-            ConfigurationManager.determine_console_format("invalid_format")
+            container._determine_console_format("invalid_format")
 
-        assert "console_format" in str(exc_info.value) and "invalid_format" in str(
-            exc_info.value
-        )
+        assert "Invalid console_format" in str(exc_info.value)
 
     def test_loki_sink_import_error_handling(self):
         """Test ImportError handling for loki sink creation (line 223)."""
@@ -39,18 +37,18 @@ class TestContainerEasyWins:
 
     def test_console_format_pretty_branch(self):
         """Test console format pretty branch (around line 206)."""
-        from fapilog._internal.configuration_manager import ConfigurationManager
+        container = LoggingContainer()
 
         # Test pretty format specifically
-        result = ConfigurationManager.determine_console_format("pretty")
+        result = container._determine_console_format("pretty")
         assert result == "pretty"
 
     def test_console_format_json_branch(self):
         """Test console format json branch (around line 206)."""
-        from fapilog._internal.configuration_manager import ConfigurationManager
+        container = LoggingContainer()
 
         # Test json format specifically
-        result = ConfigurationManager.determine_console_format("json")
+        result = container._determine_console_format("json")
         assert result == "json"
 
     def test_queue_worker_creation_exception_handling(self):
@@ -70,15 +68,15 @@ class TestContainerEasyWins:
 
     def test_settings_validation_exception_handling(self):
         """Test exception handling in settings validation (line 141)."""
-        from fapilog._internal.configuration_manager import ConfigurationManager
+        container = LoggingContainer()
 
         # Mock LoggingSettings constructor to raise an exception during validation
         with patch(
-            "fapilog._internal.configuration_manager.LoggingSettings",
+            "fapilog.container.LoggingSettings",
             side_effect=ValueError("Settings validation failed"),
         ):
             with pytest.raises(ConfigurationError):
-                ConfigurationManager.validate_settings(
+                container._validate_and_get_settings(
                     None
                 )  # This should trigger validation
 
