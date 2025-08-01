@@ -7,7 +7,7 @@ validating processor behavior, performance, and concurrency safety.
 import asyncio
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, cast
 
 import pytest
 
@@ -75,7 +75,7 @@ class ProcessorTestBase(ABC):
         concurrent operations without race conditions.
         """
 
-        async def worker(worker_id: int):
+        async def worker(worker_id: int) -> None:
             """Worker function for concurrent testing."""
             for i in range(10):
                 event = {"worker": worker_id, "data": f"test_{i}", "level": "INFO"}
@@ -139,7 +139,7 @@ class ProcessorTestBase(ABC):
             pytest.skip("Processor is not an AsyncProcessorBase")
 
         # Test concurrent cache operations
-        async def cache_worker(worker_id: int):
+        async def cache_worker(worker_id: int) -> None:
             """Worker for testing cache operations."""
             for i in range(10):
                 key = f"test_key_{worker_id}_{i}"
@@ -152,7 +152,7 @@ class ProcessorTestBase(ABC):
         await asyncio.gather(*tasks)
 
         # Test atomic updates
-        async def atomic_worker(worker_id: int):
+        async def atomic_worker(worker_id: int) -> None:
             """Worker for testing atomic updates."""
             for i in range(10):
                 update_key = f"update_{worker_id}_{i}"
@@ -304,7 +304,7 @@ class ProcessorPerformanceTester:
         assert memory_growth < max_growth_percent, (
             f"Memory growth {memory_growth:.1f}% exceeds target {max_growth_percent}%"
         )
-        return memory_growth
+        return cast(float, memory_growth)
 
     async def _process_event(self, event: Dict[str, Any]) -> Any:
         """Helper method to process an event.
@@ -342,7 +342,7 @@ class ProcessorConcurrencyTester:
 
     async def test_concurrent_shared_keys(
         self, num_workers: int = 10, num_operations: int = 100
-    ):
+    ) -> None:
         """Test concurrent access to shared keys.
 
         Args:
@@ -352,7 +352,7 @@ class ProcessorConcurrencyTester:
         shared_key = "shared_test_key"
         results = []
 
-        async def worker(worker_id: int):
+        async def worker(worker_id: int) -> None:
             for i in range(num_operations):
                 event = {
                     "key": shared_key,
@@ -372,7 +372,7 @@ class ProcessorConcurrencyTester:
 
     async def test_concurrent_unique_keys(
         self, num_workers: int = 10, num_operations: int = 100
-    ):
+    ) -> None:
         """Test concurrent access to unique keys.
 
         Args:
@@ -381,7 +381,7 @@ class ProcessorConcurrencyTester:
         """
         results = []
 
-        async def worker(worker_id: int):
+        async def worker(worker_id: int) -> None:
             for i in range(num_operations):
                 event = {
                     "key": f"unique_key_{worker_id}_{i}",
@@ -401,7 +401,7 @@ class ProcessorConcurrencyTester:
 
     async def test_concurrent_mixed_patterns(
         self, num_workers: int = 10, num_operations: int = 100
-    ):
+    ) -> None:
         """Test concurrent access with mixed patterns.
 
         Args:
@@ -410,7 +410,7 @@ class ProcessorConcurrencyTester:
         """
         results = []
 
-        async def worker(worker_id: int):
+        async def worker(worker_id: int) -> None:
             for i in range(num_operations):
                 # Mix shared and unique keys
                 if i % 3 == 0:
@@ -434,10 +434,10 @@ class ProcessorConcurrencyTester:
         # Verify all operations completed
         assert len(results) == num_workers * num_operations
 
-    async def test_concurrent_start_stop(self):
+    async def test_concurrent_start_stop(self) -> None:
         """Test concurrent start/stop operations."""
 
-        async def start_stop_worker(worker_id: int):
+        async def start_stop_worker(worker_id: int) -> None:
             for _ in range(10):
                 await self.processor.start()
                 await self.processor.stop()

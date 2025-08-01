@@ -4,7 +4,9 @@ This module provides stateless configuration functions for creating
 logging containers without global state management.
 """
 
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Tuple, Union
+
+import structlog
 
 from .container import LoggingContainer
 from .settings import LoggingSettings
@@ -15,7 +17,7 @@ def create_logger(
     settings: Optional[LoggingSettings] = None,
     app: Optional[Any] = None,
     sinks: Optional[List[Union[str, Sink]]] = None,
-):
+) -> Tuple[structlog.BoundLogger, LoggingContainer]:
     """Create a configured logger with explicit container management.
 
     This is the recommended way to configure logging as it returns both
@@ -67,7 +69,7 @@ def configure_logging(
     settings: Optional[LoggingSettings] = None,
     app: Optional[Any] = None,
     sinks: Optional[List[Union[str, Sink]]] = None,
-):
+) -> structlog.BoundLogger:
     """Configure structured logging and return only the logger.
 
     NOTE: This function does not provide container lifecycle management.

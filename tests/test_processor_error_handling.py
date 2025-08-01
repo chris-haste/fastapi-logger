@@ -110,7 +110,7 @@ class MockTestProcessorExceptions:
         error = ProcessorRegistrationError(
             "Registration failed",
             processor_name="MockTestProcessor",
-            registry_state="partial",
+            # registry_state="partial",  # Removed as it's not a valid parameter
         )
         assert "Registration failed" in str(error)
         assert error.context["processor_name"] == "MockTestProcessor"
@@ -190,9 +190,9 @@ class TestSimpleProcessorExecution:
 
         result = simple_processor_execution(processor, None, "info", event_dict)
 
-        assert result["processed_by"] == "TestProcessor"
-        assert result["level"] == "INFO"
-        assert result["message"] == "test"
+        assert result["processed_by"] == "TestProcessor"  # type: ignore[index]
+        assert result["level"] == "INFO"  # type: ignore[index]
+        assert result["message"] == "test"  # type: ignore[index]
 
     def test_simple_execution_failure_returns_original(self):
         """Test processor failure returns original event with logging."""
@@ -222,8 +222,8 @@ class TestCreateSimpleProcessorWrapper:
         event_dict = {"level": "INFO", "message": "test"}
         result = wrapper(None, "info", event_dict)
 
-        assert result["processed_by"] == "TestProcessor"
-        assert result["level"] == "INFO"
+        assert result["processed_by"] == "TestProcessor"  # type: ignore[index]
+        assert result["level"] == "INFO"  # type: ignore[index]
 
     def test_create_wrapper_failure(self):
         """Test wrapper behavior with failing processor."""
@@ -356,7 +356,7 @@ class TestIntegration:
 
         # First processor should succeed
         result1 = simple_processor_execution(processor1, None, "info", event_dict)
-        assert result1["processed_by"] == "TestProcessor"
+        assert result1["processed_by"] == "TestProcessor"  # type: ignore[index]
 
         # Second processor should fail but return original
         with patch("fapilog._internal.processor_error_handling.logger"):
@@ -365,7 +365,7 @@ class TestIntegration:
 
         # Third processor should process the original event
         result3 = simple_processor_execution(processor3, None, "info", result2)
-        assert result3["processed_by"] == "TestProcessor"
+        assert result3["processed_by"] == "TestProcessor"  # type: ignore[index]
 
     def test_sensitive_data_filtering(self):
         """Test that sensitive data is filtered from error context."""

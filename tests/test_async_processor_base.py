@@ -172,7 +172,7 @@ class TestAsyncProcessorBase:
         assert removed_count == 2
 
     @pytest.mark.asyncio
-    async def test_start_impl(self):
+    async def test_start_impl(self) -> None:
         """Test async processor startup implementation."""
         processor = TestAsyncProcessor()
 
@@ -183,7 +183,7 @@ class TestAsyncProcessorBase:
         assert True
 
     @pytest.mark.asyncio
-    async def test_stop_impl(self):
+    async def test_stop_impl(self) -> None:
         """Test async processor cleanup implementation."""
         processor = TestAsyncProcessor()
 
@@ -241,6 +241,7 @@ class TestAsyncProcessorBase:
 
         result = processor.process(mock_logger, "info", event_dict)
 
+        assert result is not None
         assert result["test_processed"] is True
         assert len(processor.process_calls) == 1
 
@@ -257,11 +258,12 @@ class TestAsyncProcessorBase:
 
         # Should have called sync process method (default implementation)
         # But our test class overrides it, so check async version was called
+        assert result is not None
         assert result["async_processed"] is True
         assert len(processor.process_async_calls) == 1
 
     @pytest.mark.asyncio
-    async def test_create_processor_task_success(self):
+    async def test_create_processor_task_success(self) -> None:
         """Test successful async task creation."""
         processor = TestAsyncProcessor()
 
@@ -285,7 +287,7 @@ class TestAsyncProcessorIntegration:
         """Test concurrent cache operations through processor interface."""
         processor = TestAsyncProcessor()
 
-        async def cache_worker(worker_id: int):
+        async def cache_worker(worker_id: int) -> None:
             for i in range(10):
                 key = f"worker_{worker_id}_key_{i}"
                 value = f"worker_{worker_id}_value_{i}"
@@ -310,7 +312,7 @@ class TestAsyncProcessorIntegration:
 
         operation_order = []
 
-        async def locked_operation(op_id: int):
+        async def locked_operation(op_id: int) -> Any:
             async def operation():
                 operation_order.append(f"start_{op_id}")
                 await asyncio.sleep(0.01)
@@ -383,7 +385,7 @@ class TestAsyncProcessorIntegration:
         """Test memory consistency under high concurrent load."""
         processor = TestAsyncProcessor(cache_max_size=50)
 
-        async def high_load_worker(worker_id: int):
+        async def high_load_worker(worker_id: int) -> None:
             for i in range(100):  # More operations than cache size
                 key = f"load_{worker_id}_{i}"
                 value = f"value_{worker_id}_{i}"

@@ -147,7 +147,9 @@ class SinkDebugger:
         return issues
 
     @staticmethod
-    def test_sink_instantiation(sink_class: Type[Sink], **kwargs) -> Dict[str, Any]:
+    def test_sink_instantiation(
+        sink_class: Type[Sink], **kwargs: Any
+    ) -> Dict[str, Any]:
         """Test that a sink can be instantiated with given parameters.
 
         Args:

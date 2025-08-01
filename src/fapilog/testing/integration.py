@@ -2,7 +2,7 @@
 
 import asyncio
 import os
-from typing import Any, Dict, List, Type
+from typing import Any, Dict, List, Optional, Type
 from urllib.parse import urlencode
 
 from .._internal.sink_registry import SinkRegistry
@@ -27,7 +27,7 @@ class SinkIntegrationTester:
         SinkRegistry._sinks = self._original_sinks
 
     async def test_with_fastapi(
-        self, sink_class: Type[Sink], sink_name: str = "test", **sink_kwargs
+        self, sink_class: Type[Sink], sink_name: str = "test", **sink_kwargs: Any
     ) -> Dict[str, Any]:
         """Test sink integration with FastAPI.
 
@@ -173,7 +173,7 @@ class SinkIntegrationTester:
         self,
         sink_class: Type[Sink],
         sink_name: str = "test",
-        **sink_kwargs,
+        **sink_kwargs: Any,
     ) -> Dict[str, Any]:
         """Test sink with LoggingContainer integration.
 
@@ -245,8 +245,8 @@ class SinkIntegrationTester:
         self,
         sink_class: Type[Sink],
         sink_name: str = "test",
-        queue_settings: Dict[str, Any] = None,
-        **sink_kwargs,
+        queue_settings: Optional[Dict[str, Any]] = None,
+        **sink_kwargs: Any,
     ) -> Dict[str, Any]:
         """Test sink with queue system integration.
 
@@ -343,7 +343,7 @@ class SinkIntegrationTester:
         sink_class: Type[Sink],
         sink_name: str = "test",
         should_fail: bool = True,
-        **sink_kwargs,
+        **sink_kwargs: Any,
     ) -> Dict[str, Any]:
         """Test error handling integration.
 
@@ -419,7 +419,7 @@ class SinkIntegrationTester:
         return result
 
     async def run_integration_suite(
-        self, sink_class: Type[Sink], sink_name: str = "test_suite", **sink_kwargs
+        self, sink_class: Type[Sink], sink_name: str = "test_suite", **sink_kwargs: Any
     ) -> Dict[str, Any]:
         """Run a comprehensive integration test suite.
 

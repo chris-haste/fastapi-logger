@@ -6,7 +6,7 @@ per container with thread-safe operations, eliminating global state dependencies
 
 import threading
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Optional, Type, TypeVar
+from typing import Any, Callable, Dict, Optional, Type, TypeVar, cast
 
 T = TypeVar("T")
 
@@ -104,7 +104,7 @@ class ComponentRegistry:
             # Check if component already exists
             existing = self._components.get(component_type)
             if existing is not None:
-                return existing
+                return cast(T, existing)
 
             # Create new component using factory
             new_instance = factory()

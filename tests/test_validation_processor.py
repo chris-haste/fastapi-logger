@@ -49,7 +49,7 @@ class TestValidationProcessorConfig:
     def test_invalid_field_type(self):
         """Test invalid field type raises error."""
         with pytest.raises(ProcessorConfigurationError) as exc_info:
-            ValidationProcessor(field_types={"level": "not_a_type"})
+            ValidationProcessor(field_types={"level": "not_a_type"})  # type: ignore[dict-item]
         assert "field_types['level'] must be a valid type" in str(exc_info.value)
 
     def test_field_types_config(self):

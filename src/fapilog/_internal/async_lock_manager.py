@@ -9,7 +9,7 @@ import asyncio
 import logging
 import threading
 from contextlib import asynccontextmanager
-from typing import Dict
+from typing import AsyncGenerator, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,9 @@ class ProcessorLockManager:
         self._async_lock_creation_lock = asyncio.Lock()
 
     @asynccontextmanager
-    async def get_async_lock(self, lock_name: str):
+    async def get_async_lock(
+        self, lock_name: str
+    ) -> AsyncGenerator[asyncio.Lock, None]:
         """Get or create async lock for specific operation.
 
         Args:

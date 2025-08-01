@@ -22,7 +22,7 @@ from fapilog.testing.uri_testing import URITestHelper, parse_sink_uri
 class MockSink(Sink):
     """Mock sink for testing purposes."""
 
-    def __init__(self, should_fail: bool = False, **kwargs):
+    def __init__(self, should_fail: bool = False, **kwargs: Any) -> None:
         super().__init__()
         self.should_fail = should_fail
         self.events = []

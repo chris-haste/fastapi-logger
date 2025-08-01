@@ -27,12 +27,14 @@ class TestThrottleProcessorConcurrency:
             max_cache_size=100,
         )
 
-    async def test_concurrent_same_key_throttling(self, concurrency_processor):
+    async def test_concurrent_same_key_throttling(
+        self, concurrency_processor: ThrottleProcessor
+    ) -> None:
         """Test concurrent access to same throttling key."""
         processor = concurrency_processor
         await processor.start()
 
-        async def worker(worker_id: int):
+        async def worker(worker_id: int) -> list[bool]:
             """Worker that processes events for the same key."""
             results = []
             for i in range(10):
@@ -59,12 +61,14 @@ class TestThrottleProcessorConcurrency:
 
         await processor.stop()
 
-    async def test_concurrent_different_keys(self, concurrency_processor):
+    async def test_concurrent_different_keys(
+        self, concurrency_processor: ThrottleProcessor
+    ) -> None:
         """Test concurrent access to different throttling keys."""
         processor = concurrency_processor
         await processor.start()
 
-        async def worker(worker_id: int):
+        async def worker(worker_id: int) -> None:
             """Worker that processes events for unique keys."""
             for i in range(5):
                 event = {
@@ -89,7 +93,7 @@ class TestThrottleProcessorConcurrency:
         processor = concurrency_processor
         await processor.start()
 
-        async def mixed_worker(worker_id: int):
+        async def mixed_worker(worker_id: int) -> None:
             """Worker with mixed access patterns."""
             for i in range(20):
                 # 50% chance to use shared key, 50% unique key
@@ -119,7 +123,7 @@ class TestThrottleProcessorConcurrency:
 
         results = []
 
-        async def cache_worker(worker_id: int):
+        async def cache_worker(worker_id: int) -> list[bool]:
             """Worker that performs intensive cache operations."""
             worker_results = []
             for i in range(50):
@@ -223,7 +227,7 @@ class TestThrottleProcessorConcurrency:
         processor = concurrency_processor
         await processor.start()
 
-        async def stress_worker(worker_id: int):
+        async def stress_worker(worker_id: int) -> tuple[int, int]:
             """High-intensity worker for stress testing."""
             operations = 0
             errors = 0
@@ -279,7 +283,7 @@ class TestAsyncSafetyPatterns:
 
         cache = LRUCache(maxsize=10)
 
-        async def concurrent_cache_worker(worker_id: int):
+        async def concurrent_cache_worker(worker_id: int) -> None:
             """Worker that performs concurrent cache operations."""
             for i in range(50):
                 key = f"key_{i % 5}"  # Shared keys to test locking
@@ -308,7 +312,7 @@ class TestAsyncSafetyPatterns:
         )
         await processor.start()
 
-        async def async_safety_worker(worker_id: int):
+        async def async_safety_worker(worker_id: int) -> None:
             """Worker testing async safety patterns."""
             for i in range(30):
                 # Interleave different async operations

@@ -15,6 +15,7 @@ import logging
 import random
 import time
 from datetime import timedelta
+from typing import Any, Dict
 
 import pytest
 
@@ -242,7 +243,7 @@ class TestAsyncSmartCacheComprehensive:
         # Create cache entries for memory analysis
         cache_large = AsyncSmartCache()
 
-        def generate_data(size: int):
+        def generate_data(size: int) -> Dict[str, Any]:
             return {
                 "data": list(range(size)),
                 "metadata": {"size": size, "created": time.time()},
@@ -335,7 +336,7 @@ class TestAsyncSmartCacheComprehensive:
     async def test_extreme_concurrent_different_keys(self):
         """Test extreme concurrency with different keys for scalability."""
 
-        def key_specific_computation(key_id: int):
+        def key_specific_computation(key_id: int) -> Dict[str, Any]:
             # Simulate key-specific computation
             time.sleep(0.0001)  # 0.1ms computation
             return {

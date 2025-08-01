@@ -156,6 +156,7 @@ class TestSinkFactory:
         """Test creating sink with username/password."""
         uri = "postgres://user:pass@localhost:5432/mydb"
         sink = create_custom_sink_from_uri(uri)
+        assert isinstance(sink, PostgresSink)
 
         assert sink.host == "localhost"
         assert sink.port == 5432
@@ -168,9 +169,9 @@ class TestSinkFactory:
         uri = "postgres://localhost/logs?pool_size=10&ssl=true&timeout=30"
         sink = create_custom_sink_from_uri(uri)
 
-        assert sink.kwargs["pool_size"] == 10
-        assert sink.kwargs["ssl"] is True
-        assert sink.kwargs["timeout"] == 30
+        assert sink.kwargs["pool_size"] == 10  # type: ignore[attr-defined]
+        assert sink.kwargs["ssl"] is True  # type: ignore[attr-defined]
+        assert sink.kwargs["timeout"] == 30  # type: ignore[attr-defined]
 
     def test_create_sink_invalid_uri(self):
         """Test error handling for invalid URIs."""

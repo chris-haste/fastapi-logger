@@ -193,7 +193,7 @@ class TestSinkDebugger:
     def test_validate_sink_class_write_inspection_error(self):
         """Test validate_sink_class when write method inspection fails."""
         mock_sink = type("MockSink", (Sink,), {})
-        mock_sink.write = Mock()
+        mock_sink.write = Mock()  # type: ignore[attr-defined]
 
         with patch("inspect.signature", side_effect=Exception("Inspection error")):
             issues = SinkDebugger.validate_sink_class(mock_sink)
@@ -697,8 +697,11 @@ class TestSinkDebugger:
             (m for m in info["methods"] if m["name"] == "async_method"), None
         )
 
+        assert write_method is not None
         assert write_method["is_async"] is True
         if sync_method:  # May be filtered out by inspect.getmembers
+            assert sync_method is not None
             assert sync_method["is_async"] is False
         if async_method:
+            assert async_method is not None
             assert async_method["is_async"] is True

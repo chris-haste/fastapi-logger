@@ -6,7 +6,7 @@ import json
 import threading
 import uuid
 from collections.abc import Mapping, Sequence
-from typing import Any, Optional, Set, Union
+from typing import Any, Optional, Set, Union, cast
 
 import structlog
 
@@ -31,7 +31,7 @@ def _get_seen_objects() -> Set[int]:
     """Get thread-local set for tracking seen object IDs."""
     if not hasattr(_thread_local, "seen_objects"):
         _thread_local.seen_objects = set()
-    return _thread_local.seen_objects
+    return cast(Set[int], _thread_local.seen_objects)
 
 
 def _clear_seen_objects() -> None:

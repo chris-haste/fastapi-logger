@@ -355,7 +355,7 @@ class TestStackOverflowPrevention:
 class TestPerformanceBenchmarking:
     """Compare performance of iterative vs theoretical recursive approaches."""
 
-    def measure_processing_time(self, processor, test_obj: Any) -> float:
+    def measure_processing_time(self, processor: Any, test_obj: Any) -> float:
         """Measure processing time for a redaction operation."""
         start_time = time.perf_counter()
 
@@ -382,7 +382,8 @@ class TestPerformanceBenchmarking:
             )
 
             processor = RedactionProcessor(
-                patterns=["secret", "password", "token"], max_depth=case["depth"] + 50
+                patterns=["secret", "password", "token"],
+                max_depth=int(case["depth"]) + 50,  # type: ignore[call-overload]
             )
 
             # Measure average over multiple runs

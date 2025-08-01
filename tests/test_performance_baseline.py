@@ -11,7 +11,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Generator, List, Optional, Tuple
 
 import psutil
 import pytest
@@ -99,7 +99,9 @@ class PerformanceBaseline:
         self._process = psutil.Process()
 
     @contextmanager
-    def measure_operation(self, operation_name: str):
+    def measure_operation(
+        self, operation_name: str
+    ) -> Generator[PerformanceResult, None, None]:
         """Context manager for measuring individual operations.
 
         Args:
@@ -811,4 +813,4 @@ def validate_regression(
         return False
 
     threshold = baseline_report["regression_thresholds"][baseline_name]
-    return current_measurement_ns <= threshold["critical_threshold_ns"]
+    return bool(current_measurement_ns <= threshold["critical_threshold_ns"])

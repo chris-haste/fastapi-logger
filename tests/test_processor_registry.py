@@ -1,7 +1,7 @@
 """Tests for processor registry functionality."""
 
 import threading
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Type
 
 import pytest
 
@@ -198,7 +198,9 @@ class TestProcessorRegistryThreadSafety:
         results = {}
         errors = []
 
-        def register_processor_thread(name: str, processor_class):
+        def register_processor_thread(
+            name: str, processor_class: Type[Processor]
+        ) -> None:
             try:
                 result = ProcessorRegistry.register(name, processor_class)
                 results[name] = result

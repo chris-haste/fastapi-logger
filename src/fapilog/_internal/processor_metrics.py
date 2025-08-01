@@ -13,7 +13,7 @@ class ProcessorMetrics:
 
     def __init__(self):
         """Initialize processor metrics tracking."""
-        self._metrics = {}  # processor_name -> metrics data
+        self._metrics: Dict[str, Dict[str, Any]] = {}  # processor_name -> metrics data
         self._lock = threading.Lock()
 
     def record_processor_execution(
@@ -140,7 +140,7 @@ def wrap_processor_with_metrics(
     processor_name = processor.__class__.__name__
 
     def wrapped_processor(
-        logger, method_name: str, event_dict: Dict[str, Any]
+        logger: Any, method_name: str, event_dict: Dict[str, Any]
     ) -> Optional[Dict[str, Any]]:
         start_time = time.time()
         success = False

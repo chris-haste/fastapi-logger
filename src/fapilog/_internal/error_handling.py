@@ -2,7 +2,7 @@
 
 import logging
 import time
-from typing import Any, Awaitable, Callable, Dict, Optional, TypeVar
+from typing import Any, Awaitable, Callable, Dict, Optional, TypeVar, cast
 
 from ..exceptions import (
     ConfigurationError,
@@ -339,7 +339,7 @@ async def safe_execute_async(
         Result of func() or default value on error
     """
     try:
-        return await func()
+        return cast(T, await func())
     except Exception as e:
         error_handler(e)
         return default
@@ -388,12 +388,12 @@ async def graceful_degradation_async(
         Result from primary_func or fallback_func
     """
     try:
-        return await primary_func()
+        return cast(T, await primary_func())
     except Exception as e:
         error_handler(e)
         logger.warning("Primary operation failed, using fallback")
         try:
-            return await fallback_func()
+            return cast(T, await fallback_func())
         except Exception as fallback_error:
             error_handler(fallback_error)
             raise error_handler(fallback_error) from fallback_error

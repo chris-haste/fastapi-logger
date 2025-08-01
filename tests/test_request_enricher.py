@@ -1,5 +1,6 @@
 """Tests for request context enricher functionality (Story 6.1)."""
 
+from typing import Any, Dict
 from unittest.mock import patch
 
 import pytest
@@ -183,7 +184,7 @@ async def test_method_and_path_capture():
     context_data = {}
 
     @app.post("/api/users/{user_id}")
-    async def test_endpoint(user_id: int):
+    async def test_endpoint(user_id: int) -> Dict[str, Any]:
         context_data.update(get_context())
         return {"user_id": user_id}
 

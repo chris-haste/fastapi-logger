@@ -10,6 +10,7 @@ This module validates the performance improvements specified in Issue #118:
 import asyncio
 import gc
 import time
+from typing import List
 
 import psutil
 import pytest
@@ -54,7 +55,7 @@ class TestThrottleProcessorPerformance:
         operations = 0
         start_time = time.time()
 
-        async def worker(worker_id: int):
+        async def worker(worker_id: int) -> None:
             nonlocal operations
             for i in range(500):  # Reduced for CI stability
                 event = {
@@ -168,7 +169,7 @@ class TestThrottleProcessorPerformance:
         processor = performance_processor
         await processor.start()
 
-        async def concurrent_worker(worker_id: int):
+        async def concurrent_worker(worker_id: int) -> float:
             """Worker that processes events concurrently."""
             start_time = time.time()
             for i in range(100):
@@ -182,7 +183,7 @@ class TestThrottleProcessorPerformance:
         # Run 20 concurrent workers
         start_time = time.time()
         tasks = [concurrent_worker(i) for i in range(20)]
-        worker_times = await asyncio.gather(*tasks)
+        worker_times: List[float] = await asyncio.gather(*tasks)
 
         total_time = time.time() - start_time
         total_operations = 20 * 100

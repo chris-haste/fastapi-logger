@@ -224,7 +224,7 @@ class TestDeduplicationRaceConditions:
         """Test concurrent duplicate detection scenarios."""
         await processor.start()
 
-        async def worker(worker_id: int):
+        async def worker(worker_id: int) -> list[bool]:
             """Worker that processes events concurrently."""
             results = []
             for i in range(10):  # Reduced from 50 to 10
@@ -258,7 +258,7 @@ class TestDeduplicationRaceConditions:
         """Test cache consistency under high concurrent load."""
         await processor.start()
 
-        async def worker(worker_id: int):
+        async def worker(worker_id: int) -> None:
             """Worker that creates unique events."""
             for i in range(20):  # Reduced from 100 to 20
                 event = {
@@ -290,7 +290,7 @@ class TestDeduplicationRaceConditions:
         snapshot1 = tracemalloc.take_snapshot()
 
         # Generate sustained load (much lighter)
-        async def worker():
+        async def worker() -> None:
             for i in range(50):  # Reduced from 200 to 50
                 event = {"event": f"memory_test_{i}", "level": "info"}
                 await processor.process_async(None, "info", event)
@@ -358,7 +358,7 @@ class TestDeduplicationPerformance:
         start_time = time.time()
         operations = 0
 
-        async def duplicate_worker():
+        async def duplicate_worker() -> None:
             nonlocal operations
             for i in range(50):  # Reduced from 200
                 event = {"event": "duplicate_event", "level": "info", "iteration": i}
@@ -388,7 +388,7 @@ class TestDeduplicationPerformance:
         start_time = time.time()
         operations = 0
 
-        async def unique_worker(worker_id: int):
+        async def unique_worker(worker_id: int) -> None:
             nonlocal operations
             for i in range(30):  # Reduced from 100
                 event = {"event": f"unique_event_{worker_id}_{i}", "level": "info"}

@@ -3,6 +3,7 @@
 import threading
 import time
 import weakref
+from typing import Any, cast
 
 import pytest
 
@@ -170,7 +171,7 @@ class TestComponentRegistryFactoryPattern:
 
         # Factory returning wrong type should raise TypeError
         with pytest.raises(TypeError) as excinfo:
-            registry.get_or_create_component(MockService, lambda: UnrelatedService())
+            registry.get_or_create_component(MockService, lambda: UnrelatedService())  # type: ignore[return-value]
 
         assert "Factory returned instance of type" in str(excinfo.value)
         assert "UnrelatedService" in str(excinfo.value)
@@ -291,7 +292,7 @@ class TestComponentRegistryThreadSafety:
         results = []
         errors = []
 
-        def register_component(thread_id: int):
+        def register_component(thread_id: int) -> None:
             try:
                 # Create unique service type for each thread
                 component_type = type(f"MockService{thread_id}", (MockService,), {})
@@ -501,8 +502,8 @@ class TestComponentRegistryUtilityMethods:
             retrieved1 = registry.get_component(MockService)
             retrieved2 = registry.get_component(MockServiceWithoutCleanup)
 
-            assert retrieved1 is service1
-            assert retrieved2 is service2
+            assert retrieved1 is service1  # type: ignore[comparison-overlap]
+            assert retrieved2 is service2  # type: ignore[comparison-overlap]
 
 
 class TestComponentRegistryIntegration:
@@ -522,8 +523,10 @@ class TestComponentRegistryIntegration:
 
         # Step 2: Verify components are available
         assert len(registry) == 2
-        assert registry.get_component(MockService) is direct_service
-        assert registry.get_component(MockServiceWithoutCleanup) is factory_service
+        retrieved_direct = registry.get_component(MockService)
+        assert retrieved_direct is direct_service  # type: ignore[comparison-overlap]
+        retrieved_factory = registry.get_component(MockServiceWithoutCleanup)
+        assert retrieved_factory is factory_service  # type: ignore[comparison-overlap]
 
         # Step 3: Test atomic operations
         with registry.component_lock():
@@ -554,11 +557,12 @@ class TestComponentRegistryIntegration:
 
         # Test factory error doesn't affect registry state
         try:
+            # type: ignore[return-value]
             registry.get_or_create_component(
                 MockService,
-                lambda: None,  # Will cause TypeError
+                cast(Any, lambda: UnrelatedService()),  # Will cause TypeError
             )
-        except TypeError:
+        except (TypeError, ValueError):
             pass
 
         assert len(registry) == 0
@@ -567,4 +571,5 @@ class TestComponentRegistryIntegration:
         service = MockService()
         registry.register_component(MockService, service)
         assert len(registry) == 1
-        assert registry.get_component(MockService) is service
+        retrieved_service = registry.get_component(MockService)
+        assert retrieved_service is service

@@ -5,7 +5,7 @@ High-performance logging processors with enterprise-grade observability.
 import re
 import time
 from collections import deque
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, cast
 
 from .deduplication_processor import DeduplicationProcessor  # noqa: F401
 
@@ -150,7 +150,7 @@ class RedactionProcessor(Processor):
             raise ValueError(f"Object nesting exceeds maximum depth: {self.max_depth}")
 
         # Iterative redaction using explicit stack for O(n) memory complexity
-        return self._redact_iterative(event_dict)
+        return cast(Dict[str, Any], self._redact_iterative(event_dict))
 
     def _estimate_depth(self, obj: Any, max_check_depth: int = None) -> int:
         """Estimate maximum nesting depth of an object efficiently.

@@ -199,14 +199,14 @@ class TestProcessorMetrics:
 class MockProcessor(Processor):
     """Mock processor for testing wrapper functionality."""
 
-    def __init__(self, should_fail=False, delay=0.0):
+    def __init__(self, should_fail: bool = False, delay: float = 0.0) -> None:
         """Initialize mock processor."""
         self.should_fail = should_fail
         self.delay = delay
         super().__init__()
 
     def process(
-        self, logger, method_name: str, event_dict: Dict[str, Any]
+        self, logger: Any, method_name: str, event_dict: Dict[str, Any]
     ) -> Optional[Dict[str, Any]]:
         """Mock process method."""
         if self.delay > 0:
@@ -378,7 +378,7 @@ class MockFastProcessor(Processor):
     """Mock fast processor for testing."""
 
     def process(
-        self, logger, method_name: str, event_dict: Dict[str, Any]
+        self, logger: Any, method_name: str, event_dict: Dict[str, Any]
     ) -> Optional[Dict[str, Any]]:
         return {"processed": True, **event_dict}
 
@@ -386,12 +386,12 @@ class MockFastProcessor(Processor):
 class MockSlowProcessor(Processor):
     """Mock slow processor for testing."""
 
-    def __init__(self, delay=0.05):
+    def __init__(self, delay: float = 0.05) -> None:
         self.delay = delay
         super().__init__()
 
     def process(
-        self, logger, method_name: str, event_dict: Dict[str, Any]
+        self, logger: Any, method_name: str, event_dict: Dict[str, Any]
     ) -> Optional[Dict[str, Any]]:
         time.sleep(self.delay)
         return {"processed": True, **event_dict}
@@ -401,7 +401,7 @@ class MockFailingProcessor(Processor):
     """Mock failing processor for testing."""
 
     def process(
-        self, logger, method_name: str, event_dict: Dict[str, Any]
+        self, logger: Any, method_name: str, event_dict: Dict[str, Any]
     ) -> Optional[Dict[str, Any]]:
         raise ValueError("Mock processor error")
 

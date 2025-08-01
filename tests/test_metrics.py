@@ -297,7 +297,7 @@ class TestMetricsIntegration:
 
         failing_sink = FailingSink()
         worker = QueueWorker(
-            sinks=[failing_sink],
+            sinks=[failing_sink],  # type: ignore[list-item]
             queue_max_size=10,
             batch_size=1,
             max_retries=1,  # Reduce retries for faster test

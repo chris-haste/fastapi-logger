@@ -111,7 +111,7 @@ class TestProcessorLockManager:
         lock_name = "mutex_test"
         execution_order = []
 
-        async def worker(worker_id: int):
+        async def worker(worker_id: int) -> None:
             async with manager.get_async_lock(lock_name):
                 execution_order.append(f"start_{worker_id}")
                 await asyncio.sleep(0.01)  # Simulate work
@@ -209,7 +209,7 @@ class TestProcessorLockManager:
         manager = ProcessorLockManager()
         results = []
 
-        async def worker(worker_id: int):
+        async def worker(worker_id: int) -> None:
             start_time = time.time()
             for i in range(10):
                 lock_name = f"perf_lock_{i % 3}"  # Use 3 different locks
