@@ -29,10 +29,8 @@ import structlog
 from ._internal.async_lock_manager import ProcessorLockManager
 from ._internal.component_factory import ComponentFactory
 from ._internal.component_registry import ComponentRegistry
+from ._internal.configuration_manager import ConfigurationManager
 from ._internal.container_logger_factory import ContainerLoggerFactory
-from ._internal.error_handling import (
-    handle_configuration_error,
-)
 from ._internal.lifecycle_manager import LifecycleManager
 from ._internal.metrics import MetricsCollector
 from ._internal.processor_metrics import ProcessorMetrics
@@ -103,6 +101,9 @@ class LoggingContainer:
         self._logger_factory: Optional[ContainerLoggerFactory] = None
         self._console_format: Optional[str] = None
 
+        # Performance optimization: cache settings hash to avoid redundant validation
+        self._settings_hash: Optional[int] = None
+
     def __enter__(self) -> "LoggingContainer":
         """Context manager entry - configure the container if not already done."""
         if not self._configured:
@@ -152,14 +153,22 @@ class LoggingContainer:
             A configured structlog.BoundLogger instance
         """
         with self._lock:
-            # Use provided settings or fall back to container settings
+            # Performance optimization: avoid redundant validation
+            settings_changed = False
             if settings is not None:
-                self._settings = self._validate_and_get_settings(settings)
+                # Check if settings actually changed to avoid redundant work
+                settings_hash = hash(str(settings))
+                if self._settings_hash != settings_hash:
+                    self._settings = ConfigurationManager.validate_settings(settings)
+                    self._settings_hash = settings_hash
+                    settings_changed = True
             elif not self._configured:
-                self._settings = self._validate_and_get_settings(self._settings)
+                self._settings = ConfigurationManager.validate_settings(self._settings)
+                self._settings_hash = hash(str(self._settings))
+                settings_changed = True
 
-            # Check if already configured
-            if self._configured:
+            # Check if already configured and settings haven't changed
+            if self._configured and not settings_changed:
                 # Still register middleware if app is provided
                 if app is not None:
                     self._lifecycle_manager.register_middleware(
@@ -169,7 +178,11 @@ class LoggingContainer:
 
             # Determine final configuration values from settings
             log_level = self._settings.level
-            console_format = self._determine_console_format(self._settings.json_console)
+            console_format = ConfigurationManager.determine_console_format(
+                self._settings.json_console
+            )
+            # Cache console format for logger factory optimization
+            self._console_format = console_format
 
             # Configure standard library logging
             self._lifecycle_manager.configure_standard_logging(log_level)
@@ -203,43 +216,6 @@ class LoggingContainer:
             self._lifecycle_manager.register_shutdown_handler(self.shutdown_sync)
 
             return self.get_logger()  # Use container-specific factory
-
-    def _validate_and_get_settings(
-        self, settings: Optional[LoggingSettings]
-    ) -> LoggingSettings:
-        """Validate and return LoggingSettings instance."""
-        try:
-            if settings is None:
-                return LoggingSettings()
-            # If it's already a LoggingSettings instance, return it directly
-            if isinstance(settings, LoggingSettings):
-                return settings
-            # If it's a dict or other data, validate it
-            return LoggingSettings.model_validate(settings)
-        except Exception as e:
-            raise handle_configuration_error(
-                e,
-                "settings",
-                str(settings) if settings else "None",
-                "valid LoggingSettings",
-            ) from e
-
-    def _determine_console_format(self, console_format: str) -> str:
-        """Determine the console output format."""
-        import sys
-
-        valid_formats = {"auto", "pretty", "json"}
-        if console_format not in valid_formats:
-            raise handle_configuration_error(
-                ValueError(f"Invalid console_format: {console_format}"),
-                "console_format",
-                console_format,
-                f"one of {', '.join(valid_formats)}",
-            )
-
-        if console_format == "auto":
-            return "pretty" if sys.stderr.isatty() else "json"
-        return console_format
 
     def _configure_structlog(self, console_format: str, log_level: str) -> None:
         """Configure container-specific logging with factory approach.
