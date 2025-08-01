@@ -27,7 +27,6 @@ from fapilog._internal.processor_metrics import ProcessorMetrics
 from fapilog.container import LoggingContainer
 from fapilog.monitoring import (
     create_prometheus_exporter,
-    get_prometheus_exporter,
 )
 from fapilog.settings import LoggingSettings
 
@@ -579,7 +578,9 @@ class TestPerformanceBaseline:
         create_prometheus_exporter(enabled=False)  # Disabled for testing
 
         stats = self.baseline.measure_access_time(
-            get_prometheus_exporter, "prometheus_exporter_access", iterations=1000
+            lambda: create_prometheus_exporter(enabled=False),
+            "prometheus_exporter_access",
+            iterations=1000,
         )
 
         assert stats.mean_ns < 1_000_000  # Less than 1ms on average
@@ -587,7 +588,7 @@ class TestPerformanceBaseline:
 
         # Test concurrent access
         concurrent_stats = self.baseline.measure_concurrent_access(
-            get_prometheus_exporter,
+            lambda: create_prometheus_exporter(enabled=False),
             "prometheus_exporter_access",
             thread_count=10,
             operations_per_thread=100,
@@ -699,7 +700,7 @@ class TestPerformanceBaseline:
             (lambda: ProcessorLockManager(), "processor_lock_manager"),
             (lambda: ProcessorMetrics(), "processor_metrics"),
             (lambda: MetricsCollector(), "metrics_collector"),
-            (get_prometheus_exporter, "prometheus_exporter"),
+            (lambda: create_prometheus_exporter(enabled=False), "prometheus_exporter"),
         ]
 
         for operation, name in global_components:
@@ -774,7 +775,7 @@ def run_baseline_suite() -> Dict[str, Any]:
         (lambda: ProcessorLockManager(), "processor_lock_manager"),
         (lambda: ProcessorMetrics(), "processor_metrics"),
         (lambda: MetricsCollector(), "metrics_collector"),
-        (get_prometheus_exporter, "prometheus_exporter"),
+        (lambda: create_prometheus_exporter(enabled=False), "prometheus_exporter"),
     ]
 
     for operation, name in operations:

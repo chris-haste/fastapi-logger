@@ -173,36 +173,33 @@ class PrometheusExporter:
         return f"http://{self.host}:{self.port}{self.path}"
 
 
-# Global Prometheus exporter instance
-_prometheus_exporter: Optional[PrometheusExporter] = None
-
-
-def get_prometheus_exporter() -> Optional[PrometheusExporter]:
-    """Get the global Prometheus exporter instance."""
-    return _prometheus_exporter
-
-
-def set_prometheus_exporter(exporter: Optional[PrometheusExporter]) -> None:
-    """Set the global Prometheus exporter instance."""
-    global _prometheus_exporter
-    _prometheus_exporter = exporter
-
-
 def create_prometheus_exporter(
     host: str = "0.0.0.0",
     port: int = 8000,
     path: str = "/metrics",
     enabled: bool = True,
 ) -> PrometheusExporter:
-    """Create and set a new global Prometheus exporter."""
-    exporter = PrometheusExporter(
+    """Create a Prometheus exporter instance.
+
+    Note: This function creates a standalone exporter instance.
+    For container-managed exporters with proper lifecycle management,
+    use LoggingContainer.get_prometheus_exporter() instead.
+
+    Args:
+        host: Host to bind to
+        port: Port to bind to
+        path: Path for metrics endpoint
+        enabled: Whether the exporter is enabled
+
+    Returns:
+        PrometheusExporter instance
+    """
+    return PrometheusExporter(
         host=host,
         port=port,
         path=path,
         enabled=enabled,
     )
-    set_prometheus_exporter(exporter)
-    return exporter
 
 
 async def start_metrics_server(
@@ -210,7 +207,12 @@ async def start_metrics_server(
     port: int = 8000,
     path: str = "/metrics",
 ) -> Optional[PrometheusExporter]:
-    """Start a Prometheus metrics server.
+    """Start a standalone Prometheus metrics server.
+
+    Note: This function creates a standalone exporter instance.
+    For container-managed metrics servers with proper lifecycle management,
+    use LoggingContainer.get_prometheus_exporter() and manage lifecycle
+    through the container.
 
     Args:
         host: Host to bind to
@@ -234,9 +236,12 @@ async def start_metrics_server(
         return None
 
 
-async def stop_metrics_server() -> None:
-    """Stop the global Prometheus metrics server."""
-    exporter = get_prometheus_exporter()
+async def stop_metrics_server(exporter: PrometheusExporter) -> None:
+    """Stop a Prometheus metrics server.
+
+    Args:
+        exporter: The PrometheusExporter instance to stop
+    """
     if exporter:
         await exporter.stop()
 

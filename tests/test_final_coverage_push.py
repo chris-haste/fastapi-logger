@@ -4,15 +4,13 @@ from fapilog import _get_log
 from fapilog.exceptions import ConfigurationError
 from fapilog.monitoring import (
     create_prometheus_exporter,
-    get_prometheus_exporter,
-    set_prometheus_exporter,
 )
 from fapilog.sinks.stdout import StdoutSink
 
 
-def test_create_and_set_prometheus_exporter():
-    """Test create_prometheus_exporter and set_prometheus_exporter functions."""
-    # Test the create function with FastAPI available
+def test_create_prometheus_exporter():
+    """Test create_prometheus_exporter function."""
+    # Test the create function creates standalone instance
     exporter = create_prometheus_exporter(
         host="127.0.0.1",
         port=8888,
@@ -24,10 +22,7 @@ def test_create_and_set_prometheus_exporter():
     assert exporter.host == "127.0.0.1"
     assert exporter.port == 8888
     assert exporter.path == "/test-metrics"
-
-    # Test set function
-    set_prometheus_exporter(None)
-    set_prometheus_exporter(exporter)
+    assert exporter.enabled
 
 
 def test_get_log_function():
@@ -38,12 +33,12 @@ def test_get_log_function():
     assert hasattr(logger, "error")
 
 
-def test_get_prometheus_exporter():
-    """Test get_prometheus_exporter to cover one more line."""
-    # This should return None initially
-    result = get_prometheus_exporter()
-    # Could be None or the exporter from previous test
-    assert result is None or result is not None  # Always true but uses result
+def test_prometheus_exporter_disabled():
+    """Test creating disabled PrometheusExporter."""
+    # Test creating a disabled exporter
+    exporter = create_prometheus_exporter(enabled=False)
+    assert exporter is not None
+    assert not exporter.enabled
 
 
 def test_configuration_error_str():

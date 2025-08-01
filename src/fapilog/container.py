@@ -88,11 +88,10 @@ class LoggingContainer:
         """
         self._lock = threading.RLock()
         # Create a copy of settings to ensure complete container isolation
+        self._settings: LoggingSettings
         if settings is not None:
-            # Create a copy to avoid shared state between containers
-            import copy
-
-            self._settings = copy.deepcopy(settings)
+            # Use model_copy() which is faster than deepcopy for Pydantic models
+            self._settings = settings.model_copy(deep=True)
         else:
             self._settings = LoggingSettings()
         self._configured = False
@@ -108,7 +107,6 @@ class LoggingContainer:
 
         # Metrics components
         self._metrics_collector: Optional[Any] = None
-        self._prometheus_exporter: Optional[Any] = None
 
         # Logger factory management (for container isolation)
         self._logger_factory: Optional[ContainerLoggerFactory] = None
@@ -411,17 +409,7 @@ class LoggingContainer:
                 sample_window=self._settings.metrics.sample_window,
             )
 
-        # Initialize Prometheus exporter if enabled
-        if self._settings.metrics.prometheus_enabled:
-            from .monitoring import PrometheusExporter
-
-            self._prometheus_exporter = PrometheusExporter(
-                host=self._settings.metrics.prometheus_host,
-                port=self._settings.metrics.prometheus_port,
-                path="/metrics",
-                enabled=True,
-                container=self,
-            )
+        # Prometheus exporter will be created on-demand via component registry
 
     def _configure_httpx_trace_propagation(self) -> None:
         """Configure httpx trace propagation."""
@@ -447,14 +435,13 @@ class LoggingContainer:
             except Exception as e:
                 logger.warning(f"Error during component registry cleanup: {e}")
 
-            # Shutdown Prometheus exporter
-            if self._prometheus_exporter is not None:
+            # Shutdown Prometheus exporter if it exists in component registry
+            prometheus_exporter = self._registry.get_component(PrometheusExporter)
+            if prometheus_exporter is not None:
                 try:
-                    await self._prometheus_exporter.stop()
+                    await prometheus_exporter.stop()
                 except Exception as e:
                     logger.warning(f"Error during Prometheus exporter shutdown: {e}")
-                finally:
-                    self._prometheus_exporter = None
 
             if self._queue_worker is not None:
                 try:
@@ -487,7 +474,6 @@ class LoggingContainer:
                 logger.warning(f"Error during component registry cleanup: {e}")
 
             # Reset metrics components (sync version doesn't need to stop Prometheus)
-            self._prometheus_exporter = None
             self._metrics_collector = None
 
             if self._queue_worker is not None:
@@ -516,7 +502,6 @@ class LoggingContainer:
 
             # Reset metrics components
             self._metrics_collector = None
-            self._prometheus_exporter = None
 
             # Reset structlog configuration
             structlog.reset_defaults()
@@ -569,9 +554,10 @@ class LoggingContainer:
         """
         with self._lock:
             # Start Prometheus exporter if configured
-            if self._prometheus_exporter is not None:
+            prometheus_exporter = self.get_prometheus_exporter()
+            if prometheus_exporter is not None:
                 try:
-                    await self._prometheus_exporter.start()
+                    await prometheus_exporter.start()
                 except Exception as e:
                     logger.warning(f"Failed to start Prometheus exporter: {e}")
 

@@ -100,8 +100,14 @@ class ComponentRegistry:
                 lambda: MyService(config)
             )
         """
+        # Fast path: check without lock first (double-checked locking pattern)
+        existing = self._components.get(component_type)
+        if existing is not None:
+            return cast(T, existing)
+
+        # Slow path: acquire lock for component creation
         with self._lock:
-            # Check if component already exists
+            # Check again after acquiring lock (another thread might have created it)
             existing = self._components.get(component_type)
             if existing is not None:
                 return cast(T, existing)

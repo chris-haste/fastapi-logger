@@ -10,8 +10,6 @@ from fapilog.monitoring import (
     create_prometheus_exporter,
     get_metrics_dict,
     get_metrics_text,
-    get_prometheus_exporter,
-    set_prometheus_exporter,
     start_metrics_server,
     stop_metrics_server,
 )
@@ -194,27 +192,24 @@ class TestPrometheusExporterServerControl:
 class TestGlobalFunctions:
     """Test global functions in monitoring module."""
 
-    def setup_method(self):
-        """Clean up global state before each test."""
-        set_prometheus_exporter(None)
-        # set_metrics_collector  # Removed in Issue 164(None)
+    def test_prometheus_exporter_creation(self):
+        """Test PrometheusExporter creation with different configurations."""
+        # Test enabled exporter
+        exporter_enabled = PrometheusExporter(
+            host="127.0.0.1", port=8888, path="/metrics", enabled=True
+        )
 
-    def teardown_method(self):
-        """Clean up global state after each test."""
-        set_prometheus_exporter(None)
-        # set_metrics_collector  # Removed in Issue 164(None)
+        assert exporter_enabled.host == "127.0.0.1"
+        assert exporter_enabled.port == 8888
+        assert exporter_enabled.path == "/metrics"
+        assert exporter_enabled.enabled
 
-    def test_global_prometheus_exporter_management(self):
-        """Test global Prometheus exporter get/set functions."""
-        assert get_prometheus_exporter() is None
+        # Test disabled exporter
+        exporter_disabled = PrometheusExporter(enabled=False)
+        assert not exporter_disabled.enabled
 
-        exporter = PrometheusExporter(enabled=False)
-        set_prometheus_exporter(exporter)
-
-        assert get_prometheus_exporter() is exporter
-
-    def test_create_prometheus_exporter_sets_global(self):
-        """Test create_prometheus_exporter sets global instance."""
+    def test_create_prometheus_exporter_standalone(self):
+        """Test create_prometheus_exporter creates standalone instance."""
         exporter = create_prometheus_exporter(
             host="127.0.0.1", port=8888, path="/test", enabled=False
         )
@@ -223,7 +218,6 @@ class TestGlobalFunctions:
         assert exporter.port == 8888
         assert exporter.path == "/test"
         assert not exporter.enabled
-        assert get_prometheus_exporter() is exporter
 
     @pytest.mark.asyncio
     async def test_start_metrics_server_success(self):
@@ -260,18 +254,16 @@ class TestGlobalFunctions:
     async def test_stop_metrics_server_with_exporter(self):
         """Test stop_metrics_server function."""
         mock_exporter = AsyncMock()
-        set_prometheus_exporter(mock_exporter)
 
-        await stop_metrics_server()
+        await stop_metrics_server(mock_exporter)
 
         mock_exporter.stop.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_stop_metrics_server_no_exporter(self):
         """Test stop_metrics_server when no exporter exists."""
-        set_prometheus_exporter(None)
-
-        await stop_metrics_server()  # Should not raise exception
+        # Test passing None explicitly
+        await stop_metrics_server(None)  # Should not raise exception
 
     def test_get_metrics_text_with_collector(self):
         """Test get_metrics_text when metrics collector exists."""
