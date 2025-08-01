@@ -19,7 +19,6 @@ Breaking Changes from Previous Version:
 See CONTAINER_MIGRATION_NOTES.md for detailed migration guide.
 """
 
-import atexit
 import logging
 import threading
 from contextlib import contextmanager
@@ -34,6 +33,7 @@ from ._internal.container_logger_factory import ContainerLoggerFactory
 from ._internal.error_handling import (
     handle_configuration_error,
 )
+from ._internal.lifecycle_manager import LifecycleManager
 from ._internal.metrics import MetricsCollector
 from ._internal.processor_metrics import ProcessorMetrics
 from ._internal.queue_worker import QueueWorker
@@ -45,7 +45,6 @@ from .exceptions import (
     SinkErrorContextBuilder,
 )
 from .httpx_patch import HttpxTracePropagation
-from .middleware import TraceIDMiddleware
 from .monitoring import PrometheusExporter
 from .settings import LoggingSettings
 from .sinks import Sink
@@ -100,6 +99,7 @@ class LoggingContainer:
         self._container_id = f"container_{id(self)}"
         self._registry = ComponentRegistry(self._container_id)
         self._factory = ComponentFactory(self)
+        self._lifecycle_manager = LifecycleManager(self._container_id)
         self._queue_worker: Optional[QueueWorker] = None
         self._sinks: List[Any] = []
         self._httpx_propagation: Optional[HttpxTracePropagation] = None
@@ -171,7 +171,9 @@ class LoggingContainer:
             if self._configured:
                 # Still register middleware if app is provided
                 if app is not None:
-                    self._register_middleware(app)
+                    self._lifecycle_manager.register_middleware(
+                        app, self._settings, self.shutdown
+                    )
                 return self.get_logger()
 
             # Determine final configuration values from settings
@@ -179,7 +181,7 @@ class LoggingContainer:
             console_format = self._determine_console_format(self._settings.json_console)
 
             # Configure standard library logging
-            self._configure_standard_logging(log_level)
+            self._lifecycle_manager.configure_standard_logging(log_level)
 
             # Initialize queue worker if enabled
             if self._settings.queue.enabled:
@@ -196,15 +198,15 @@ class LoggingContainer:
 
             # Register middleware if app is provided
             if app is not None:
-                self._register_middleware(app)
+                self._lifecycle_manager.register_middleware(
+                    app, self._settings, self.shutdown
+                )
 
             # Mark as configured
             self._configured = True
 
             # Register shutdown handler once
-            if not self._shutdown_registered:
-                atexit.register(self.shutdown_sync)
-                self._shutdown_registered = True
+            self._lifecycle_manager.register_shutdown_handler(self.shutdown_sync)
 
             return self.get_logger()  # Use container-specific factory
 
@@ -244,35 +246,6 @@ class LoggingContainer:
         if console_format == "auto":
             return "pretty" if sys.stderr.isatty() else "json"
         return console_format
-
-    def _configure_standard_logging(self, log_level: str) -> None:
-        """Configure standard library logging."""
-        import sys
-
-        try:
-            # Create a handler that outputs to stdout (like PrintLoggerFactory did)
-            handler = logging.StreamHandler(sys.stdout)
-            handler.setLevel(getattr(logging, log_level.upper()))
-            handler.setFormatter(logging.Formatter("%(message)s"))
-
-            # Configure root logger
-            root_logger = logging.getLogger()
-            root_logger.setLevel(getattr(logging, log_level.upper()))
-
-            # Remove existing handlers to avoid duplicates
-            for existing_handler in root_logger.handlers[:]:
-                root_logger.removeHandler(existing_handler)
-
-            # Add our stdout handler
-            root_logger.addHandler(handler)
-
-        except AttributeError as e:
-            raise handle_configuration_error(
-                e,
-                "log_level",
-                log_level,
-                "valid logging level (DEBUG/INFO/WARNING/ERROR/CRITICAL)",
-            ) from e
 
     def _setup_queue_worker(self, console_format: str) -> QueueWorker:
         """Set up the queue worker with appropriate sinks."""
@@ -417,82 +390,35 @@ class LoggingContainer:
             self._httpx_propagation = HttpxTracePropagation()
             self._httpx_propagation.configure(self._settings)
 
-    def _register_middleware(self, app: Any) -> None:
-        """Register middleware with the FastAPI app."""
-        app.add_middleware(
-            TraceIDMiddleware, trace_id_header=self._settings.trace_id_header
-        )
-        # Register shutdown event for graceful queue worker shutdown
-        if self._queue_worker is not None:
-            app.add_event_handler("shutdown", self.shutdown)
-
     async def shutdown(self) -> None:
         """Shutdown the container gracefully (async version)."""
-        with self._lock:
-            # Cleanup component registry
-            try:
-                self._registry.cleanup()
-            except Exception as e:
-                logger.warning(f"Error during component registry cleanup: {e}")
+        await self._lifecycle_manager.shutdown_async(
+            registry=self._registry,
+            queue_worker=self._queue_worker,
+            httpx_propagation=self._httpx_propagation,
+            metrics_collector=self._metrics_collector,
+            sinks=self._sinks,
+        )
 
-            # Shutdown Prometheus exporter if it exists in component registry
-            prometheus_exporter = self._registry.get_component(PrometheusExporter)
-            if prometheus_exporter is not None:
-                try:
-                    await prometheus_exporter.stop()
-                except Exception as e:
-                    logger.warning(f"Error during Prometheus exporter shutdown: {e}")
-
-            if self._queue_worker is not None:
-                try:
-                    await self._queue_worker.shutdown()
-                except Exception as e:
-                    logger.warning(f"Error during queue worker shutdown: {e}")
-                finally:
-                    self._queue_worker = None
-
-            if self._httpx_propagation is not None:
-                try:
-                    self._httpx_propagation.cleanup()
-                except Exception as e:
-                    logger.warning(f"Error during httpx propagation cleanup: {e}")
-                finally:
-                    self._httpx_propagation = None
-
-            # Reset metrics components
-            self._metrics_collector = None
-
-            self._sinks.clear()
+        # Reset component references after shutdown
+        self._queue_worker = None
+        self._httpx_propagation = None
+        self._metrics_collector = None
 
     def shutdown_sync(self) -> None:
         """Shutdown the container gracefully (sync version)."""
-        with self._lock:
-            # Cleanup component registry
-            try:
-                self._registry.cleanup()
-            except Exception as e:
-                logger.warning(f"Error during component registry cleanup: {e}")
+        self._lifecycle_manager.shutdown_sync(
+            registry=self._registry,
+            queue_worker=self._queue_worker,
+            httpx_propagation=self._httpx_propagation,
+            metrics_collector=self._metrics_collector,
+            sinks=self._sinks,
+        )
 
-            # Reset metrics components (sync version doesn't need to stop Prometheus)
-            self._metrics_collector = None
-
-            if self._queue_worker is not None:
-                try:
-                    self._queue_worker.shutdown_sync()
-                except Exception as e:
-                    logger.warning(f"Error during sync queue worker shutdown: {e}")
-                finally:
-                    self._queue_worker = None
-
-            if self._httpx_propagation is not None:
-                try:
-                    self._httpx_propagation.cleanup()
-                except Exception as e:
-                    logger.warning(f"Error during httpx propagation cleanup: {e}")
-                finally:
-                    self._httpx_propagation = None
-
-            self._sinks.clear()
+        # Reset component references after shutdown
+        self._queue_worker = None
+        self._httpx_propagation = None
+        self._metrics_collector = None
 
     def reset(self) -> None:
         """Reset the container for testing purposes."""
