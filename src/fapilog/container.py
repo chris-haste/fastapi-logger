@@ -30,6 +30,7 @@ import structlog
 from ._internal.async_lock_manager import ProcessorLockManager
 from ._internal.component_factory import ComponentFactory
 from ._internal.component_registry import ComponentRegistry
+from ._internal.container_logger_factory import ContainerLoggerFactory
 from ._internal.error_handling import (
     handle_configuration_error,
 )
@@ -46,7 +47,6 @@ from .exceptions import (
 from .httpx_patch import HttpxTracePropagation
 from .middleware import TraceIDMiddleware
 from .monitoring import PrometheusExporter
-from .pipeline import build_processor_chain
 from .settings import LoggingSettings
 from .sinks import Sink
 from .sinks.file import create_file_sink_from_uri
@@ -101,6 +101,10 @@ class LoggingContainer:
         # Metrics components
         self._metrics_collector: Optional[Any] = None
         self._prometheus_exporter: Optional[Any] = None
+
+        # Logger factory management (for container isolation)
+        self._logger_factory: Optional[ContainerLoggerFactory] = None
+        self._console_format: Optional[str] = None
 
     def __enter__(self) -> "LoggingContainer":
         """Context manager entry - configure the container if not already done."""
@@ -162,7 +166,7 @@ class LoggingContainer:
                 # Still register middleware if app is provided
                 if app is not None:
                     self._register_middleware(app)
-                return structlog.get_logger()  # type: ignore[no-any-return]
+                return self.get_logger()
 
             # Determine final configuration values from settings
             log_level = self._settings.level
@@ -372,37 +376,12 @@ class LoggingContainer:
         return worker
 
     def _configure_structlog(self, console_format: str, log_level: str) -> None:
-        """Configure structlog with pure dependency injection."""
-        # Build structlog processor chain using the pipeline
-        # The pipeline already handles queue vs non-queue configuration
-        # Pass container for pure dependency injection
-        processors = build_processor_chain(
-            self._settings, pretty=(console_format == "pretty"), container=self
-        )
+        """Configure container-specific logging without global state."""
+        # Store format for factory
+        self._console_format = console_format
 
-        # Configure structlog with appropriate factory based on queue usage
-        if self._settings.queue.enabled:
-            # When using queues, enrichers still add structured data that
-            # PrintLogger can't handle, so use stdlib logger even with queues
-            structlog.configure(
-                processors=processors,
-                wrapper_class=structlog.make_filtering_bound_logger(
-                    getattr(logging, log_level.upper())
-                ),
-                logger_factory=structlog.stdlib.LoggerFactory(),
-                cache_logger_on_first_use=True,
-            )
-        else:
-            # When not using queues, we have renderers that convert to strings
-            # so we need a logger factory that handles pre-rendered strings
-            structlog.configure(
-                processors=processors,
-                wrapper_class=structlog.make_filtering_bound_logger(
-                    getattr(logging, log_level.upper())
-                ),
-                logger_factory=structlog.stdlib.LoggerFactory(),
-                cache_logger_on_first_use=True,
-            )
+        # Create container-specific factory (NO structlog.configure() call!)
+        self._logger_factory = ContainerLoggerFactory(self)
 
     def _configure_metrics(self) -> None:
         """Configure metrics collection and Prometheus exporter."""
@@ -580,15 +559,22 @@ class LoggingContainer:
                     logger.warning(f"Failed to start Prometheus exporter: {e}")
 
     def get_logger(self, name: str = "") -> structlog.BoundLogger:
-        """Get a configured logger from this container.
+        """Get container-specific logger.
 
         Args:
             name: Optional logger name
 
         Returns:
-            A configured structlog.BoundLogger instance
+            A configured structlog.BoundLogger instance with container-specific
+            configuration
         """
-        return structlog.get_logger(name)  # type: ignore[no-any-return]
+        if not self._configured:
+            self.configure()
+
+        if self._logger_factory is None:
+            raise RuntimeError("Container not properly configured")
+
+        return self._logger_factory.create_logger(name)
 
     def get_lock_manager(self) -> ProcessorLockManager:
         """Get container-scoped ProcessorLockManager instance.
