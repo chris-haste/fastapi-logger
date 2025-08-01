@@ -86,7 +86,14 @@ class LoggingContainer:
             settings: Optional LoggingSettings instance. If None, created from env.
         """
         self._lock = threading.RLock()
-        self._settings = settings or LoggingSettings()
+        # Create a copy of settings to ensure complete container isolation
+        if settings is not None:
+            # Create a copy to avoid shared state between containers
+            import copy
+
+            self._settings = copy.deepcopy(settings)
+        else:
+            self._settings = LoggingSettings()
         self._configured = False
 
         # Component management
@@ -200,7 +207,7 @@ class LoggingContainer:
                 atexit.register(self.shutdown_sync)
                 self._shutdown_registered = True
 
-            return structlog.get_logger()  # type: ignore[no-any-return]
+            return self.get_logger()  # Use container-specific factory
 
     def _validate_and_get_settings(
         self, settings: Optional[LoggingSettings]

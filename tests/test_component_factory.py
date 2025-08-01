@@ -23,7 +23,9 @@ class TestComponentFactoryBasicOperations:
         factory = ComponentFactory(container)
 
         assert factory.container is container
-        assert factory._settings is settings
+        # Settings should be equivalent but not the same object (deep copied for isolation)
+        assert factory._settings == settings
+        assert factory._settings is not settings  # Ensure isolation
 
     def test_factory_repr(self):
         """Test ComponentFactory string representation."""
@@ -48,7 +50,9 @@ class TestComponentFactoryBasicOperations:
         container = LoggingContainer(custom_settings)
         factory = ComponentFactory(container)
 
-        assert factory._settings is custom_settings
+        # Settings should be equivalent but not the same object (deep copied for isolation)
+        assert factory._settings == custom_settings
+        assert factory._settings is not custom_settings  # Ensure isolation
         assert factory._settings.metrics.enabled is True
         assert factory._settings.metrics.sample_window == 200
 

@@ -23,6 +23,7 @@ class QueueSettings(BaseSettings):
     enabled: bool = Field(
         default=True,
         description="Enable async queue for non-blocking logging",
+        env="FAPILOG_QUEUE_ENABLED",
     )
     maxsize: int = Field(
         default=1000,
@@ -51,7 +52,6 @@ class QueueSettings(BaseSettings):
     )
 
     model_config = SettingsConfigDict(
-        env_prefix="",  # No environment parsing - handled by parent LoggingSettings
         case_sensitive=False,
     )
 
