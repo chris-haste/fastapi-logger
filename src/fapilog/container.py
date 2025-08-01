@@ -3,8 +3,8 @@
 This module provides a completely redesigned LoggingContainer that implements
 pure dependency injection without any global state. Key improvements:
 
-- Zero global variables or state
-- Complete container isolation
+- Zero global variables or state (structlog global state: #154)
+- Complete container isolation (structlog global state: #154)
 - Perfect thread safety without global locks
 - Context manager support for scoped access
 - Factory methods for clean instantiation
