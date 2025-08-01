@@ -237,9 +237,11 @@ class TestComponentIntegrationPureDI:
         settings = LoggingSettings(
             level="INFO",
             sinks=["stdout"],
-            enable_auto_redact_pii=True,
-            enable_throttling=False,  # Disable for testing
-            enable_deduplication=False,  # Disable for testing
+            security={
+                "enable_auto_redact_pii": True,
+                "enable_throttling": False,  # Disable for testing
+                "enable_deduplication": False,  # Disable for testing
+            },
             user_context_enabled=True,
             enable_resource_metrics=True,
         )
@@ -258,7 +260,7 @@ class TestComponentIntegrationPureDI:
         # Verify container state
         assert container.is_configured
         assert container.queue_worker is None  # No queue
-        assert container.settings.enable_auto_redact_pii is True
+        assert container.settings.security.enable_auto_redact_pii is True
 
     def test_concurrent_container_operations(self) -> None:
         """Test concurrent operations with multiple containers."""

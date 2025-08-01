@@ -314,7 +314,7 @@ class PerformanceBaseline:
             with self.measure_operation("container_creation") as result:
                 try:
                     settings = LoggingSettings(
-                        level="INFO", sinks=["stdout://"], queue_enabled=False
+                        level="INFO", sinks=["stdout://"], queue={"enabled": False}
                     )
                     container = LoggingContainer(settings)
                     # Verify container is usable
