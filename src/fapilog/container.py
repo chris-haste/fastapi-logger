@@ -23,7 +23,7 @@ import atexit
 import logging
 import threading
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Generator, List, Optional, cast
+from typing import TYPE_CHECKING, Any, Generator, List, Optional
 
 import structlog
 
@@ -172,7 +172,7 @@ class LoggingContainer:
             self._configure_standard_logging(log_level)
 
             # Initialize queue worker if enabled
-            if self._settings.queue_enabled:
+            if self._settings.queue.enabled:
                 self._queue_worker = self._setup_queue_worker(console_format)
 
             # Initialize metrics if enabled
@@ -205,9 +205,11 @@ class LoggingContainer:
         try:
             if settings is None:
                 return LoggingSettings()
-            return cast(
-                LoggingSettings, LoggingSettings.model_validate(settings.model_dump())
-            )
+            # If it's already a LoggingSettings instance, return it directly
+            if isinstance(settings, LoggingSettings):
+                return settings
+            # If it's a dict or other data, validate it
+            return LoggingSettings.model_validate(settings)
         except Exception as e:
             raise handle_configuration_error(
                 e,
@@ -344,23 +346,23 @@ class LoggingContainer:
         try:
             worker = QueueWorker(
                 sinks=self._sinks,
-                queue_max_size=self._settings.queue_maxsize,
-                batch_size=self._settings.queue_batch_size,
-                batch_timeout=self._settings.queue_batch_timeout,
-                retry_delay=self._settings.queue_retry_delay,
-                max_retries=self._settings.queue_max_retries,
-                overflow_strategy=self._settings.queue_overflow,
+                queue_max_size=self._settings.queue.maxsize,
+                batch_size=self._settings.queue.batch_size,
+                batch_timeout=self._settings.queue.batch_timeout,
+                retry_delay=self._settings.queue.retry_delay,
+                max_retries=self._settings.queue.max_retries,
+                overflow_strategy=self._settings.queue.overflow,
                 sampling_rate=self._settings.sampling_rate,
                 container=self,
             )
         except Exception as e:
             queue_config = {
-                "queue_max_size": self._settings.queue_maxsize,
-                "batch_size": self._settings.queue_batch_size,
-                "batch_timeout": self._settings.queue_batch_timeout,
-                "retry_delay": self._settings.queue_retry_delay,
-                "max_retries": self._settings.queue_max_retries,
-                "overflow_strategy": self._settings.queue_overflow,
+                "queue_max_size": self._settings.queue.maxsize,
+                "batch_size": self._settings.queue.batch_size,
+                "batch_timeout": self._settings.queue.batch_timeout,
+                "retry_delay": self._settings.queue.retry_delay,
+                "max_retries": self._settings.queue.max_retries,
+                "overflow_strategy": self._settings.queue.overflow,
                 "sampling_rate": self._settings.sampling_rate,
             }
             raise handle_configuration_error(
@@ -379,7 +381,7 @@ class LoggingContainer:
         )
 
         # Configure structlog with appropriate factory based on queue usage
-        if self._settings.queue_enabled:
+        if self._settings.queue.enabled:
             # When using queues, enrichers still add structured data that
             # PrintLogger can't handle, so use stdlib logger even with queues
             structlog.configure(
@@ -405,21 +407,21 @@ class LoggingContainer:
     def _configure_metrics(self) -> None:
         """Configure metrics collection and Prometheus exporter."""
         # Initialize metrics collector if enabled
-        if self._settings.metrics_enabled:
+        if self._settings.metrics.enabled:
             from ._internal.metrics import MetricsCollector
 
             self._metrics_collector = MetricsCollector(
                 enabled=True,
-                sample_window=self._settings.metrics_sample_window,
+                sample_window=self._settings.metrics.sample_window,
             )
 
         # Initialize Prometheus exporter if enabled
-        if self._settings.metrics_prometheus_enabled:
+        if self._settings.metrics.prometheus_enabled:
             from .monitoring import PrometheusExporter
 
             self._prometheus_exporter = PrometheusExporter(
-                host=self._settings.metrics_prometheus_host,
-                port=self._settings.metrics_prometheus_port,
+                host=self._settings.metrics.prometheus_host,
+                port=self._settings.metrics.prometheus_port,
                 path="/metrics",
                 enabled=True,
                 container=self,
@@ -614,7 +616,7 @@ class LoggingContainer:
         Returns:
             MetricsCollector instance if enabled in settings, None otherwise
         """
-        if not self._settings.metrics_enabled:
+        if not self._settings.metrics.enabled:
             return None
 
         return self._registry.get_or_create_component(
@@ -627,7 +629,7 @@ class LoggingContainer:
         Returns:
             PrometheusExporter instance if enabled in settings, None otherwise
         """
-        if not self._settings.metrics_prometheus_enabled:
+        if not self._settings.metrics.prometheus_enabled:
             return None
 
         return self._registry.get_or_create_component(

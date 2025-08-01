@@ -1,5 +1,6 @@
 """Tests for PII auto-detection redactor functionality."""
 
+import warnings
 from unittest.mock import Mock
 
 from fapilog._internal.pii_patterns import (
@@ -29,7 +30,10 @@ class TestPIIPatterns:
     def test_compile_invalid_patterns(self):
         """Test handling of invalid regex patterns."""
         patterns = [r"\d+", r"[invalid", r"[a-z]+"]
-        compiled = _compile_pii_patterns(patterns)
+        # Suppress expected warning for invalid pattern
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            compiled = _compile_pii_patterns(patterns)
         # Should compile valid patterns and skip invalid ones
         assert len(compiled) == 2
         assert all(hasattr(p, "sub") for p in compiled)

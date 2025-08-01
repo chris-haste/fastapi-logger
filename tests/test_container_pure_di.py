@@ -74,11 +74,12 @@ class TestPureDependencyInjectionContainer:
     def test_factory_methods(self) -> None:
         """Test factory methods for container creation."""
         # Test create_from_settings
-        settings = LoggingSettings(level="DEBUG", queue_enabled=True)
+        settings = LoggingSettings(level="DEBUG")
+        settings.queue.enabled = True
         container1 = LoggingContainer.create_from_settings(settings)
 
         assert container1.settings.level == "DEBUG"
-        assert container1.settings.queue_enabled is True
+        assert container1.settings.queue.enabled is True
 
         # Test create_with_defaults
         container2 = LoggingContainer.create_with_defaults()
@@ -111,9 +112,12 @@ class TestPureDependencyInjectionContainer:
 
     def test_complete_container_isolation(self) -> None:
         """Test that multiple containers are completely isolated."""
-        settings1 = LoggingSettings(level="INFO", queue_enabled=False)
-        settings2 = LoggingSettings(level="DEBUG", queue_enabled=True)
-        settings3 = LoggingSettings(level="WARNING", queue_enabled=False)
+        settings1 = LoggingSettings(level="INFO")
+        settings1.queue.enabled = False
+        settings2 = LoggingSettings(level="DEBUG")
+        settings2.queue.enabled = True
+        settings3 = LoggingSettings(level="WARNING")
+        settings3.queue.enabled = False
 
         # Create multiple containers
         containers = [
@@ -132,9 +136,9 @@ class TestPureDependencyInjectionContainer:
         assert containers[1].settings.level == "DEBUG"
         assert containers[2].settings.level == "WARNING"
 
-        assert containers[0].settings.queue_enabled is False
-        assert containers[1].settings.queue_enabled is True
-        assert containers[2].settings.queue_enabled is False
+        assert containers[0].settings.queue.enabled is False
+        assert containers[1].settings.queue.enabled is True
+        assert containers[2].settings.queue.enabled is False
 
         # Verify all are configured independently
         for container in containers:
@@ -155,16 +159,16 @@ class TestPureDependencyInjectionContainer:
 
         def create_and_configure_container(container_id: int) -> Dict[str, Any]:
             """Create and configure a container in a thread."""
-            settings = LoggingSettings(
-                level="INFO", queue_enabled=(container_id % 2 == 0), sinks=["stdout"]
-            )
+            settings = LoggingSettings(level="INFO", sinks=["stdout"])
+            # Alternate queue enabled status for thread safety testing
+            settings.queue.enabled = container_id % 2 == 0
             container = LoggingContainer(settings)
             logger = container.configure()
 
             return {
                 "container_id": container_id,
                 "configured": container.is_configured,
-                "queue_enabled": container.settings.queue_enabled,
+                "queue_enabled": container.settings.queue.enabled,
                 "logger_callable": callable(logger.info),
             }
 
@@ -269,12 +273,10 @@ class TestPureDependencyInjectionContainer:
     @pytest.mark.asyncio
     async def test_async_container_operations(self) -> None:
         """Test async container operations."""
-        settings = LoggingSettings(
-            queue_enabled=True,
-            sinks=["stdout"],
-            metrics_enabled=True,
-            metrics_prometheus_enabled=True,
-        )
+        settings = LoggingSettings(sinks=["stdout"])
+        settings.queue.enabled = True
+        settings.metrics.enabled = True
+        settings.metrics.prometheus_enabled = True
         container = LoggingContainer(settings)
 
         # Configure
@@ -293,12 +295,13 @@ class TestPureDependencyInjectionContainer:
         container = LoggingContainer(initial_settings)
 
         # Override settings during configuration
-        override_settings = LoggingSettings(level="DEBUG", queue_enabled=True)
+        override_settings = LoggingSettings(level="DEBUG")
+        override_settings.queue.enabled = True
         container.configure(settings=override_settings)
 
         assert container.is_configured
         assert container.settings.level == "DEBUG"
-        assert container.settings.queue_enabled is True
+        assert container.settings.queue.enabled is True
 
     def test_container_error_handling_isolation(self) -> None:
         """Test that errors in one container don't affect others."""
@@ -318,14 +321,15 @@ class TestPureDependencyInjectionContainer:
     def test_multiple_containers_different_queue_configs(self) -> None:
         """Test multiple containers with different queue configurations."""
         # Container 1: No queue
-        container1 = LoggingContainer(
-            LoggingSettings(queue_enabled=False, sinks=["stdout"])
-        )
+        settings1 = LoggingSettings(sinks=["stdout"])
+        settings1.queue.enabled = False
+        container1 = LoggingContainer(settings1)
 
         # Container 2: With queue
-        container2 = LoggingContainer(
-            LoggingSettings(queue_enabled=True, sinks=["stdout"], queue_maxsize=100)
-        )
+        settings2 = LoggingSettings(sinks=["stdout"])
+        settings2.queue.enabled = True
+        settings2.queue.maxsize = 100
+        container2 = LoggingContainer(settings2)
 
         # Configure both
         logger1 = container1.configure()

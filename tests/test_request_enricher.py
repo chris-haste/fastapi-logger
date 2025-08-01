@@ -62,7 +62,8 @@ async def test_fields_appear_in_emitted_logs():
     app.add_middleware(TraceIDMiddleware, trace_id_header="X-Request-ID")
 
     # Configure logging with mock sink
-    settings = LoggingSettings(queue_enabled=False)
+    settings = LoggingSettings()
+    settings.queue.enabled = False
     configure_logging(settings=settings, app=app)
 
     # Patch the pipeline to capture logs
@@ -220,7 +221,8 @@ async def test_context_shared_across_request():
 
     app.add_middleware(TraceIDMiddleware, trace_id_header="X-Request-ID")
 
-    settings = LoggingSettings(queue_enabled=False)
+    settings = LoggingSettings()
+    settings.queue.enabled = False
     configure_logging(settings=settings, app=app)
 
     with patch("fapilog.pipeline.build_processor_chain") as mock_chain:

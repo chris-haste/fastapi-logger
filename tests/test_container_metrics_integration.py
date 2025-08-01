@@ -28,8 +28,8 @@ class TestContainerMetricsIntegration:
         settings = LoggingSettings(
             level="INFO",
             sinks=["stdout"],
-            metrics_enabled=True,
         )
+        settings.metrics.enabled = True
 
         # Should not raise any exceptions
         configure_logging(settings)
@@ -45,10 +45,10 @@ class TestContainerMetricsIntegration:
         settings = LoggingSettings(
             level="INFO",
             sinks=["stdout"],
-            metrics_enabled=True,
-            metrics_prometheus_enabled=True,
-            metrics_prometheus_port=8123,
         )
+        settings.metrics.enabled = True
+        settings.metrics.prometheus_enabled = True
+        settings.metrics.prometheus_port = 8123
 
         # Should not raise any exceptions
         configure_logging(settings)
@@ -63,11 +63,11 @@ class TestContainerMetricsIntegration:
         """Test Prometheus exporter auto-initialization when enabled."""
         settings = LoggingSettings(
             level="INFO",
-            metrics_enabled=True,
-            metrics_prometheus_enabled=True,
-            metrics_prometheus_port=8123,
-            metrics_prometheus_host="127.0.0.1",
         )
+        settings.metrics.enabled = True
+        settings.metrics.prometheus_enabled = True
+        settings.metrics.prometheus_port = 8123
+        settings.metrics.prometheus_host = "127.0.0.1"
 
         container = LoggingContainer(settings)
         container.configure()
@@ -83,9 +83,9 @@ class TestContainerMetricsIntegration:
         """Test Prometheus exporter not created when disabled."""
         settings = LoggingSettings(
             level="INFO",
-            metrics_enabled=True,
-            metrics_prometheus_enabled=False,
         )
+        settings.metrics.enabled = True
+        settings.metrics.prometheus_enabled = False
 
         container = LoggingContainer(settings)
         container.configure()
@@ -99,10 +99,10 @@ class TestContainerMetricsIntegration:
         """Test that container.setup() starts the Prometheus exporter."""
         settings = LoggingSettings(
             level="INFO",
-            metrics_enabled=True,
-            metrics_prometheus_enabled=True,
-            metrics_prometheus_port=8124,  # Different port to avoid conflicts
         )
+        settings.metrics.enabled = True
+        settings.metrics.prometheus_enabled = True
+        settings.metrics.prometheus_port = 8124  # Different port to avoid conflicts
 
         container = LoggingContainer(settings)
         container.configure()
@@ -144,14 +144,14 @@ class TestContainerMetricsIntegration:
         """Test the create_logging_container factory function."""
         settings = LoggingSettings(
             level="DEBUG",
-            metrics_enabled=True,
         )
+        settings.metrics.enabled = True
 
         # Test factory function exists and works
         container = fapilog.create_logging_container(settings)
         assert isinstance(container, LoggingContainer)
         assert container.settings.level == "DEBUG"
-        assert container.settings.metrics_enabled
+        assert container.settings.metrics.enabled
 
         # Test with no settings
         container2 = fapilog.create_logging_container()
@@ -163,10 +163,10 @@ class TestContainerMetricsIntegration:
         """Test that container shutdown properly stops Prometheus exporter."""
         settings = LoggingSettings(
             level="INFO",
-            metrics_enabled=True,
-            metrics_prometheus_enabled=True,
-            metrics_prometheus_port=8125,  # Different port
         )
+        settings.metrics.enabled = True
+        settings.metrics.prometheus_enabled = True
+        settings.metrics.prometheus_port = 8125  # Different port
 
         container = LoggingContainer(settings)
         container.configure()
@@ -190,9 +190,9 @@ class TestContainerMetricsIntegration:
         """Test that container.reset() properly clears metrics state."""
         settings = LoggingSettings(
             level="INFO",
-            metrics_enabled=True,
-            metrics_prometheus_enabled=True,
         )
+        settings.metrics.enabled = True
+        settings.metrics.prometheus_enabled = True
 
         container = LoggingContainer(settings)
         container.configure()
@@ -226,11 +226,11 @@ class TestMetricsIntegrationScenarios:
         """Test that logging collects metrics when auto-initialized."""
         settings = LoggingSettings(
             level="INFO",
-            queue_enabled=True,
-            queue_batch_size=2,
-            metrics_enabled=True,
             sinks=["stdout"],
         )
+        settings.queue.enabled = True
+        settings.queue.batch_size = 2
+        settings.metrics.enabled = True
 
         # Configure logging with auto-metrics
         logger = fapilog.configure_logging(settings)
@@ -253,14 +253,14 @@ class TestMetricsIntegrationScenarios:
         """Test that multiple containers maintain independent metrics state."""
         settings1 = LoggingSettings(
             level="INFO",
-            metrics_enabled=True,
-            metrics_sample_window=50,
         )
+        settings1.metrics.enabled = True
+        settings1.metrics.sample_window = 50
 
         settings2 = LoggingSettings(
             level="DEBUG",
-            metrics_enabled=False,
         )
+        settings2.metrics.enabled = False
 
         container1 = LoggingContainer(settings1)
         container2 = LoggingContainer(settings2)

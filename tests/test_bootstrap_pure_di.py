@@ -145,7 +145,8 @@ class TestStatelessBootstrap:
         assert callable(logger.info)
 
         # Test with settings
-        settings = LoggingSettings(level="DEBUG", queue_enabled=False)
+        settings = LoggingSettings(level="DEBUG")
+        settings.queue.enabled = False
         logger2 = configure_logging(settings=settings)
         assert callable(logger2.info)
 
@@ -155,9 +156,8 @@ class TestStatelessBootstrap:
 
     def test_configure_logging_with_settings_override(self) -> None:
         """Test configure_logging with settings parameter."""
-        settings = LoggingSettings(
-            level="WARNING", queue_enabled=False, sinks=["stdout"]
-        )
+        settings = LoggingSettings(level="WARNING", sinks=["stdout"])
+        settings.queue.enabled = False
 
         logger = configure_logging(settings=settings)
         assert callable(logger.warning)

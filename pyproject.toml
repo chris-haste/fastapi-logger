@@ -202,6 +202,7 @@ warn_unreachable = false
 strict_equality = false
 ignore_missing_imports = true
 disable_error_code = ["misc", "arg-type", "assignment", "var-annotated", "union-attr"]
+exclude = ["examples/"]
 
 [[tool.mypy.overrides]]
 module = [
@@ -261,6 +262,7 @@ ignore_names = [
     "logger",
     "settings",
     "config",
+    "cls",  # Standard Python class method parameter
     # Error handling utility functions (may be used in future)
     "handle_redaction_error",
     "safe_execute",
@@ -318,6 +320,43 @@ ignore_names = [
     "validate_queue_retry_delay",
     "validate_queue_max_retries",
     "validate_queue_overflow",
+    "validate_maxsize",
+    "validate_batch_size",
+    "validate_batch_timeout", 
+    "validate_retry_delay",
+    "validate_max_retries",
+    "validate_overflow",
+    "validate_processor_reset_interval",
+    "validate_mode",
+    "parse_required_fields",
+    # Processor metrics fields (settings fields that may be used in future)
+    "processor_enabled",
+    "processor_include_enrichers", 
+    "processor_reset_interval",
+    "parse_field_types",
+    "handle_backward_compatibility",
+    # LoggingSettings class and backward compatibility properties 
+    "LoggingSettings",
+    "level", 
+    "sinks",
+    "json_console",
+    "sampling_rate",
+    "enable_resource_metrics",
+    "trace_id_header", 
+    "enable_httpx_trace_propagation",
+    "user_context_enabled",
+    "queue_enabled",
+    "queue_maxsize", 
+    "queue_overflow",
+    "queue_batch_size",
+    "queue_batch_timeout",
+    "queue_retry_delay",
+    "queue_max_retries",
+    "metrics_enabled",
+    "metrics_sample_window",
+    "metrics_prometheus_enabled", 
+    "metrics_prometheus_port",
+    "metrics_prometheus_host",
     # Context and utility functions
     "context_copy",
     "get_span_id",

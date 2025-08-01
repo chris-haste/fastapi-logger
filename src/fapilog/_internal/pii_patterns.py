@@ -1,6 +1,7 @@
 """PII (Personally Identifiable Information) detection patterns and processor."""
 
 import re
+import warnings
 from collections import deque
 from typing import Any, List, cast
 
@@ -41,7 +42,9 @@ def _compile_pii_patterns(patterns: List[str]) -> List[re.Pattern[str]]:
             compiled_patterns.append(re.compile(pattern, re.IGNORECASE))
         except re.error as e:
             # Log warning but continue with other patterns
-            print(f"Warning: Invalid PII pattern '{pattern}': {e}")
+            warnings.warn(
+                f"Invalid PII pattern '{pattern}': {e}", UserWarning, stacklevel=2
+            )
     return compiled_patterns
 
 

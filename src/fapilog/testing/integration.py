@@ -279,9 +279,14 @@ class SinkIntegrationTester:
             else:
                 uri = f"{sink_name}://test"
 
-            # Create settings with queue enabled
-            settings_dict = {"sinks": [uri], **queue_settings}
-            settings = LoggingSettings(**settings_dict)
+            # Create settings with queue enabled (using nested structure)
+            settings = LoggingSettings(sinks=[uri])
+            if "queue_enabled" in queue_settings:
+                settings.queue.enabled = queue_settings["queue_enabled"]
+            if "queue_maxsize" in queue_settings:
+                settings.queue.maxsize = queue_settings["queue_maxsize"]
+            if "queue_batch_size" in queue_settings:
+                settings.queue.batch_size = queue_settings["queue_batch_size"]
 
             # Test with container
             from ..container import LoggingContainer
@@ -305,7 +310,7 @@ class SinkIntegrationTester:
                 "sink_name": sink_name,
                 "sink_class": sink_class.__name__,
                 "messages_sent": num_messages,
-                "queue_enabled": settings.queue_enabled,
+                "queue_enabled": settings.queue.enabled,
                 "queue_worker_running": queue_worker._running
                 if queue_worker
                 else False,

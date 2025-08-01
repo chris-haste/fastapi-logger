@@ -84,28 +84,29 @@ def build_processor_chain(
 
     # 7. Custom redaction processor (regex patterns) - class-based with error handling
     redaction_processor = RedactionProcessor(
-        patterns=settings.redact_patterns, redact_level=settings.redact_level
+        patterns=settings.security.redact_patterns,
+        redact_level=settings.security.redact_level,
     )
     processors.append(_create_safe_processor(redaction_processor))
 
     # 8. Field redaction processor (field names)
     processors.append(
         field_redactor(
-            settings.redact_fields,
-            settings.redact_replacement,
-            settings.redact_level,
+            settings.security.redact_fields,
+            settings.security.redact_replacement,
+            settings.security.redact_level,
         )
     )
 
     # 9. PII auto-detection processor (after manual field redaction)
-    if settings.enable_auto_redact_pii:
+    if settings.security.enable_auto_redact_pii:
         # Combine default patterns with custom patterns
-        all_pii_patterns = DEFAULT_PII_PATTERNS + settings.custom_pii_patterns
+        all_pii_patterns = DEFAULT_PII_PATTERNS + settings.security.custom_pii_patterns
         processors.append(
             auto_redact_pii_processor(
                 all_pii_patterns,
-                settings.redact_replacement,
-                settings.redact_level,
+                settings.security.redact_replacement,
+                settings.security.redact_level,
             )
         )
 
@@ -127,12 +128,12 @@ def build_processor_chain(
     processors.append(run_registered_enrichers)
 
     # 14. Throttling processor - class-based with error handling (if enabled)
-    if settings.enable_throttling:
+    if settings.security.enable_throttling:
         throttle_config = {
-            "max_rate": settings.throttle_max_rate,
-            "window_seconds": settings.throttle_window_seconds,
-            "key_field": settings.throttle_key_field,
-            "strategy": settings.throttle_strategy,
+            "max_rate": settings.security.throttle_max_rate,
+            "window_seconds": settings.security.throttle_window_seconds,
+            "key_field": settings.security.throttle_key_field,
+            "strategy": settings.security.throttle_strategy,
         }
         if container is not None:
             throttle_config["container"] = container
@@ -140,12 +141,12 @@ def build_processor_chain(
         processors.append(_create_safe_processor(throttle_processor))
 
     # 15. Deduplication processor - class-based with error handling (if enabled)
-    if settings.enable_deduplication:
+    if settings.security.enable_deduplication:
         dedupe_config = {
-            "window_seconds": settings.dedupe_window_seconds,
-            "dedupe_fields": settings.dedupe_fields,
-            "max_cache_size": settings.dedupe_max_cache_size,
-            "hash_algorithm": settings.dedupe_hash_algorithm,
+            "window_seconds": settings.security.dedupe_window_seconds,
+            "dedupe_fields": settings.security.dedupe_fields,
+            "max_cache_size": settings.security.dedupe_max_cache_size,
+            "hash_algorithm": settings.security.dedupe_hash_algorithm,
         }
         if container is not None:
             dedupe_config["container"] = container
@@ -161,7 +162,7 @@ def build_processor_chain(
     processors.append(_create_safe_processor(filter_processor))
 
     # 18. Queue sink or renderer
-    if settings.queue_enabled:
+    if settings.queue.enabled:
         # Use pure dependency injection for queue sink
         if container is not None:
             # Import here to avoid circular imports
