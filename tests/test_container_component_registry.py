@@ -219,7 +219,9 @@ class TestLoggingContainerComponentRegistry:
         container = LoggingContainer(self.settings)
 
         # Test existing properties and methods still work
-        assert container.settings is self.settings
+        # Settings should be equivalent but not the same object (deep copied for isolation)
+        assert container.settings == self.settings
+        assert container.settings is not self.settings  # Ensure isolation
         assert not container.is_configured  # Not configured yet
 
         # Test logger access works
@@ -253,8 +255,9 @@ class TestLoggingContainerComponentRegistry:
         assert metrics_collector is not None
         assert prometheus_exporter is not None
 
-        # Check that factory was called with the container's settings
-        assert container._factory._settings is settings
+        # Check that factory was called with equivalent settings (deep copied for isolation)
+        assert container._factory._settings == settings
+        assert container._factory._settings is not settings  # Ensure isolation
 
     def test_factory_integration(self):
         """Test integration with ComponentFactory."""
@@ -262,7 +265,9 @@ class TestLoggingContainerComponentRegistry:
 
         # Verify factory is properly initialized with container
         assert container._factory.container is container
-        assert container._factory._settings is self.settings
+        # Settings should be equivalent but not the same object (deep copied for isolation)
+        assert container._factory._settings == self.settings
+        assert container._factory._settings is not self.settings  # Ensure isolation
 
     def test_registry_integration(self):
         """Test integration with ComponentRegistry."""

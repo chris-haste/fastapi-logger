@@ -71,7 +71,7 @@ class TestConfigureLogging:
         """Test that JSON logs contain expected fields."""
         with patch.dict(
             os.environ,
-            {"FAPILOG_JSON_CONSOLE": "json", "FAPILOG_QUEUE_ENABLED": "false"},
+            {"FAPILOG_JSON_CONSOLE": "json", "FAPILOG_QUEUE__ENABLED": "false"},
         ):
             logger, container = create_logger()
             self._containers_to_cleanup.append(container)
@@ -82,7 +82,7 @@ class TestConfigureLogging:
             # Log a test event
             logger.info("test_event")
 
-            # Capture stdout since structlog uses PrintLoggerFactory
+            # Capture stdout since we use StdoutSink
             captured = capsys.readouterr()
             log_line = captured.out.strip()
 
@@ -90,7 +90,7 @@ class TestConfigureLogging:
             if not log_line:
                 pytest.skip("No log output captured - logging configuration may vary")
 
-            # Parse the JSON log
+            # Parse JSON output to check fields
             log_data = json.loads(log_line)
 
             # Check required fields
@@ -110,7 +110,7 @@ class TestConfigureLogging:
         """Test that JSON rendering is used when explicitly set."""
         with patch.dict(
             os.environ,
-            {"FAPILOG_JSON_CONSOLE": "json", "FAPILOG_QUEUE_ENABLED": "false"},
+            {"FAPILOG_JSON_CONSOLE": "json", "FAPILOG_QUEUE__ENABLED": "false"},
         ):
             logger, container = create_logger()
             self._containers_to_cleanup.append(container)
@@ -129,7 +129,7 @@ class TestConfigureLogging:
         """Test that pretty rendering is used when explicitly set."""
         with patch.dict(
             os.environ,
-            {"FAPILOG_JSON_CONSOLE": "pretty", "FAPILOG_QUEUE_ENABLED": "false"},
+            {"FAPILOG_JSON_CONSOLE": "pretty", "FAPILOG_QUEUE__ENABLED": "false"},
         ):
             logger, container = create_logger()
             self._containers_to_cleanup.append(container)
@@ -147,7 +147,9 @@ class TestConfigureLogging:
     def test_tty_detection_pretty(self) -> None:
         """Test that TTY detection defaults to pretty output."""
         with patch.object(sys.stderr, "isatty", return_value=True):
-            with patch.dict(os.environ, {"FAPILOG_QUEUE_ENABLED": "false"}, clear=True):
+            with patch.dict(
+                os.environ, {"FAPILOG_QUEUE__ENABLED": "false"}, clear=True
+            ):
                 configure_logging()
 
                 # Check that structlog is configured with ConsoleRenderer
@@ -163,7 +165,9 @@ class TestConfigureLogging:
     def test_tty_detection_json(self) -> None:
         """Test that non-TTY defaults to JSON output."""
         with patch.object(sys.stderr, "isatty", return_value=False):
-            with patch.dict(os.environ, {"FAPILOG_QUEUE_ENABLED": "false"}, clear=True):
+            with patch.dict(
+                os.environ, {"FAPILOG_QUEUE__ENABLED": "false"}, clear=True
+            ):
                 logger, container = create_logger()
                 self._containers_to_cleanup.append(container)
 
@@ -207,7 +211,7 @@ class TestConfigureLogging:
 
         async def async_log_test() -> None:
             """Test logging in async context."""
-            with patch.dict(os.environ, {"FAPILOG_QUEUE_ENABLED": "false"}):
+            with patch.dict(os.environ, {"FAPILOG_QUEUE__ENABLED": "false"}):
                 logger, container = create_logger()
                 logger.info("async_test_event")
                 # Clean up container in async context
