@@ -10,6 +10,8 @@ import threading
 import time
 from typing import List, Tuple
 
+import structlog
+
 from fapilog.container import LoggingContainer
 from fapilog.settings import LoggingSettings
 
@@ -56,7 +58,7 @@ class TestContainerConcurrency:
 
         def use_container(
             container: LoggingContainer, container_id: int
-        ) -> List[object]:
+        ) -> List[structlog.BoundLogger]:
             """Use a container to create loggers and log messages."""
             results = []
             for i in range(10):
@@ -241,7 +243,9 @@ class TestContainerConcurrency:
         total_loggers = 200
         max_workers = 20
 
-        def create_batch_loggers(batch_id: int, batch_size: int) -> List[object]:
+        def create_batch_loggers(
+            batch_id: int, batch_size: int
+        ) -> List[structlog.BoundLogger]:
             """Create a batch of loggers."""
             loggers = []
             for i in range(batch_size):

@@ -23,7 +23,6 @@ class QueueSettings(BaseSettings):
     enabled: bool = Field(
         default=True,
         description="Enable async queue for non-blocking logging",
-        env="FAPILOG_QUEUE_ENABLED",
     )
     maxsize: int = Field(
         default=1000,

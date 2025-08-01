@@ -10,6 +10,7 @@ from statistics import mean, median
 from typing import List
 
 import pytest
+import structlog
 
 from fapilog.container import LoggingContainer
 
@@ -322,7 +323,7 @@ class TestContainerPerformance:
             sequential_loggers.append(logger)
         sequential_time = time.perf_counter() - sequential_start
 
-        def create_logger_batch(start_id: int) -> List[object]:
+        def create_logger_batch(start_id: int) -> List[structlog.BoundLogger]:
             """Create a batch of loggers."""
             loggers = []
             for i in range(10):

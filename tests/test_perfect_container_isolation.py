@@ -170,11 +170,13 @@ class TestPerfectContainerIsolation:
         """Test that container settings don't interfere with each other."""
         # Create containers with different sink configurations
         settings1 = LoggingSettings(
-            level="DEBUG", json_console="json", sinks=["stdout"], queue_enabled=False
+            level="DEBUG", json_console="json", sinks=["stdout"]
         )
+        settings1.queue.enabled = False
         settings2 = LoggingSettings(
-            level="WARNING", json_console="pretty", sinks=["stdout"], queue_enabled=True
+            level="WARNING", json_console="pretty", sinks=["stdout"]
         )
+        settings2.queue.enabled = True
 
         container1 = LoggingContainer(settings1)
         container2 = LoggingContainer(settings2)
@@ -186,7 +188,7 @@ class TestPerfectContainerIsolation:
         # Verify settings isolation
         assert container1._settings.level != container2._settings.level
         assert container1._settings.json_console != container2._settings.json_console
-        assert container1._settings.queue_enabled != container2._settings.queue_enabled
+        assert container1._settings.queue.enabled != container2._settings.queue.enabled
 
         # Verify that changing settings on one doesn't affect the other
         original_level = container2._settings.level
@@ -317,7 +319,9 @@ class TestPerfectContainerIsolation:
 
         # Cleanup all containers
         for result in results.values():
-            result["container"].shutdown_sync()
+            container = result["container"]
+            if hasattr(container, "shutdown_sync"):
+                container.shutdown_sync()
 
     def test_memory_isolation_multiple_containers(self):
         """Test that containers don't share memory or cause memory leaks."""

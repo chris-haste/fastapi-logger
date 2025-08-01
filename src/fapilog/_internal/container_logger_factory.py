@@ -6,7 +6,7 @@ isolation and eliminating global state dependencies.
 """
 
 import logging
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional, cast
 
 import structlog
 
@@ -110,10 +110,13 @@ class ContainerLoggerFactory:  # noqa: vulture
 
         # Create bound logger with container-specific processors
         # This bypasses structlog.get_logger() which uses global config
-        return self._wrapper_class(
-            stdlib_logger,
-            processors=self._processors,
-            context={},
+        return cast(
+            structlog.BoundLogger,
+            self._wrapper_class(
+                stdlib_logger,
+                processors=self._processors,
+                context={},
+            ),
         )
 
     def is_configured(self) -> bool:
