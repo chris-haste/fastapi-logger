@@ -127,12 +127,11 @@ class TestMonitoringServerFunctions:
         asyncio.run(test_async())
 
     def test_stop_metrics_server_with_no_exporter(self):
-        """Test stop_metrics_server when no exporter exists."""
+        """Test stop_metrics_server when None exporter is passed."""
         import asyncio
 
         async def test_async():
-            # Ensure no global exporter
-            with patch("fapilog.monitoring.get_prometheus_exporter", return_value=None):
-                await stop_metrics_server()  # Should not raise
+            # Test with None exporter (should not raise)
+            await stop_metrics_server(None)  # Should not raise
 
         asyncio.run(test_async())
