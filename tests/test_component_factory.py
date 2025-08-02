@@ -5,9 +5,13 @@ from unittest.mock import Mock
 import pytest
 
 from fapilog._internal.async_lock_manager import ProcessorLockManager
-from fapilog._internal.component_factory import ComponentFactory
+from fapilog._internal.component_factory import ComponentFactory, ManagerSet
+from fapilog._internal.configuration_manager import ConfigurationManager
+from fapilog._internal.lifecycle_manager import LifecycleManager
 from fapilog._internal.metrics import MetricsCollector
+from fapilog._internal.middleware_manager import MiddlewareManager
 from fapilog._internal.processor_metrics import ProcessorMetrics
+from fapilog._internal.sink_manager import SinkManager
 from fapilog.container import LoggingContainer
 from fapilog.monitoring import PrometheusExporter
 from fapilog.settings import LoggingSettings
@@ -474,3 +478,280 @@ class TestComponentFactoryTypeHints:
 
         assert collector_disabled is None
         assert exporter_disabled is None
+
+
+class TestComponentFactoryManagerCreation:
+    """Test ComponentFactory specialized manager creation methods."""
+
+    def test_create_configuration_manager(self):
+        """Test ConfigurationManager creation."""
+        container = LoggingContainer()
+        factory = ComponentFactory(container)
+
+        config_mgr = factory.create_configuration_manager()
+
+        assert isinstance(config_mgr, ConfigurationManager)
+        # ConfigurationManager is stateless, so test static methods exist
+        assert hasattr(config_mgr, "validate_settings")
+        assert hasattr(config_mgr, "determine_console_format")
+
+    def test_create_lifecycle_manager(self):
+        """Test LifecycleManager creation."""
+        container = LoggingContainer()
+        factory = ComponentFactory(container)
+
+        lifecycle_mgr = factory.create_lifecycle_manager()
+
+        assert isinstance(lifecycle_mgr, LifecycleManager)
+        assert hasattr(lifecycle_mgr, "configure_standard_logging")
+        assert hasattr(lifecycle_mgr, "register_shutdown_handler")
+
+    def test_create_sink_manager(self):
+        """Test SinkManager creation."""
+        container = LoggingContainer()
+        factory = ComponentFactory(container)
+
+        sink_mgr = factory.create_sink_manager()
+
+        assert isinstance(sink_mgr, SinkManager)
+        assert hasattr(sink_mgr, "setup_queue_worker")
+        assert hasattr(sink_mgr, "create_sinks_from_settings")
+
+    def test_create_middleware_manager(self):
+        """Test MiddlewareManager creation."""
+        container = LoggingContainer()
+        factory = ComponentFactory(container)
+
+        middleware_mgr = factory.create_middleware_manager()
+
+        assert isinstance(middleware_mgr, MiddlewareManager)
+        assert hasattr(middleware_mgr, "register_middleware")
+        assert hasattr(middleware_mgr, "configure_httpx_trace_propagation")
+
+    def test_manager_instances_are_independent(self):
+        """Test that multiple manager instances are independent."""
+        container = LoggingContainer()
+        factory = ComponentFactory(container)
+
+        # Create multiple instances of each manager
+        config1 = factory.create_configuration_manager()
+        config2 = factory.create_configuration_manager()
+        lifecycle1 = factory.create_lifecycle_manager()
+        lifecycle2 = factory.create_lifecycle_manager()
+        sink1 = factory.create_sink_manager()
+        sink2 = factory.create_sink_manager()
+        middleware1 = factory.create_middleware_manager()
+        middleware2 = factory.create_middleware_manager()
+
+        # All instances should be different objects
+        assert config1 is not config2
+        assert lifecycle1 is not lifecycle2
+        assert sink1 is not sink2
+        assert middleware1 is not middleware2
+
+    def test_managers_with_container_id(self):
+        """Test managers receive proper container_id from container."""
+        container = LoggingContainer()
+        # Set a specific container_id for testing
+        container._container_id = "test-container-123"
+        factory = ComponentFactory(container)
+
+        lifecycle_mgr = factory.create_lifecycle_manager()
+        sink_mgr = factory.create_sink_manager()
+        middleware_mgr = factory.create_middleware_manager()
+
+        # Managers should have received the container_id
+        assert lifecycle_mgr._container_id == "test-container-123"
+        assert sink_mgr._container_id == "test-container-123"
+        assert middleware_mgr._container_id == "test-container-123"
+
+    def test_managers_with_fallback_container_id(self):
+        """Test managers use fallback when container has no container_id attribute."""
+        container = LoggingContainer()
+        # Remove container_id attribute if it exists
+        if hasattr(container, "container_id"):
+            delattr(container, "container_id")
+        factory = ComponentFactory(container)
+
+        lifecycle_mgr = factory.create_lifecycle_manager()
+        sink_mgr = factory.create_sink_manager()
+        middleware_mgr = factory.create_middleware_manager()
+
+        # Managers should have received a fallback ID (string representation of container id)
+        assert isinstance(lifecycle_mgr._container_id, str)
+        assert isinstance(sink_mgr._container_id, str)
+        assert isinstance(middleware_mgr._container_id, str)
+        # All should have the same fallback ID from the same container
+        assert lifecycle_mgr._container_id == sink_mgr._container_id
+        assert sink_mgr._container_id == middleware_mgr._container_id
+
+
+class TestComponentFactoryManagerSet:
+    """Test ComponentFactory ManagerSet creation functionality."""
+
+    def test_create_managers_for_container_basic(self):
+        """Test basic ManagerSet creation."""
+        settings = LoggingSettings()
+        container = LoggingContainer(settings)
+        factory = ComponentFactory(container)
+
+        managers = factory.create_managers_for_container(settings)
+
+        assert isinstance(managers, ManagerSet)
+        assert isinstance(managers.configuration, ConfigurationManager)
+        assert isinstance(managers.lifecycle, LifecycleManager)
+        assert isinstance(managers.sink, SinkManager)
+        assert isinstance(managers.middleware, MiddlewareManager)
+
+    def test_manager_set_named_tuple_access(self):
+        """Test ManagerSet named tuple field access."""
+        settings = LoggingSettings()
+        container = LoggingContainer(settings)
+        factory = ComponentFactory(container)
+
+        managers = factory.create_managers_for_container(settings)
+
+        # Test attribute access
+        assert hasattr(managers, "configuration")
+        assert hasattr(managers, "lifecycle")
+        assert hasattr(managers, "sink")
+        assert hasattr(managers, "middleware")
+
+        # Test indexed access
+        assert managers[0] is managers.configuration
+        assert managers[1] is managers.lifecycle
+        assert managers[2] is managers.sink
+        assert managers[3] is managers.middleware
+
+    def test_manager_set_with_custom_settings(self):
+        """Test ManagerSet creation with custom settings."""
+        settings = LoggingSettings()
+        settings.metrics.enabled = True
+        settings.metrics.sample_window = 500
+        container = LoggingContainer(settings)
+        factory = ComponentFactory(container)
+
+        managers = factory.create_managers_for_container(settings)
+
+        # All managers should be created successfully regardless of settings
+        assert isinstance(managers.configuration, ConfigurationManager)
+        assert isinstance(managers.lifecycle, LifecycleManager)
+        assert isinstance(managers.sink, SinkManager)
+        assert isinstance(managers.middleware, MiddlewareManager)
+
+    def test_manager_set_independence_between_calls(self):
+        """Test that multiple ManagerSet calls create independent instances."""
+        settings = LoggingSettings()
+        container = LoggingContainer(settings)
+        factory = ComponentFactory(container)
+
+        managers1 = factory.create_managers_for_container(settings)
+        managers2 = factory.create_managers_for_container(settings)
+
+        # ManagerSet instances should be different
+        assert managers1 is not managers2
+
+        # Each manager instance should be different
+        assert managers1.configuration is not managers2.configuration
+        assert managers1.lifecycle is not managers2.lifecycle
+        assert managers1.sink is not managers2.sink
+        assert managers1.middleware is not managers2.middleware
+
+    def test_manager_set_container_id_consistency(self):
+        """Test that all managers in a set have consistent container_id."""
+        container = LoggingContainer()
+        container._container_id = "test-set-123"
+        factory = ComponentFactory(container)
+        settings = LoggingSettings()
+
+        managers = factory.create_managers_for_container(settings)
+
+        # All non-stateless managers should have the same container_id
+        expected_id = "test-set-123"
+        assert managers.lifecycle._container_id == expected_id
+        assert managers.sink._container_id == expected_id
+        assert managers.middleware._container_id == expected_id
+
+    def test_manager_set_creation_order(self):
+        """Test that managers are created in proper dependency order."""
+        settings = LoggingSettings()
+        container = LoggingContainer(settings)
+        factory = ComponentFactory(container)
+
+        # This should not raise any exceptions due to dependency issues
+        managers = factory.create_managers_for_container(settings)
+
+        # Configuration manager should be stateless (no dependencies)
+        assert isinstance(managers.configuration, ConfigurationManager)
+
+        # Other managers should be properly initialized
+        assert isinstance(managers.lifecycle, LifecycleManager)
+        assert isinstance(managers.sink, SinkManager)
+        assert isinstance(managers.middleware, MiddlewareManager)
+
+
+class TestComponentFactoryManagerIntegration:
+    """Test ComponentFactory manager integration scenarios."""
+
+    def test_all_manager_types_created(self):
+        """Test that factory can create all manager types simultaneously."""
+        container = LoggingContainer()
+        factory = ComponentFactory(container)
+
+        # Create all manager types individually
+        config_mgr = factory.create_configuration_manager()
+        lifecycle_mgr = factory.create_lifecycle_manager()
+        sink_mgr = factory.create_sink_manager()
+        middleware_mgr = factory.create_middleware_manager()
+
+        # Create manager set
+        settings = LoggingSettings()
+        managers = factory.create_managers_for_container(settings)
+
+        # All should be proper instances
+        assert isinstance(config_mgr, ConfigurationManager)
+        assert isinstance(lifecycle_mgr, LifecycleManager)
+        assert isinstance(sink_mgr, SinkManager)
+        assert isinstance(middleware_mgr, MiddlewareManager)
+        assert isinstance(managers, ManagerSet)
+
+    def test_factory_isolation_between_containers(self):
+        """Test factory isolation between different containers."""
+        settings1 = LoggingSettings()
+        settings2 = LoggingSettings()
+        container1 = LoggingContainer(settings1)
+        container2 = LoggingContainer(settings2)
+        container1._container_id = "container-1"
+        container2._container_id = "container-2"
+
+        factory1 = ComponentFactory(container1)
+        factory2 = ComponentFactory(container2)
+
+        managers1 = factory1.create_managers_for_container(settings1)
+        managers2 = factory2.create_managers_for_container(settings2)
+
+        # Manager sets should be completely independent
+        assert managers1 is not managers2
+        assert managers1.lifecycle._container_id == "container-1"
+        assert managers2.lifecycle._container_id == "container-2"
+
+    def test_manager_functionality_after_creation(self):
+        """Test that created managers are functional."""
+        settings = LoggingSettings()
+        container = LoggingContainer(settings)
+        factory = ComponentFactory(container)
+
+        managers = factory.create_managers_for_container(settings)
+
+        # Test ConfigurationManager functionality
+        validated_settings = managers.configuration.validate_settings(settings)
+        assert isinstance(validated_settings, LoggingSettings)
+
+        console_format = managers.configuration.determine_console_format("auto")
+        assert console_format in ["pretty", "json"]
+
+        # Test that other managers have expected interface
+        assert hasattr(managers.lifecycle, "configure_standard_logging")
+        assert hasattr(managers.sink, "setup_queue_worker")
+        assert hasattr(managers.middleware, "register_middleware")
+        assert hasattr(managers.middleware, "configure_httpx_trace_propagation")

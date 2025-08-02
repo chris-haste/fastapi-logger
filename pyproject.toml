@@ -291,6 +291,12 @@ ignore_names = [
     "get_httpx_propagation", 
     "is_httpx_propagation_enabled",
     
+    # ComponentFactory ManagerSet fields and methods (public API)
+    "configuration",
+    "lifecycle", 
+    "middleware",
+    "create_managers_for_container",
+    
     # MetricsManager public interface methods
     "get_prometheus_exporter",
     "is_metrics_enabled",
