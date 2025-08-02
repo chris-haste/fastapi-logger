@@ -1,22 +1,8 @@
 """Pure dependency injection container for fapilog logging components.
 
-This module provides a completely redesigned LoggingContainer that implements
-pure dependency injection without ANY global state. Key improvements:
-
-- Zero global variables or state (including structlog configuration)
-- Complete container isolation (no exceptions)
-- Perfect thread safety without global locks
-- Factory-based logger creation for optimal performance
-- Context manager support for scoped access
-- Memory efficient with container-specific configuration
-
-Breaking Changes from Previous Version:
-- Removed get_current_container() and set_current_container() functions
-- Removed cleanup_all_containers() function
-- Removed all global state variables
-- Containers must be passed explicitly (pure dependency injection)
-
-See CONTAINER_MIGRATION_NOTES.md for detailed migration guide.
+This module provides a LoggingContainer that implements pure dependency
+injection without global state, with complete container isolation and
+thread safety through specialized manager classes.
 """
 
 import logging
@@ -33,6 +19,7 @@ from ._internal.configuration_manager import ConfigurationManager
 from ._internal.container_logger_factory import ContainerLoggerFactory
 from ._internal.lifecycle_manager import LifecycleManager
 from ._internal.metrics import MetricsCollector
+from ._internal.metrics_manager import MetricsManager
 from ._internal.middleware_manager import MiddlewareManager
 from ._internal.processor_metrics import ProcessorMetrics
 from ._internal.queue_worker import QueueWorker
@@ -55,64 +42,41 @@ logger = logging.getLogger(__name__)
 
 
 class LoggingContainer:
-    """Container that manages all logging dependencies and lifecycle.
+    """Container orchestrating logging dependencies through specialized managers.
 
-    This is a pure dependency injection container with NO global state,
-    allowing multiple logging configurations to coexist safely while
-    maintaining thread-safety and COMPLETE isolation between instances.
-
-    Key Principles:
-    - Zero global state variables (including structlog configuration)
-    - Explicit dependency passing
-    - COMPLETE container isolation (no exceptions)
-    - Context manager support for scoped access
-    - Thread-safe operations without global locks
-    - Factory-based logger creation for optimal performance
+    Pure dependency injection with no global state, complete container isolation,
+    and thread-safe operations through ConfigurationManager, LifecycleManager,
+    SinkManager, MiddlewareManager, and MetricsManager.
     """
 
     def __init__(self, settings: Optional[LoggingSettings] = None) -> None:
-        """Initialize the logging container with pure dependency injection.
-
-        Args:
-            settings: Optional LoggingSettings instance. If None, created from env.
-        """
+        """Initialize the logging container with manager orchestration."""
         self._lock = threading.RLock()
-        # Create a copy of settings to ensure complete container isolation
-        self._settings: LoggingSettings
-        if settings is not None:
-            # Only copy if needed to avoid expensive deep copy for identical settings
-            # Use model_copy() which is faster than deepcopy for Pydantic models
-            self._settings = settings.model_copy(deep=True)
-        else:
-            # Create fresh LoggingSettings to pick up any environment variable changes
-            # Don't use cached defaults when no settings provided, to allow env var overrides
-            self._settings = LoggingSettings()
+        # Copy settings to ensure container isolation
+        self._settings = (
+            settings.model_copy(deep=True)
+            if settings is not None
+            else LoggingSettings()
+        )
         self._configured = False
 
-        # Component management
+        # Component management - defer creation until configure()
         self._container_id = f"container_{id(self)}"
-        # Defer expensive component creation until configure() for better performance
+        self._configured = False
         self._registry: Optional[ComponentRegistry] = None
         self._factory: Optional[ComponentFactory] = None
         self._lifecycle_manager: Optional[LifecycleManager] = None
         self._middleware_manager: Optional[MiddlewareManager] = None
+        self._metrics_manager: Optional[MetricsManager] = None
         self._sink_manager: Optional[SinkManager] = None
         self._queue_worker: Optional[QueueWorker] = None
         self._sinks: List[Any] = []
-        self._shutdown_registered = False
-
-        # Metrics components
-        self._metrics_collector: Optional[Any] = None
-
-        # Logger factory management (for container isolation)
         self._logger_factory: Optional[ContainerLoggerFactory] = None
         self._console_format: Optional[str] = None
-
-        # Performance optimization: cache settings hash to avoid redundant validation
         self._settings_hash: Optional[int] = None
 
     def _ensure_components_initialized(self) -> None:
-        """Ensure all manager components are initialized."""
+        """Initialize all manager components if needed."""
         if self._registry is None:
             self._registry = ComponentRegistry(self._container_id)
         if self._factory is None:
@@ -121,31 +85,26 @@ class LoggingContainer:
             self._lifecycle_manager = LifecycleManager(self._container_id)
         if self._middleware_manager is None:
             self._middleware_manager = MiddlewareManager(self._container_id)
+        if self._metrics_manager is None:
+            self._metrics_manager = MetricsManager(self._container_id)
         if self._sink_manager is None:
             self._sink_manager = SinkManager(self._container_id)
 
     def __enter__(self) -> "LoggingContainer":
-        """Context manager entry - configure the container if not already done."""
+        """Context manager entry - configure if needed."""
         if not self._configured:
             self.configure()
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        """Context manager exit - gracefully shutdown the container."""
+        """Context manager exit - shutdown gracefully."""
         self.shutdown_sync()
 
     @contextmanager
     def scoped_logger(
         self, name: str = ""
     ) -> Generator[structlog.BoundLogger, None, None]:
-        """Create a scoped logger that's automatically cleaned up.
-
-        Args:
-            name: Optional logger name
-
-        Yields:
-            A configured structlog.BoundLogger instance
-        """
+        """Create a scoped logger that's automatically cleaned up."""
         try:
             if not self._configured:
                 self.configure()
@@ -159,27 +118,14 @@ class LoggingContainer:
         settings: Optional[LoggingSettings] = None,
         app: Optional[Any] = None,
     ) -> structlog.BoundLogger:
-        """Configure logging with the container.
-
-        This method is idempotent - subsequent calls will not duplicate
-        configuration.
-
-        Args:
-            settings: Optional LoggingSettings instance to override container
-                     settings
-            app: Optional FastAPI app instance for middleware registration
-
-        Returns:
-            A configured structlog.BoundLogger instance
-        """
+        """Configure logging with the container (idempotent)."""
         with self._lock:
             # Initialize components on first configure() call for better performance
             self._ensure_components_initialized()
 
-            # Performance optimization: avoid redundant validation
+            # Validate settings if changed or first time
             settings_changed = False
             if settings is not None:
-                # Check if settings actually changed to avoid redundant work
                 settings_hash = hash(str(settings))
                 if self._settings_hash != settings_hash:
                     self._settings = ConfigurationManager.validate_settings(settings)
@@ -190,158 +136,118 @@ class LoggingContainer:
                 self._settings_hash = hash(str(self._settings))
                 settings_changed = True
 
-            # Check if already configured and settings haven't changed
+            # Early return if already configured and settings unchanged
             if self._configured and not settings_changed:
-                # Still register middleware if app is provided
                 if app is not None:
                     self._middleware_manager.register_middleware(
                         app, self._settings, self.shutdown
                     )
                 return self.get_logger()
 
-            # Determine final configuration values from settings
+            # Configure all components through managers
             log_level = self._settings.level
             console_format = ConfigurationManager.determine_console_format(
                 self._settings.json_console
             )
-            # Cache console format for logger factory optimization
             self._console_format = console_format
 
-            # Configure standard library logging
             self._lifecycle_manager.configure_standard_logging(log_level)
 
-            # Initialize queue worker if enabled
             if self._settings.queue.enabled:
                 self._queue_worker = self._sink_manager.setup_queue_worker(
                     self._settings, console_format, self
                 )
                 self._sinks = self._sink_manager.get_sinks()
 
-            # Initialize metrics if enabled
-            self._configure_metrics()
-
-            # Configure structlog with pure dependency injection
+            self._metrics_manager.configure_metrics(self._settings)
+            self._metrics_manager.setup_prometheus_exporter(
+                self._settings, self._registry
+            )
             self._configure_structlog(console_format, log_level)
-
-            # Configure httpx trace propagation
             self._middleware_manager.configure_httpx_trace_propagation(self._settings)
 
-            # Register middleware if app is provided
             if app is not None:
                 self._middleware_manager.register_middleware(
                     app, self._settings, self.shutdown
                 )
 
-            # Mark as configured
             self._configured = True
-
-            # Register shutdown handler once
             self._lifecycle_manager.register_shutdown_handler(self.shutdown_sync)
-
-            return self.get_logger()  # Use container-specific factory
+            return self.get_logger()
 
     def _configure_structlog(self, console_format: str, log_level: str) -> None:
-        """Configure container-specific logging with factory approach.
-
-        Creates a ContainerLoggerFactory that generates loggers with
-        container-specific configuration without any global state.
-        No structlog.configure() calls are made.
-
-        Args:
-            console_format: Format style for console output
-            log_level: Log level for this container
-        """
-        # Store format for factory
+        """Configure container-specific logging with factory approach."""
         self._console_format = console_format
-
-        # Create container-specific factory (NO structlog.configure() call!)
         self._logger_factory = ContainerLoggerFactory(self)
-
-    def _configure_metrics(self) -> None:
-        """Configure metrics collection and Prometheus exporter."""
-        # Initialize metrics collector if enabled
-        if self._settings.metrics.enabled:
-            self._metrics_collector = MetricsCollector(
-                enabled=True,
-                sample_window=self._settings.metrics.sample_window,
-            )
-
-        # Prometheus exporter will be created on-demand via component registry
 
     async def shutdown(self) -> None:
         """Shutdown the container gracefully (async version)."""
+        # Coordinate shutdown through managers
+        await self._shutdown_async_managers()
+
+    async def _shutdown_async_managers(self) -> None:
+        """Coordinate async shutdown across all managers."""
         await self._lifecycle_manager.shutdown_async(
             registry=self._registry,
             queue_worker=self._queue_worker,
-            httpx_propagation=None,  # Now handled by MiddlewareManager
-            metrics_collector=self._metrics_collector,
+            httpx_propagation=None,
+            metrics_collector=self._metrics_manager.get_metrics_collector()
+            if self._metrics_manager
+            else None,
             sink_manager=self._sink_manager,
         )
-
-        # Cleanup middleware manager
-        if self._middleware_manager is not None:
+        if self._metrics_manager:
+            await self._metrics_manager.shutdown_async()
+        if self._middleware_manager:
             self._middleware_manager.cleanup_httpx_propagation()
-
-        # Reset component references after shutdown
-        self._queue_worker = None
-        self._middleware_manager = None
-        self._metrics_collector = None
+        self._reset_manager_references()
 
     def shutdown_sync(self) -> None:
         """Shutdown the container gracefully (sync version)."""
+        # Coordinate shutdown through managers
+        self._shutdown_sync_managers()
+
+    def _shutdown_sync_managers(self) -> None:
+        """Coordinate sync shutdown across all managers."""
         self._lifecycle_manager.shutdown_sync(
             registry=self._registry,
             queue_worker=self._queue_worker,
-            httpx_propagation=None,  # Now handled by MiddlewareManager
-            metrics_collector=self._metrics_collector,
+            httpx_propagation=None,
+            metrics_collector=self._metrics_manager.get_metrics_collector()
+            if self._metrics_manager
+            else None,
             sink_manager=self._sink_manager,
         )
-
-        # Cleanup middleware manager
-        if self._middleware_manager is not None:
+        if self._metrics_manager:
+            self._metrics_manager.shutdown_sync()
+        if self._middleware_manager:
             self._middleware_manager.cleanup_httpx_propagation()
+        self._reset_manager_references()
 
-        # Reset component references after shutdown
-        self._queue_worker = None
-        self._middleware_manager = None
-        self._metrics_collector = None
+    def _reset_manager_references(self) -> None:
+        """Reset manager references after shutdown."""
+        self._queue_worker = self._middleware_manager = self._metrics_manager = None
 
     def reset(self) -> None:
         """Reset the container for testing purposes."""
         with self._lock:
             self.shutdown_sync()
             self._configured = False
-
-            # Reset metrics components
-            self._metrics_collector = None
-
-            # Reset structlog configuration
+            if self._metrics_manager is not None:
+                self._metrics_manager.cleanup_resources()
             structlog.reset_defaults()
-
-            # Remove all handlers from root logger
             root_logger = logging.getLogger()
             for handler in root_logger.handlers[:]:
                 root_logger.removeHandler(handler)
 
     @classmethod
     def create_from_settings(cls, settings: LoggingSettings) -> "LoggingContainer":
-        """Factory method to create a container from settings.
-
-        Args:
-            settings: LoggingSettings instance
-
-        Returns:
-            A new LoggingContainer instance
-        """
+        """Factory method to create a container from settings."""
         return cls(settings=settings)
 
     @classmethod
     def create_with_defaults(cls) -> "LoggingContainer":
-        """Factory method to create a container with default settings.
-
-        Returns:
-            A new LoggingContainer instance with default settings
-        """
+        """Factory method to create a container with default settings."""
         return cls()
 
     @property
@@ -360,35 +266,14 @@ class LoggingContainer:
         return self._queue_worker
 
     async def setup(self) -> None:
-        """Async setup for container components (e.g., start Prometheus exporter).
-
-        This should be called after configure() if using async components.
-        """
+        """Async setup for container components."""
         with self._lock:
-            # Start Prometheus exporter if configured
-            prometheus_exporter = self.get_prometheus_exporter()
-            if prometheus_exporter is not None:
-                try:
-                    await prometheus_exporter.start()
-                except Exception as e:
-                    logger.warning(f"Failed to start Prometheus exporter: {e}")
+            # Start async metrics components through MetricsManager
+            if self._metrics_manager is not None:
+                await self._metrics_manager.start_async_components()
 
     def get_logger(self, name: str = "") -> structlog.BoundLogger:
-        """Get container-specific logger using factory approach.
-
-        Returns a logger created by this container's factory with
-        container-specific processors and configuration. Each container
-        has completely independent loggers.
-
-        Args:
-            name: Optional logger name
-
-        Returns:
-            Container-specific structlog.BoundLogger instance
-
-        Raises:
-            RuntimeError: If container not properly configured
-        """
+        """Get container-specific logger using factory approach."""
         if not self._configured:
             self.configure()
 
@@ -397,112 +282,75 @@ class LoggingContainer:
 
         return self._logger_factory.create_logger(name)
 
-    def get_lock_manager(self) -> ProcessorLockManager:
-        """Get container-scoped ProcessorLockManager instance.
-
-        Returns:
-            ProcessorLockManager instance scoped to this container
-        """
+    def _get_component(self, component_type, factory_method):
+        """Helper to get or create components from registry."""
         self._ensure_components_initialized()
-        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+        return self._registry.get_or_create_component(component_type, factory_method)  # type: ignore[union-attr]
+
+    def get_lock_manager(self) -> ProcessorLockManager:
+        """Get container-scoped ProcessorLockManager instance."""
+        return self._get_component(  # type: ignore[no-any-return]
             ProcessorLockManager,
-            self._factory.create_lock_manager,  # type: ignore[union-attr]
+            lambda: self._factory.create_lock_manager(),  # type: ignore[union-attr]
         )
 
     def get_processor_metrics(self) -> ProcessorMetrics:
-        """Get container-scoped ProcessorMetrics instance.
-
-        Returns:
-            ProcessorMetrics instance scoped to this container
-        """
-        self._ensure_components_initialized()
-        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+        """Get container-scoped ProcessorMetrics instance."""
+        return self._get_component(  # type: ignore[no-any-return]
             ProcessorMetrics,
-            self._factory.create_processor_metrics,  # type: ignore[union-attr]
+            lambda: self._factory.create_processor_metrics(),  # type: ignore[union-attr]
         )
 
     def get_metrics_collector(self) -> Optional[MetricsCollector]:
-        """Get container-scoped MetricsCollector instance.
-
-        Returns:
-            MetricsCollector instance if enabled in settings, None otherwise
-        """
+        """Get container-scoped MetricsCollector instance."""
         if not self._settings.metrics.enabled:
             return None
-
-        self._ensure_components_initialized()
-        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+        return self._get_component(  # type: ignore[no-any-return]
             MetricsCollector,
-            self._factory.create_metrics_collector,  # type: ignore[union-attr]
+            lambda: self._factory.create_metrics_collector(),  # type: ignore[union-attr]
         )
 
     def get_prometheus_exporter(self) -> Optional[PrometheusExporter]:
-        """Get container-scoped PrometheusExporter instance.
-
-        Returns:
-            PrometheusExporter instance if enabled in settings, None otherwise
-        """
+        """Get container-scoped PrometheusExporter instance."""
         if not self._settings.metrics.prometheus_enabled:
             return None
-
-        self._ensure_components_initialized()
-        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+        return self._get_component(  # type: ignore[no-any-return]
             PrometheusExporter,
-            self._factory.create_prometheus_exporter,  # type: ignore[union-attr]
+            lambda: self._factory.create_prometheus_exporter(),  # type: ignore[union-attr]
         )
 
     def get_async_smart_cache(self) -> "AsyncSmartCache":
-        """Get container-scoped AsyncSmartCache instance.
-
-        Returns:
-            AsyncSmartCache instance scoped to this container
-        """
+        """Get container-scoped AsyncSmartCache instance."""
         from .enrichers import AsyncSmartCache
 
-        self._ensure_components_initialized()
-        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+        return self._get_component(  # type: ignore[no-any-return]
             AsyncSmartCache,
-            self._factory.create_async_smart_cache,  # type: ignore[union-attr]
+            lambda: self._factory.create_async_smart_cache(),  # type: ignore[union-attr]
         )
 
     def get_enricher_error_handler(self) -> "EnricherErrorHandler":
-        """Get container-scoped EnricherErrorHandler instance.
-
-        Returns:
-            EnricherErrorHandler instance scoped to this container
-        """
+        """Get container-scoped EnricherErrorHandler instance."""
         from .enrichers import EnricherErrorHandler
 
-        self._ensure_components_initialized()
-        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+        return self._get_component(  # type: ignore[no-any-return]
             EnricherErrorHandler,
-            self._factory.create_enricher_error_handler,  # type: ignore[union-attr]
+            lambda: self._factory.create_enricher_error_handler(),  # type: ignore[union-attr]
         )
 
     def get_enricher_health_monitor(self) -> "EnricherHealthMonitor":
-        """Get container-scoped EnricherHealthMonitor instance.
-
-        Returns:
-            EnricherHealthMonitor instance scoped to this container
-        """
+        """Get container-scoped EnricherHealthMonitor instance."""
         from .enrichers import EnricherHealthMonitor
 
-        self._ensure_components_initialized()
-        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+        return self._get_component(  # type: ignore[no-any-return]
             EnricherHealthMonitor,
-            self._factory.create_enricher_health_monitor,  # type: ignore[union-attr]
+            lambda: self._factory.create_enricher_health_monitor(),  # type: ignore[union-attr]
         )
 
     def get_retry_coordinator(self) -> "RetryCoordinator":
-        """Get container-scoped RetryCoordinator instance.
-
-        Returns:
-            RetryCoordinator instance scoped to this container
-        """
+        """Get container-scoped RetryCoordinator instance."""
         from .enrichers import RetryCoordinator
 
-        self._ensure_components_initialized()
-        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+        return self._get_component(  # type: ignore[no-any-return]
             RetryCoordinator,
-            self._factory.create_retry_coordinator,  # type: ignore[union-attr]
+            lambda: self._factory.create_retry_coordinator(),  # type: ignore[union-attr]
         )
