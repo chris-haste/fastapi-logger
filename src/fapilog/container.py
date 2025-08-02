@@ -50,19 +50,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Cache default settings instance to avoid recreating on every container initialization
-_default_settings: Optional[LoggingSettings] = None
-_default_settings_lock = threading.Lock()
-
-
-def _get_default_settings() -> LoggingSettings:
-    """Get cached default LoggingSettings instance."""
-    global _default_settings
-    if _default_settings is None:
-        with _default_settings_lock:
-            if _default_settings is None:
-                _default_settings = LoggingSettings()
-    return _default_settings
+# Note: Previously cached default settings, but removed to allow environment
+# variable overrides to work correctly in tests and dynamic configurations.
 
 
 class LoggingContainer:
@@ -95,9 +84,9 @@ class LoggingContainer:
             # Use model_copy() which is faster than deepcopy for Pydantic models
             self._settings = settings.model_copy(deep=True)
         else:
-            # Use cached default settings and copy for isolation
-            default_settings = _get_default_settings()
-            self._settings = default_settings.model_copy(deep=True)
+            # Create fresh LoggingSettings to pick up any environment variable changes
+            # Don't use cached defaults when no settings provided, to allow env var overrides
+            self._settings = LoggingSettings()
         self._configured = False
 
         # Component management
