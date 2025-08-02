@@ -41,7 +41,9 @@ class TestLoggingContainerComponentRegistry:
         assert hasattr(container, "_factory")
         assert hasattr(container, "_container_id")
 
-        # Check types
+        # Check types (components are deferred until first use)
+        # Call a method to initialize components
+        container.get_lock_manager()
         assert isinstance(container._registry, ComponentRegistry)
         assert isinstance(container._factory, ComponentFactory)
         assert isinstance(container._container_id, str)
@@ -205,11 +207,13 @@ class TestLoggingContainerComponentRegistry:
         _metrics_collector = container.get_metrics_collector()
 
         # Verify components exist in registry
+        assert container._registry is not None
         assert ProcessorLockManager in container._registry
         assert ProcessorMetrics in container._registry
         assert MetricsCollector in container._registry
 
         # Mock the registry cleanup method to verify it's called
+        assert container._registry is not None
         with patch.object(container._registry, "cleanup") as mock_cleanup:
             container.shutdown_sync()
             mock_cleanup.assert_called_once()
@@ -274,10 +278,12 @@ class TestLoggingContainerComponentRegistry:
         container = LoggingContainer(self.settings)
 
         # Verify registry is properly initialized
+        assert container._registry is not None
         assert container._registry.container_id == container._container_id
 
         # Test registry component tracking
         lock_manager = container.get_lock_manager()
+        assert container._registry is not None
         assert ProcessorLockManager in container._registry
         assert container._registry.get_component(ProcessorLockManager) is lock_manager
 
@@ -303,6 +309,7 @@ class TestContainerAsyncSupport:
         container.get_prometheus_exporter()
 
         # Mock the registry cleanup method to verify it's called
+        assert container._registry is not None
         with patch.object(container._registry, "cleanup") as mock_cleanup:
             await container.shutdown()
             mock_cleanup.assert_called_once()
@@ -340,6 +347,9 @@ class TestContainerErrorHandling:
         container = LoggingContainer(self.settings)
 
         # Mock registry to raise exception during cleanup
+        # Initialize components first
+        container.get_lock_manager()
+        assert container._registry is not None
         with patch.object(
             container._registry, "cleanup", side_effect=Exception("Cleanup error")
         ):
@@ -434,4 +444,5 @@ class TestContainerPerformanceCharacteristics:
             container.get_metrics_collector()
 
         # Should only have one instance of each component type
+        assert container._registry is not None
         assert len(container._registry) <= 3
