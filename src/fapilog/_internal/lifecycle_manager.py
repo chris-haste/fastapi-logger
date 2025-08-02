@@ -6,23 +6,22 @@ the single responsibility principle.
 
 Key Features:
 - Standard logging configuration
-- Shutdown handler registration for FastAPI apps
+- Shutdown handler registration for process cleanup
 - Graceful shutdown and cleanup operations
 - Async/await pattern support
 - Thread-safe operations
 - Clean interface with no external dependencies beyond required types
+
+Note: Middleware registration is now handled by MiddlewareManager for
+better separation of concerns.
 """
 
 import atexit
 import logging
-import os
-import sys
 import threading
 from typing import Any, Callable, Optional
 
-from ..middleware import TraceIDMiddleware
 from ..monitoring import PrometheusExporter
-from ..settings import LoggingSettings
 from .error_handling import handle_configuration_error
 
 # Note: FastAPI lifespan RuntimeWarnings in test environments are expected and harmless.
@@ -35,8 +34,9 @@ logger = logging.getLogger(__name__)
 class LifecycleManager:
     """Manages lifecycle operations for logging components.
 
-    This class handles all application lifecycle events including startup
+    This class handles application lifecycle events including startup
     configuration, shutdown handlers, and graceful cleanup operations.
+    Middleware registration is handled separately by MiddlewareManager.
 
     Design Principles:
     - Clean separation of lifecycle concerns
@@ -94,39 +94,6 @@ class LifecycleManager:
                 log_level,
                 "valid logging level (DEBUG/INFO/WARNING/ERROR/CRITICAL)",
             ) from e
-
-    def register_middleware(
-        self,
-        app: Any,
-        settings: LoggingSettings,
-        shutdown_callback: Optional[Callable[[], Any]] = None,
-    ) -> None:
-        """Register middleware and shutdown handlers with FastAPI app.
-
-        Args:
-            app: FastAPI application instance
-            settings: LoggingSettings containing trace_id_header configuration
-            shutdown_callback: Optional callback to register as shutdown handler
-        """
-        # Register trace ID middleware
-        app.add_middleware(TraceIDMiddleware, trace_id_header=settings.trace_id_header)
-
-        # Register shutdown event handler if callback provided
-        # Skip FastAPI shutdown handler registration in test environments
-        # to avoid RuntimeWarning about unawaited coroutines
-        if shutdown_callback is not None:
-            # Detect test environment more reliably
-            is_testing = (
-                "pytest" in sys.modules
-                or "PYTEST_CURRENT_TEST" in os.environ
-                or "_pytest" in sys.modules
-                or any("pytest" in arg for arg in sys.argv)
-            )
-
-            # Only register shutdown handler for production FastAPI applications
-            # In test environments, rely on atexit handlers for cleanup
-            if not is_testing and hasattr(app, "router") and hasattr(app, "state"):
-                app.add_event_handler("shutdown", shutdown_callback)
 
     def register_shutdown_handler(self, cleanup_func: Callable[[], None]) -> None:
         """Register atexit shutdown handler to ensure cleanup on process exit.

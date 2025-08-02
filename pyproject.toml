@@ -285,6 +285,11 @@ ignore_names = [
     "record_sink_retry",
     "_write_with_metrics",
     "get_queue_worker",
+    
+    # MiddlewareManager public interface methods
+    "setup_trace_middleware",
+    "get_httpx_propagation", 
+    "is_httpx_propagation_enabled",
 
     "is_configured",
     "setup",

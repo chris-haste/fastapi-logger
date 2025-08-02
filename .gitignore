@@ -252,3 +252,4 @@ htmlcov/
 # Test artifacts
 .pytest_cache/
 .tox/ 
+slow-tests.txt

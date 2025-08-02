@@ -8,7 +8,6 @@ import pytest
 
 from fapilog._internal.lifecycle_manager import LifecycleManager
 from fapilog.exceptions import ConfigurationError
-from fapilog.settings import LoggingSettings
 
 
 class TestLifecycleManager:
@@ -97,38 +96,18 @@ class TestLifecycleManager:
         with pytest.raises(ConfigurationError):
             manager.configure_standard_logging("INVALID_LEVEL")
 
-    def test_register_middleware_with_shutdown_callback(self):
-        """Test registering middleware with shutdown callback."""
+    def test_lifecycle_manager_no_longer_handles_middleware(self):
+        """Test that LifecycleManager no longer has middleware registration methods.
+
+        Middleware registration has been moved to MiddlewareManager as part of
+        the separation of concerns. This test ensures the method is not available.
+        """
         manager = LifecycleManager("test")
-        mock_app = MagicMock()
-        settings = LoggingSettings(trace_id_header="X-Custom-Trace")
-        shutdown_callback = MagicMock()
 
-        manager.register_middleware(mock_app, settings, shutdown_callback)
+        # Verify register_middleware method no longer exists
+        assert not hasattr(manager, "register_middleware")
 
-        # Verify middleware registration
-        mock_app.add_middleware.assert_called_once()
-        args, kwargs = mock_app.add_middleware.call_args
-        assert len(args) >= 1
-        assert kwargs.get("trace_id_header") == "X-Custom-Trace"
-
-        # Verify shutdown handler registration is skipped in test environment
-        # (Since we're running under pytest, the FastAPI handler should not be registered)
-        mock_app.add_event_handler.assert_not_called()
-
-    def test_register_middleware_without_shutdown_callback(self):
-        """Test registering middleware without shutdown callback."""
-        manager = LifecycleManager("test")
-        mock_app = MagicMock()
-        settings = LoggingSettings(trace_id_header="X-Request-ID")
-
-        manager.register_middleware(mock_app, settings, None)
-
-        # Verify middleware registration
-        mock_app.add_middleware.assert_called_once()
-
-        # Verify no shutdown handler registration
-        mock_app.add_event_handler.assert_not_called()
+        # Note: Middleware functionality is now tested in test_middleware_manager.py
 
     def test_register_shutdown_handler_first_time(self):
         """Test registering shutdown handler for the first time."""
@@ -339,18 +318,21 @@ class TestLifecycleManager:
         # Should have different container IDs
         assert manager1._container_id != manager2._container_id
 
-    def test_middleware_registration_with_custom_settings(self):
-        """Test middleware registration with various settings configurations."""
+    def test_lifecycle_manager_focus_on_lifecycle_only(self):
+        """Test that LifecycleManager focuses only on lifecycle operations.
+
+        This test verifies that LifecycleManager has properly separated concerns
+        and only handles lifecycle-related operations, not middleware.
+        """
         manager = LifecycleManager("test")
-        mock_app = MagicMock()
 
-        # Test with custom trace header
-        settings = LoggingSettings(trace_id_header="X-Custom-Header")
-        manager.register_middleware(mock_app, settings)
-
-        # Verify custom header is used
-        args, kwargs = mock_app.add_middleware.call_args
-        assert kwargs["trace_id_header"] == "X-Custom-Header"
+        # Verify LifecycleManager has lifecycle methods but not middleware methods
+        assert hasattr(manager, "configure_standard_logging")
+        assert hasattr(manager, "register_shutdown_handler")
+        assert hasattr(manager, "shutdown_async")
+        assert hasattr(manager, "shutdown_sync")
+        assert not hasattr(manager, "register_middleware")
+        assert not hasattr(manager, "configure_httpx_trace_propagation")
 
     @pytest.mark.asyncio
     async def test_shutdown_async_partial_components(self):
