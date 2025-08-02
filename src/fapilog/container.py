@@ -33,10 +33,10 @@ from ._internal.configuration_manager import ConfigurationManager
 from ._internal.container_logger_factory import ContainerLoggerFactory
 from ._internal.lifecycle_manager import LifecycleManager
 from ._internal.metrics import MetricsCollector
+from ._internal.middleware_manager import MiddlewareManager
 from ._internal.processor_metrics import ProcessorMetrics
 from ._internal.queue_worker import QueueWorker
 from ._internal.sink_manager import SinkManager
-from .httpx_patch import HttpxTracePropagation
 from .monitoring import PrometheusExporter
 from .settings import LoggingSettings
 
@@ -95,10 +95,10 @@ class LoggingContainer:
         self._registry: Optional[ComponentRegistry] = None
         self._factory: Optional[ComponentFactory] = None
         self._lifecycle_manager: Optional[LifecycleManager] = None
+        self._middleware_manager: Optional[MiddlewareManager] = None
         self._sink_manager: Optional[SinkManager] = None
         self._queue_worker: Optional[QueueWorker] = None
         self._sinks: List[Any] = []
-        self._httpx_propagation: Optional[HttpxTracePropagation] = None
         self._shutdown_registered = False
 
         # Metrics components
@@ -119,6 +119,8 @@ class LoggingContainer:
             self._factory = ComponentFactory(self)
         if self._lifecycle_manager is None:
             self._lifecycle_manager = LifecycleManager(self._container_id)
+        if self._middleware_manager is None:
+            self._middleware_manager = MiddlewareManager(self._container_id)
         if self._sink_manager is None:
             self._sink_manager = SinkManager(self._container_id)
 
@@ -192,7 +194,7 @@ class LoggingContainer:
             if self._configured and not settings_changed:
                 # Still register middleware if app is provided
                 if app is not None:
-                    self._lifecycle_manager.register_middleware(
+                    self._middleware_manager.register_middleware(
                         app, self._settings, self.shutdown
                     )
                 return self.get_logger()
@@ -222,11 +224,11 @@ class LoggingContainer:
             self._configure_structlog(console_format, log_level)
 
             # Configure httpx trace propagation
-            self._configure_httpx_trace_propagation()
+            self._middleware_manager.configure_httpx_trace_propagation(self._settings)
 
             # Register middleware if app is provided
             if app is not None:
-                self._lifecycle_manager.register_middleware(
+                self._middleware_manager.register_middleware(
                     app, self._settings, self.shutdown
                 )
 
@@ -266,25 +268,23 @@ class LoggingContainer:
 
         # Prometheus exporter will be created on-demand via component registry
 
-    def _configure_httpx_trace_propagation(self) -> None:
-        """Configure httpx trace propagation."""
-        if self._settings.enable_httpx_trace_propagation:
-            self._httpx_propagation = HttpxTracePropagation()
-            self._httpx_propagation.configure(self._settings)
-
     async def shutdown(self) -> None:
         """Shutdown the container gracefully (async version)."""
         await self._lifecycle_manager.shutdown_async(
             registry=self._registry,
             queue_worker=self._queue_worker,
-            httpx_propagation=self._httpx_propagation,
+            httpx_propagation=None,  # Now handled by MiddlewareManager
             metrics_collector=self._metrics_collector,
             sink_manager=self._sink_manager,
         )
 
+        # Cleanup middleware manager
+        if self._middleware_manager is not None:
+            self._middleware_manager.cleanup_httpx_propagation()
+
         # Reset component references after shutdown
         self._queue_worker = None
-        self._httpx_propagation = None
+        self._middleware_manager = None
         self._metrics_collector = None
 
     def shutdown_sync(self) -> None:
@@ -292,14 +292,18 @@ class LoggingContainer:
         self._lifecycle_manager.shutdown_sync(
             registry=self._registry,
             queue_worker=self._queue_worker,
-            httpx_propagation=self._httpx_propagation,
+            httpx_propagation=None,  # Now handled by MiddlewareManager
             metrics_collector=self._metrics_collector,
             sink_manager=self._sink_manager,
         )
 
+        # Cleanup middleware manager
+        if self._middleware_manager is not None:
+            self._middleware_manager.cleanup_httpx_propagation()
+
         # Reset component references after shutdown
         self._queue_worker = None
-        self._httpx_propagation = None
+        self._middleware_manager = None
         self._metrics_collector = None
 
     def reset(self) -> None:
