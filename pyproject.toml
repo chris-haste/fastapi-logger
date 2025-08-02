@@ -290,6 +290,11 @@ ignore_names = [
     "setup_trace_middleware",
     "get_httpx_propagation", 
     "is_httpx_propagation_enabled",
+    
+    # MetricsManager public interface methods
+    "get_prometheus_exporter",
+    "is_metrics_enabled",
+    "is_prometheus_enabled",
 
     "is_configured",
     "setup",
