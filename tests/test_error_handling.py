@@ -493,13 +493,11 @@ class TestComprehensiveErrorHandling:
 
     def test_bootstrap_configuration_error_handling(self):
         """Test that bootstrap handles configuration errors properly."""
-        from fapilog.bootstrap import (
-            _determine_console_format,
-        )
+        from fapilog._internal.configuration_manager import ConfigurationManager
 
         # Test invalid console format
         with pytest.raises(ConfigurationError) as exc_info:
-            _determine_console_format("invalid_format")
+            ConfigurationManager.determine_console_format("invalid_format")
         assert "invalid_format" in str(exc_info.value)
         assert "setting" in exc_info.value.context  # Changed from "console_format"
 

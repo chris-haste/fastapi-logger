@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from ..container import LoggingContainer
 
 
-class ContainerLoggerFactory:  # noqa: vulture
+class ContainerLoggerFactory:
     """Factory for creating loggers with container-specific configuration.
 
     This factory creates structlog loggers without global state dependencies,

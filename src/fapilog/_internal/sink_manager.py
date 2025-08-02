@@ -180,7 +180,7 @@ class SinkManager:
                     e, "queue_worker", queue_config, "valid queue configuration"
                 ) from e
 
-    def create_sinks_from_settings(  # noqa: vulture
+    def create_sinks_from_settings(
         self, settings: LoggingSettings, console_format: str, container: Any
     ) -> List[Any]:
         """Create sinks from settings without setting up queue worker.
@@ -278,7 +278,7 @@ class SinkManager:
 
         return sinks
 
-    def start_sinks(self) -> None:  # noqa: vulture
+    def start_sinks(self) -> None:
         """Start all managed sinks.
 
         This method can be used to explicitly start sinks that support

@@ -231,7 +231,7 @@ class LifecycleManager:
             if sinks is not None:
                 sinks.clear()
 
-    def cleanup_resources(self, **resources: Any) -> None:  # noqa: vulture
+    def cleanup_resources(self, **resources: Any) -> None:
         """Clean up and reset all provided resources to None.
 
         This is a utility method for resetting object references during shutdown.
