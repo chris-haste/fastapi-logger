@@ -19,7 +19,6 @@ Breaking Changes from Previous Version:
 See CONTAINER_MIGRATION_NOTES.md for detailed migration guide.
 """
 
-import atexit
 import logging
 import threading
 from contextlib import contextmanager
@@ -30,28 +29,16 @@ import structlog
 from ._internal.async_lock_manager import ProcessorLockManager
 from ._internal.component_factory import ComponentFactory
 from ._internal.component_registry import ComponentRegistry
+from ._internal.configuration_manager import ConfigurationManager
 from ._internal.container_logger_factory import ContainerLoggerFactory
-from ._internal.error_handling import (
-    handle_configuration_error,
-)
+from ._internal.lifecycle_manager import LifecycleManager
 from ._internal.metrics import MetricsCollector
 from ._internal.processor_metrics import ProcessorMetrics
 from ._internal.queue_worker import QueueWorker
-from ._internal.sink_factory import (
-    create_custom_sink_from_uri,
-)
-from .exceptions import (
-    SinkConfigurationError,
-    SinkErrorContextBuilder,
-)
+from ._internal.sink_manager import SinkManager
 from .httpx_patch import HttpxTracePropagation
-from .middleware import TraceIDMiddleware
 from .monitoring import PrometheusExporter
 from .settings import LoggingSettings
-from .sinks import Sink
-from .sinks.file import create_file_sink_from_uri
-from .sinks.loki import create_loki_sink_from_uri
-from .sinks.stdout import StdoutSink
 
 if TYPE_CHECKING:
     from .enrichers import (
@@ -62,6 +49,9 @@ if TYPE_CHECKING:
     )
 
 logger = logging.getLogger(__name__)
+
+# Note: Previously cached default settings, but removed to allow environment
+# variable overrides to work correctly in tests and dynamic configurations.
 
 
 class LoggingContainer:
@@ -90,16 +80,22 @@ class LoggingContainer:
         # Create a copy of settings to ensure complete container isolation
         self._settings: LoggingSettings
         if settings is not None:
+            # Only copy if needed to avoid expensive deep copy for identical settings
             # Use model_copy() which is faster than deepcopy for Pydantic models
             self._settings = settings.model_copy(deep=True)
         else:
+            # Create fresh LoggingSettings to pick up any environment variable changes
+            # Don't use cached defaults when no settings provided, to allow env var overrides
             self._settings = LoggingSettings()
         self._configured = False
 
         # Component management
         self._container_id = f"container_{id(self)}"
-        self._registry = ComponentRegistry(self._container_id)
-        self._factory = ComponentFactory(self)
+        # Defer expensive component creation until configure() for better performance
+        self._registry: Optional[ComponentRegistry] = None
+        self._factory: Optional[ComponentFactory] = None
+        self._lifecycle_manager: Optional[LifecycleManager] = None
+        self._sink_manager: Optional[SinkManager] = None
         self._queue_worker: Optional[QueueWorker] = None
         self._sinks: List[Any] = []
         self._httpx_propagation: Optional[HttpxTracePropagation] = None
@@ -111,6 +107,20 @@ class LoggingContainer:
         # Logger factory management (for container isolation)
         self._logger_factory: Optional[ContainerLoggerFactory] = None
         self._console_format: Optional[str] = None
+
+        # Performance optimization: cache settings hash to avoid redundant validation
+        self._settings_hash: Optional[int] = None
+
+    def _ensure_components_initialized(self) -> None:
+        """Ensure all manager components are initialized."""
+        if self._registry is None:
+            self._registry = ComponentRegistry(self._container_id)
+        if self._factory is None:
+            self._factory = ComponentFactory(self)
+        if self._lifecycle_manager is None:
+            self._lifecycle_manager = LifecycleManager(self._container_id)
+        if self._sink_manager is None:
+            self._sink_manager = SinkManager(self._container_id)
 
     def __enter__(self) -> "LoggingContainer":
         """Context manager entry - configure the container if not already done."""
@@ -161,29 +171,49 @@ class LoggingContainer:
             A configured structlog.BoundLogger instance
         """
         with self._lock:
-            # Use provided settings or fall back to container settings
-            if settings is not None:
-                self._settings = self._validate_and_get_settings(settings)
-            elif not self._configured:
-                self._settings = self._validate_and_get_settings(self._settings)
+            # Initialize components on first configure() call for better performance
+            self._ensure_components_initialized()
 
-            # Check if already configured
-            if self._configured:
+            # Performance optimization: avoid redundant validation
+            settings_changed = False
+            if settings is not None:
+                # Check if settings actually changed to avoid redundant work
+                settings_hash = hash(str(settings))
+                if self._settings_hash != settings_hash:
+                    self._settings = ConfigurationManager.validate_settings(settings)
+                    self._settings_hash = settings_hash
+                    settings_changed = True
+            elif not self._configured:
+                self._settings = ConfigurationManager.validate_settings(self._settings)
+                self._settings_hash = hash(str(self._settings))
+                settings_changed = True
+
+            # Check if already configured and settings haven't changed
+            if self._configured and not settings_changed:
                 # Still register middleware if app is provided
                 if app is not None:
-                    self._register_middleware(app)
+                    self._lifecycle_manager.register_middleware(
+                        app, self._settings, self.shutdown
+                    )
                 return self.get_logger()
 
             # Determine final configuration values from settings
             log_level = self._settings.level
-            console_format = self._determine_console_format(self._settings.json_console)
+            console_format = ConfigurationManager.determine_console_format(
+                self._settings.json_console
+            )
+            # Cache console format for logger factory optimization
+            self._console_format = console_format
 
             # Configure standard library logging
-            self._configure_standard_logging(log_level)
+            self._lifecycle_manager.configure_standard_logging(log_level)
 
             # Initialize queue worker if enabled
             if self._settings.queue.enabled:
-                self._queue_worker = self._setup_queue_worker(console_format)
+                self._queue_worker = self._sink_manager.setup_queue_worker(
+                    self._settings, console_format, self
+                )
+                self._sinks = self._sink_manager.get_sinks()
 
             # Initialize metrics if enabled
             self._configure_metrics()
@@ -196,190 +226,17 @@ class LoggingContainer:
 
             # Register middleware if app is provided
             if app is not None:
-                self._register_middleware(app)
+                self._lifecycle_manager.register_middleware(
+                    app, self._settings, self.shutdown
+                )
 
             # Mark as configured
             self._configured = True
 
             # Register shutdown handler once
-            if not self._shutdown_registered:
-                atexit.register(self.shutdown_sync)
-                self._shutdown_registered = True
+            self._lifecycle_manager.register_shutdown_handler(self.shutdown_sync)
 
             return self.get_logger()  # Use container-specific factory
-
-    def _validate_and_get_settings(
-        self, settings: Optional[LoggingSettings]
-    ) -> LoggingSettings:
-        """Validate and return LoggingSettings instance."""
-        try:
-            if settings is None:
-                return LoggingSettings()
-            # If it's already a LoggingSettings instance, return it directly
-            if isinstance(settings, LoggingSettings):
-                return settings
-            # If it's a dict or other data, validate it
-            return LoggingSettings.model_validate(settings)
-        except Exception as e:
-            raise handle_configuration_error(
-                e,
-                "settings",
-                str(settings) if settings else "None",
-                "valid LoggingSettings",
-            ) from e
-
-    def _determine_console_format(self, console_format: str) -> str:
-        """Determine the console output format."""
-        import sys
-
-        valid_formats = {"auto", "pretty", "json"}
-        if console_format not in valid_formats:
-            raise handle_configuration_error(
-                ValueError(f"Invalid console_format: {console_format}"),
-                "console_format",
-                console_format,
-                f"one of {', '.join(valid_formats)}",
-            )
-
-        if console_format == "auto":
-            return "pretty" if sys.stderr.isatty() else "json"
-        return console_format
-
-    def _configure_standard_logging(self, log_level: str) -> None:
-        """Configure standard library logging."""
-        import sys
-
-        try:
-            # Create a handler that outputs to stdout (like PrintLoggerFactory did)
-            handler = logging.StreamHandler(sys.stdout)
-            handler.setLevel(getattr(logging, log_level.upper()))
-            handler.setFormatter(logging.Formatter("%(message)s"))
-
-            # Configure root logger
-            root_logger = logging.getLogger()
-            root_logger.setLevel(getattr(logging, log_level.upper()))
-
-            # Remove existing handlers to avoid duplicates
-            for existing_handler in root_logger.handlers[:]:
-                root_logger.removeHandler(existing_handler)
-
-            # Add our stdout handler
-            root_logger.addHandler(handler)
-
-        except AttributeError as e:
-            raise handle_configuration_error(
-                e,
-                "log_level",
-                log_level,
-                "valid logging level (DEBUG/INFO/WARNING/ERROR/CRITICAL)",
-            ) from e
-
-    def _setup_queue_worker(self, console_format: str) -> QueueWorker:
-        """Set up the queue worker with appropriate sinks."""
-        # Create sinks based on settings
-        self._sinks = []
-
-        for sink_item in self._settings.sinks:
-            # Handle direct Sink instances
-            if isinstance(sink_item, Sink):
-                self._sinks.append(sink_item)
-                continue
-
-            # Handle string URIs (existing logic)
-            sink_uri = sink_item
-            if sink_uri == "stdout":
-                # Map console_format to StdoutSink mode
-                if console_format == "pretty":
-                    mode = "pretty"
-                elif console_format == "json":
-                    mode = "json"
-                else:
-                    mode = "auto"
-                self._sinks.append(StdoutSink(mode=mode, container=self))
-            elif sink_uri.startswith("file://"):
-                try:
-                    self._sinks.append(
-                        create_file_sink_from_uri(sink_uri, container=self)
-                    )
-                except Exception as e:
-                    context = SinkErrorContextBuilder.build_write_context(
-                        sink_name="file",
-                        event_dict={"uri": sink_uri},
-                        operation="initialize",
-                    )
-                    raise SinkConfigurationError(str(e), "file", context) from e
-            elif sink_uri.startswith(("loki://", "https://")) and "loki" in sink_uri:
-                try:
-                    self._sinks.append(
-                        create_loki_sink_from_uri(sink_uri, container=self)
-                    )
-                except ImportError as e:
-                    context = SinkErrorContextBuilder.build_write_context(
-                        sink_name="loki",
-                        event_dict={"uri": sink_uri},
-                        operation="initialize",
-                    )
-                    raise SinkConfigurationError(str(e), "loki", context) from e
-                except Exception as e:
-                    context = SinkErrorContextBuilder.build_write_context(
-                        sink_name="loki",
-                        event_dict={"uri": sink_uri},
-                        operation="initialize",
-                    )
-                    raise SinkConfigurationError(str(e), "loki", context) from e
-            else:
-                # Try custom sink from registry
-                try:
-                    self._sinks.append(create_custom_sink_from_uri(sink_uri))
-                except SinkConfigurationError as e:
-                    # If it's a custom sink error, re-raise with sink error handling
-                    context = SinkErrorContextBuilder.build_write_context(
-                        sink_name=e.sink_name or "custom",
-                        event_dict={"uri": sink_uri},
-                        operation="initialize",
-                    )
-                    raise SinkConfigurationError(
-                        str(e), e.sink_name or "custom", context
-                    ) from e
-                except Exception as e:
-                    # Unknown sink type or other error
-                    context = SinkErrorContextBuilder.build_write_context(
-                        sink_name="unknown",
-                        event_dict={"uri": sink_uri},
-                        operation="initialize",
-                    )
-                    raise SinkConfigurationError(
-                        f"Unknown sink type: {sink_uri}", "unknown", context
-                    ) from e
-
-        # Create queue worker with error handling
-        try:
-            worker = QueueWorker(
-                sinks=self._sinks,
-                queue_max_size=self._settings.queue.maxsize,
-                batch_size=self._settings.queue.batch_size,
-                batch_timeout=self._settings.queue.batch_timeout,
-                retry_delay=self._settings.queue.retry_delay,
-                max_retries=self._settings.queue.max_retries,
-                overflow_strategy=self._settings.queue.overflow,
-                sampling_rate=self._settings.sampling_rate,
-                container=self,
-            )
-        except Exception as e:
-            queue_config = {
-                "queue_max_size": self._settings.queue.maxsize,
-                "batch_size": self._settings.queue.batch_size,
-                "batch_timeout": self._settings.queue.batch_timeout,
-                "retry_delay": self._settings.queue.retry_delay,
-                "max_retries": self._settings.queue.max_retries,
-                "overflow_strategy": self._settings.queue.overflow,
-                "sampling_rate": self._settings.sampling_rate,
-            }
-            raise handle_configuration_error(
-                e, "queue_worker", queue_config, "valid queue configuration"
-            ) from e
-
-        return worker
 
     def _configure_structlog(self, console_format: str, log_level: str) -> None:
         """Configure container-specific logging with factory approach.
@@ -402,8 +259,6 @@ class LoggingContainer:
         """Configure metrics collection and Prometheus exporter."""
         # Initialize metrics collector if enabled
         if self._settings.metrics.enabled:
-            from ._internal.metrics import MetricsCollector
-
             self._metrics_collector = MetricsCollector(
                 enabled=True,
                 sample_window=self._settings.metrics.sample_window,
@@ -417,82 +272,35 @@ class LoggingContainer:
             self._httpx_propagation = HttpxTracePropagation()
             self._httpx_propagation.configure(self._settings)
 
-    def _register_middleware(self, app: Any) -> None:
-        """Register middleware with the FastAPI app."""
-        app.add_middleware(
-            TraceIDMiddleware, trace_id_header=self._settings.trace_id_header
-        )
-        # Register shutdown event for graceful queue worker shutdown
-        if self._queue_worker is not None:
-            app.add_event_handler("shutdown", self.shutdown)
-
     async def shutdown(self) -> None:
         """Shutdown the container gracefully (async version)."""
-        with self._lock:
-            # Cleanup component registry
-            try:
-                self._registry.cleanup()
-            except Exception as e:
-                logger.warning(f"Error during component registry cleanup: {e}")
+        await self._lifecycle_manager.shutdown_async(
+            registry=self._registry,
+            queue_worker=self._queue_worker,
+            httpx_propagation=self._httpx_propagation,
+            metrics_collector=self._metrics_collector,
+            sink_manager=self._sink_manager,
+        )
 
-            # Shutdown Prometheus exporter if it exists in component registry
-            prometheus_exporter = self._registry.get_component(PrometheusExporter)
-            if prometheus_exporter is not None:
-                try:
-                    await prometheus_exporter.stop()
-                except Exception as e:
-                    logger.warning(f"Error during Prometheus exporter shutdown: {e}")
-
-            if self._queue_worker is not None:
-                try:
-                    await self._queue_worker.shutdown()
-                except Exception as e:
-                    logger.warning(f"Error during queue worker shutdown: {e}")
-                finally:
-                    self._queue_worker = None
-
-            if self._httpx_propagation is not None:
-                try:
-                    self._httpx_propagation.cleanup()
-                except Exception as e:
-                    logger.warning(f"Error during httpx propagation cleanup: {e}")
-                finally:
-                    self._httpx_propagation = None
-
-            # Reset metrics components
-            self._metrics_collector = None
-
-            self._sinks.clear()
+        # Reset component references after shutdown
+        self._queue_worker = None
+        self._httpx_propagation = None
+        self._metrics_collector = None
 
     def shutdown_sync(self) -> None:
         """Shutdown the container gracefully (sync version)."""
-        with self._lock:
-            # Cleanup component registry
-            try:
-                self._registry.cleanup()
-            except Exception as e:
-                logger.warning(f"Error during component registry cleanup: {e}")
+        self._lifecycle_manager.shutdown_sync(
+            registry=self._registry,
+            queue_worker=self._queue_worker,
+            httpx_propagation=self._httpx_propagation,
+            metrics_collector=self._metrics_collector,
+            sink_manager=self._sink_manager,
+        )
 
-            # Reset metrics components (sync version doesn't need to stop Prometheus)
-            self._metrics_collector = None
-
-            if self._queue_worker is not None:
-                try:
-                    self._queue_worker.shutdown_sync()
-                except Exception as e:
-                    logger.warning(f"Error during sync queue worker shutdown: {e}")
-                finally:
-                    self._queue_worker = None
-
-            if self._httpx_propagation is not None:
-                try:
-                    self._httpx_propagation.cleanup()
-                except Exception as e:
-                    logger.warning(f"Error during httpx propagation cleanup: {e}")
-                finally:
-                    self._httpx_propagation = None
-
-            self._sinks.clear()
+        # Reset component references after shutdown
+        self._queue_worker = None
+        self._httpx_propagation = None
+        self._metrics_collector = None
 
     def reset(self) -> None:
         """Reset the container for testing purposes."""
@@ -591,8 +399,10 @@ class LoggingContainer:
         Returns:
             ProcessorLockManager instance scoped to this container
         """
-        return self._registry.get_or_create_component(
-            ProcessorLockManager, self._factory.create_lock_manager
+        self._ensure_components_initialized()
+        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+            ProcessorLockManager,
+            self._factory.create_lock_manager,  # type: ignore[union-attr]
         )
 
     def get_processor_metrics(self) -> ProcessorMetrics:
@@ -601,8 +411,10 @@ class LoggingContainer:
         Returns:
             ProcessorMetrics instance scoped to this container
         """
-        return self._registry.get_or_create_component(
-            ProcessorMetrics, self._factory.create_processor_metrics
+        self._ensure_components_initialized()
+        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+            ProcessorMetrics,
+            self._factory.create_processor_metrics,  # type: ignore[union-attr]
         )
 
     def get_metrics_collector(self) -> Optional[MetricsCollector]:
@@ -614,8 +426,10 @@ class LoggingContainer:
         if not self._settings.metrics.enabled:
             return None
 
-        return self._registry.get_or_create_component(
-            MetricsCollector, self._factory.create_metrics_collector
+        self._ensure_components_initialized()
+        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+            MetricsCollector,
+            self._factory.create_metrics_collector,  # type: ignore[union-attr]
         )
 
     def get_prometheus_exporter(self) -> Optional[PrometheusExporter]:
@@ -627,8 +441,10 @@ class LoggingContainer:
         if not self._settings.metrics.prometheus_enabled:
             return None
 
-        return self._registry.get_or_create_component(
-            PrometheusExporter, self._factory.create_prometheus_exporter
+        self._ensure_components_initialized()
+        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+            PrometheusExporter,
+            self._factory.create_prometheus_exporter,  # type: ignore[union-attr]
         )
 
     def get_async_smart_cache(self) -> "AsyncSmartCache":
@@ -639,8 +455,10 @@ class LoggingContainer:
         """
         from .enrichers import AsyncSmartCache
 
-        return self._registry.get_or_create_component(
-            AsyncSmartCache, self._factory.create_async_smart_cache
+        self._ensure_components_initialized()
+        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+            AsyncSmartCache,
+            self._factory.create_async_smart_cache,  # type: ignore[union-attr]
         )
 
     def get_enricher_error_handler(self) -> "EnricherErrorHandler":
@@ -651,8 +469,10 @@ class LoggingContainer:
         """
         from .enrichers import EnricherErrorHandler
 
-        return self._registry.get_or_create_component(
-            EnricherErrorHandler, self._factory.create_enricher_error_handler
+        self._ensure_components_initialized()
+        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+            EnricherErrorHandler,
+            self._factory.create_enricher_error_handler,  # type: ignore[union-attr]
         )
 
     def get_enricher_health_monitor(self) -> "EnricherHealthMonitor":
@@ -663,8 +483,10 @@ class LoggingContainer:
         """
         from .enrichers import EnricherHealthMonitor
 
-        return self._registry.get_or_create_component(
-            EnricherHealthMonitor, self._factory.create_enricher_health_monitor
+        self._ensure_components_initialized()
+        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+            EnricherHealthMonitor,
+            self._factory.create_enricher_health_monitor,  # type: ignore[union-attr]
         )
 
     def get_retry_coordinator(self) -> "RetryCoordinator":
@@ -675,6 +497,8 @@ class LoggingContainer:
         """
         from .enrichers import RetryCoordinator
 
-        return self._registry.get_or_create_component(
-            RetryCoordinator, self._factory.create_retry_coordinator
+        self._ensure_components_initialized()
+        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+            RetryCoordinator,
+            self._factory.create_retry_coordinator,  # type: ignore[union-attr]
         )

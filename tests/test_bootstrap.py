@@ -36,6 +36,9 @@ class TestConfigureLogging:
         # Reset all handlers to prevent accumulation
         logging.root.handlers.clear()
 
+        # Reset root logger level to default (WARNING is the Python default)
+        logging.root.setLevel(logging.WARNING)
+
         # Reset structlog configuration
         structlog.reset_defaults()
         structlog.configure()

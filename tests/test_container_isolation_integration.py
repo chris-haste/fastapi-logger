@@ -629,6 +629,10 @@ class TestContainerIsolationIntegration:
         """Test utilities for container state verification."""
         containers = self.framework.create_containers(3)
 
+        # Initialize components in all containers to ensure registries and factories are created
+        for container in containers:
+            container.get_lock_manager()  # This triggers component initialization
+
         # Test container ID uniqueness
         container_ids = set()
         for container in containers:

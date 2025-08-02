@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from fapilog.bootstrap import _determine_console_format
+from fapilog._internal.configuration_manager import ConfigurationManager
 
 
 class TestBootstrapFinalWin:
@@ -14,23 +14,23 @@ class TestBootstrapFinalWin:
         """Test _determine_console_format with auto when stderr is a tty."""
         # Mock sys.stderr.isatty() to return True (lines 92-93)
         with patch("sys.stderr.isatty", return_value=True):
-            result = _determine_console_format("auto")
+            result = ConfigurationManager.determine_console_format("auto")
             assert result == "pretty"
 
     def test_determine_console_format_auto_without_tty(self):
         """Test _determine_console_format with auto when stderr is not a tty."""
         # Mock sys.stderr.isatty() to return False (lines 92-93)
         with patch("sys.stderr.isatty", return_value=False):
-            result = _determine_console_format("auto")
+            result = ConfigurationManager.determine_console_format("auto")
             assert result == "json"
 
     def test_determine_console_format_explicit_format(self):
         """Test _determine_console_format with explicit format (line 94)."""
         # Should return the format as-is without checking isatty
-        result = _determine_console_format("pretty")
+        result = ConfigurationManager.determine_console_format("pretty")
         assert result == "pretty"
 
-        result = _determine_console_format("json")
+        result = ConfigurationManager.determine_console_format("json")
         assert result == "json"
 
 
