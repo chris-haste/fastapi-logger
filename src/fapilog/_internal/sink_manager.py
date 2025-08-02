@@ -311,8 +311,82 @@ class SinkManager:
         """
         with self._lock:
             self.stop_sinks()
+            self._close_sinks_sync()
             self._sinks.clear()
             self._queue_worker = None
+
+    def _close_sinks_sync(self) -> None:
+        """Synchronously close all sinks that have close methods.
+
+        Note: This method should only be used when there's no running event loop.
+        For proper async sink cleanup, use cleanup_sinks_async() instead.
+        """
+        import asyncio
+        import inspect
+
+        for sink in self._sinks:
+            if hasattr(sink, "close"):
+                try:
+                    close_method = sink.close
+                    if inspect.iscoroutinefunction(close_method):
+                        # Async close method - check if we can run it
+                        try:
+                            loop = asyncio.get_event_loop()
+                            if loop.is_running():
+                                # Cannot properly close async sinks from sync context
+                                # when loop is running - log a warning instead of creating
+                                # unawaited tasks
+                                import logging
+
+                                logger = logging.getLogger(__name__)
+                                logger.warning(
+                                    f"Cannot close async sink {sink.__class__.__name__} "
+                                    "from sync context with running event loop. "
+                                    "Use async shutdown for proper cleanup."
+                                )
+                                continue
+                            else:
+                                # Loop exists but not running, safe to run until complete
+                                loop.run_until_complete(close_method())
+                        except RuntimeError:
+                            # No event loop, create new one
+                            asyncio.run(close_method())
+                    else:
+                        # Sync close method
+                        close_method()
+                except Exception:
+                    # Continue closing other sinks even if one fails
+                    pass
+
+    async def cleanup_sinks_async(self) -> None:
+        """Asynchronously clean up and reset all managed sinks.
+
+        This method performs cleanup operations and resets the sink list.
+        Preferred for proper async sink cleanup.
+        """
+        with self._lock:
+            self.stop_sinks()
+            await self._close_sinks_async()
+            self._sinks.clear()
+            self._queue_worker = None
+
+    async def _close_sinks_async(self) -> None:
+        """Asynchronously close all sinks that have close methods."""
+        import inspect
+
+        for sink in self._sinks:
+            if hasattr(sink, "close"):
+                try:
+                    close_method = sink.close
+                    if inspect.iscoroutinefunction(close_method):
+                        # Async close method
+                        await close_method()
+                    else:
+                        # Sync close method
+                        close_method()
+                except Exception:
+                    # Continue closing other sinks even if one fails
+                    pass
 
     def get_sinks(self) -> List[Any]:
         """Get the current list of managed sinks.

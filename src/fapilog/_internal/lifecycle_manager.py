@@ -145,7 +145,7 @@ class LifecycleManager:
         queue_worker: Optional[Any] = None,
         httpx_propagation: Optional[Any] = None,
         metrics_collector: Optional[Any] = None,
-        sinks: Optional[Any] = None,
+        sink_manager: Optional[Any] = None,
     ) -> None:
         """Perform graceful async shutdown of logging components.
 
@@ -154,9 +154,16 @@ class LifecycleManager:
             queue_worker: Optional QueueWorker to shutdown
             httpx_propagation: Optional HttpxTracePropagation to cleanup
             metrics_collector: Optional MetricsCollector to reset
-            sinks: Optional sinks list to clear
+            sink_manager: Optional SinkManager for proper sink cleanup
         """
         with self._lock:
+            # Cleanup sinks first (as they may depend on other components)
+            if sink_manager is not None:
+                try:
+                    await sink_manager.cleanup_sinks_async()
+                except Exception as e:
+                    logger.warning(f"Error during sink cleanup: {e}")
+
             # Cleanup component registry
             try:
                 registry.cleanup()
@@ -185,17 +192,13 @@ class LifecycleManager:
                 except Exception as e:
                     logger.warning(f"Error during httpx propagation cleanup: {e}")
 
-            # Clear sinks if provided
-            if sinks is not None:
-                sinks.clear()
-
     def shutdown_sync(
         self,
         registry: Any,
         queue_worker: Optional[Any] = None,
         httpx_propagation: Optional[Any] = None,
         metrics_collector: Optional[Any] = None,
-        sinks: Optional[Any] = None,
+        sink_manager: Optional[Any] = None,
     ) -> None:
         """Perform graceful sync shutdown of logging components.
 
@@ -204,9 +207,16 @@ class LifecycleManager:
             queue_worker: Optional QueueWorker to shutdown
             httpx_propagation: Optional HttpxTracePropagation to cleanup
             metrics_collector: Optional MetricsCollector to reset
-            sinks: Optional sinks list to clear
+            sink_manager: Optional SinkManager for proper sink cleanup
         """
         with self._lock:
+            # Cleanup sinks first (as they may depend on other components)
+            if sink_manager is not None:
+                try:
+                    sink_manager.cleanup_sinks()
+                except Exception as e:
+                    logger.warning(f"Error during sink cleanup: {e}")
+
             # Cleanup component registry
             try:
                 registry.cleanup()
@@ -226,10 +236,6 @@ class LifecycleManager:
                     httpx_propagation.cleanup()
                 except Exception as e:
                     logger.warning(f"Error during httpx propagation cleanup: {e}")
-
-            # Clear sinks if provided
-            if sinks is not None:
-                sinks.clear()
 
     def cleanup_resources(self, **resources: Any) -> None:
         """Clean up and reset all provided resources to None.

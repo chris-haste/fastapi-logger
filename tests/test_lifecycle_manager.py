@@ -165,7 +165,7 @@ class TestLifecycleManager:
         mock_registry = MagicMock()
         mock_queue_worker = AsyncMock()
         mock_httpx_propagation = MagicMock()
-        mock_sinks = MagicMock()
+        mock_sink_manager = AsyncMock()
 
         # Mock prometheus exporter
         mock_prometheus = AsyncMock()
@@ -175,15 +175,15 @@ class TestLifecycleManager:
             registry=mock_registry,
             queue_worker=mock_queue_worker,
             httpx_propagation=mock_httpx_propagation,
-            sinks=mock_sinks,
+            sink_manager=mock_sink_manager,
         )
 
         # Verify cleanup calls
+        mock_sink_manager.cleanup_sinks_async.assert_awaited_once()
         mock_registry.cleanup.assert_called_once()
         mock_prometheus.stop.assert_awaited_once()
         mock_queue_worker.shutdown.assert_awaited_once()
         mock_httpx_propagation.cleanup.assert_called_once()
-        mock_sinks.clear.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_shutdown_async_with_errors(self):
@@ -237,20 +237,20 @@ class TestLifecycleManager:
         mock_registry = MagicMock()
         mock_queue_worker = MagicMock()
         mock_httpx_propagation = MagicMock()
-        mock_sinks = MagicMock()
+        mock_sink_manager = MagicMock()
 
         manager.shutdown_sync(
             registry=mock_registry,
             queue_worker=mock_queue_worker,
             httpx_propagation=mock_httpx_propagation,
-            sinks=mock_sinks,
+            sink_manager=mock_sink_manager,
         )
 
         # Verify cleanup calls
+        mock_sink_manager.cleanup_sinks.assert_called_once()
         mock_registry.cleanup.assert_called_once()
         mock_queue_worker.shutdown_sync.assert_called_once()
         mock_httpx_propagation.cleanup.assert_called_once()
-        mock_sinks.clear.assert_called_once()
 
     def test_shutdown_sync_with_errors(self):
         """Test sync shutdown handles errors gracefully."""
@@ -365,7 +365,7 @@ class TestLifecycleManager:
             registry=mock_registry,
             queue_worker=None,
             httpx_propagation=None,
-            sinks=None,
+            sink_manager=None,
         )
 
         # Should still cleanup registry
@@ -382,7 +382,7 @@ class TestLifecycleManager:
             registry=mock_registry,
             queue_worker=None,
             httpx_propagation=None,
-            sinks=None,
+            sink_manager=None,
         )
 
         # Should still cleanup registry

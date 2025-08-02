@@ -279,11 +279,8 @@ class LoggingContainer:
             queue_worker=self._queue_worker,
             httpx_propagation=self._httpx_propagation,
             metrics_collector=self._metrics_collector,
-            sinks=self._sinks,
+            sink_manager=self._sink_manager,
         )
-
-        # Clean up sink manager
-        self._sink_manager.cleanup_sinks()
 
         # Reset component references after shutdown
         self._queue_worker = None
@@ -297,11 +294,8 @@ class LoggingContainer:
             queue_worker=self._queue_worker,
             httpx_propagation=self._httpx_propagation,
             metrics_collector=self._metrics_collector,
-            sinks=self._sinks,
+            sink_manager=self._sink_manager,
         )
-
-        # Clean up sink manager
-        self._sink_manager.cleanup_sinks()
 
         # Reset component references after shutdown
         self._queue_worker = None
