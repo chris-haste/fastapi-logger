@@ -6,8 +6,8 @@ from unittest.mock import Mock
 import pytest
 import structlog
 
+from fapilog._internal.configuration_manager import ConfigurationManager
 from fapilog.bootstrap import (
-    _determine_console_format,
     configure_logging,
     configure_with_container,
     create_logger,
@@ -165,18 +165,18 @@ class TestStatelessBootstrap:
         assert callable(logger.info)
 
     def test_determine_console_format_utility(self) -> None:
-        """Test _determine_console_format utility function."""
+        """Test ConfigurationManager.determine_console_format utility function."""
         # Test valid formats
-        assert _determine_console_format("pretty") == "pretty"
-        assert _determine_console_format("json") == "json"
+        assert ConfigurationManager.determine_console_format("pretty") == "pretty"
+        assert ConfigurationManager.determine_console_format("json") == "json"
 
         # Test auto format (depends on TTY)
-        result = _determine_console_format("auto")
+        result = ConfigurationManager.determine_console_format("auto")
         assert result in ["pretty", "json"]
 
         # Test invalid format
         with pytest.raises(ConfigurationError):
-            _determine_console_format("invalid")
+            ConfigurationManager.determine_console_format("invalid")
 
     def test_fastapi_app_integration(self) -> None:
         """Test FastAPI app integration through configure_logging."""
