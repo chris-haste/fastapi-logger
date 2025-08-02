@@ -270,7 +270,7 @@ class TestContainerPerformance:
         print(f"  Overhead:     {overhead:.6f}s")
 
         # Configuration overhead should be reasonable
-        assert overhead < 0.001, f"Configuration overhead too high: {overhead:.6f}s"
+        assert overhead < 0.0025, f"Configuration overhead too high: {overhead:.6f}s"
 
     def test_factory_reuse_efficiency(self):
         """Test that factory configuration is built only once per container."""

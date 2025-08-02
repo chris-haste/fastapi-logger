@@ -41,7 +41,9 @@ class TestLoggingContainerComponentRegistry:
         assert hasattr(container, "_factory")
         assert hasattr(container, "_container_id")
 
-        # Check types
+        # Check types (components are deferred until first use)
+        # Call a method to initialize components
+        container.get_lock_manager()
         assert isinstance(container._registry, ComponentRegistry)
         assert isinstance(container._factory, ComponentFactory)
         assert isinstance(container._container_id, str)
@@ -205,11 +207,13 @@ class TestLoggingContainerComponentRegistry:
         _metrics_collector = container.get_metrics_collector()
 
         # Verify components exist in registry
+        assert container._registry is not None
         assert ProcessorLockManager in container._registry
         assert ProcessorMetrics in container._registry
         assert MetricsCollector in container._registry
 
         # Mock the registry cleanup method to verify it's called
+        assert container._registry is not None
         with patch.object(container._registry, "cleanup") as mock_cleanup:
             container.shutdown_sync()
             mock_cleanup.assert_called_once()
@@ -263,7 +267,11 @@ class TestLoggingContainerComponentRegistry:
         """Test integration with ComponentFactory."""
         container = LoggingContainer(self.settings)
 
+        # Initialize components first
+        container.get_lock_manager()
+
         # Verify factory is properly initialized with container
+        assert container._factory is not None
         assert container._factory.container is container
         # Settings should be equivalent but not the same object (deep copied for isolation)
         assert container._factory._settings == self.settings
@@ -273,11 +281,15 @@ class TestLoggingContainerComponentRegistry:
         """Test integration with ComponentRegistry."""
         container = LoggingContainer(self.settings)
 
+        # Initialize components first
+        lock_manager = container.get_lock_manager()
+
         # Verify registry is properly initialized
+        assert container._registry is not None
         assert container._registry.container_id == container._container_id
 
         # Test registry component tracking
-        lock_manager = container.get_lock_manager()
+        assert container._registry is not None
         assert ProcessorLockManager in container._registry
         assert container._registry.get_component(ProcessorLockManager) is lock_manager
 
@@ -303,6 +315,7 @@ class TestContainerAsyncSupport:
         container.get_prometheus_exporter()
 
         # Mock the registry cleanup method to verify it's called
+        assert container._registry is not None
         with patch.object(container._registry, "cleanup") as mock_cleanup:
             await container.shutdown()
             mock_cleanup.assert_called_once()
@@ -340,6 +353,9 @@ class TestContainerErrorHandling:
         container = LoggingContainer(self.settings)
 
         # Mock registry to raise exception during cleanup
+        # Initialize components first
+        container.get_lock_manager()
+        assert container._registry is not None
         with patch.object(
             container._registry, "cleanup", side_effect=Exception("Cleanup error")
         ):
@@ -350,7 +366,11 @@ class TestContainerErrorHandling:
         """Test error handling when factory raises exception."""
         container = LoggingContainer(self.settings)
 
+        # Initialize components first
+        container.get_processor_metrics()  # Initialize but don't use the one we'll mock
+
         # Mock factory method to raise exception
+        assert container._factory is not None
         with patch.object(
             container._factory,
             "create_lock_manager",
@@ -434,4 +454,5 @@ class TestContainerPerformanceCharacteristics:
             container.get_metrics_collector()
 
         # Should only have one instance of each component type
+        assert container._registry is not None
         assert len(container._registry) <= 3

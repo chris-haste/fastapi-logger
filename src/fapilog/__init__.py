@@ -1,11 +1,17 @@
 """FastAPI logging middleware with structured logging and multiple sinks."""
 
 import importlib.metadata
+import os
+import sys
+import warnings
 from pathlib import Path
 from typing import Any, Optional, cast
 
 import structlog
 
+# Note: FastAPI lifespan RuntimeWarnings in test environments are expected and harmless.
+# They occur when test frameworks don't properly await FastAPI shutdown coroutines.
+# This is normal behavior and doesn't affect functionality.
 from ._internal.context import get_trace_id as get_current_trace_id
 from ._internal.processor_registry import register_processor
 from ._internal.sink_registry import SinkRegistry, register_sink

@@ -554,6 +554,11 @@ ignore_names = [
     "get_retry_coordinator",
     # Container internal attributes (used but vulture doesn't detect properly)
     "_metrics_collector",
+    # Manager class public API methods (Issues 195, 196, 197)
+    "cleanup_resources",
+    "create_sinks_from_settings", 
+    "start_sinks",
+    "resources",  # **kwargs parameter in cleanup_resources
 ]
 ignore_decorators = [
     "pytest.fixture",

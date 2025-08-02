@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from ..container import LoggingContainer
 
 
-class ContainerLoggerFactory:  # noqa: vulture
+class ContainerLoggerFactory:
     """Factory for creating loggers with container-specific configuration.
 
     This factory creates structlog loggers without global state dependencies,
@@ -57,15 +57,15 @@ class ContainerLoggerFactory:  # noqa: vulture
             return
 
         try:
-            # Determine console format from container
+            # Use cached console format from container (performance optimization)
             console_format = getattr(self.container, "_console_format", None)
             if console_format is None:
-                # Fall back to settings if _console_format not available
-                console_format = self.container._settings.json_console
-                if console_format == "auto":
-                    import sys
+                # Fallback: use ConfigurationManager for consistency
+                from .configuration_manager import ConfigurationManager
 
-                    console_format = "pretty" if sys.stderr.isatty() else "json"
+                console_format = ConfigurationManager.determine_console_format(
+                    self.container._settings.json_console
+                )
 
             # Build processor chain using existing pipeline function
             self._processors = build_processor_chain(
