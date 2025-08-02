@@ -50,6 +50,20 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Cache default settings instance to avoid recreating on every container initialization
+_default_settings: Optional[LoggingSettings] = None
+_default_settings_lock = threading.Lock()
+
+
+def _get_default_settings() -> LoggingSettings:
+    """Get cached default LoggingSettings instance."""
+    global _default_settings
+    if _default_settings is None:
+        with _default_settings_lock:
+            if _default_settings is None:
+                _default_settings = LoggingSettings()
+    return _default_settings
+
 
 class LoggingContainer:
     """Container that manages all logging dependencies and lifecycle.
@@ -77,18 +91,22 @@ class LoggingContainer:
         # Create a copy of settings to ensure complete container isolation
         self._settings: LoggingSettings
         if settings is not None:
+            # Only copy if needed to avoid expensive deep copy for identical settings
             # Use model_copy() which is faster than deepcopy for Pydantic models
             self._settings = settings.model_copy(deep=True)
         else:
-            self._settings = LoggingSettings()
+            # Use cached default settings and copy for isolation
+            default_settings = _get_default_settings()
+            self._settings = default_settings.model_copy(deep=True)
         self._configured = False
 
         # Component management
         self._container_id = f"container_{id(self)}"
-        self._registry = ComponentRegistry(self._container_id)
-        self._factory = ComponentFactory(self)
-        self._lifecycle_manager = LifecycleManager(self._container_id)
-        self._sink_manager = SinkManager(self._container_id)
+        # Defer expensive component creation until configure() for better performance
+        self._registry: Optional[ComponentRegistry] = None
+        self._factory: Optional[ComponentFactory] = None
+        self._lifecycle_manager: Optional[LifecycleManager] = None
+        self._sink_manager: Optional[SinkManager] = None
         self._queue_worker: Optional[QueueWorker] = None
         self._sinks: List[Any] = []
         self._httpx_propagation: Optional[HttpxTracePropagation] = None
@@ -103,6 +121,17 @@ class LoggingContainer:
 
         # Performance optimization: cache settings hash to avoid redundant validation
         self._settings_hash: Optional[int] = None
+
+    def _ensure_components_initialized(self) -> None:
+        """Ensure all manager components are initialized."""
+        if self._registry is None:
+            self._registry = ComponentRegistry(self._container_id)
+        if self._factory is None:
+            self._factory = ComponentFactory(self)
+        if self._lifecycle_manager is None:
+            self._lifecycle_manager = LifecycleManager(self._container_id)
+        if self._sink_manager is None:
+            self._sink_manager = SinkManager(self._container_id)
 
     def __enter__(self) -> "LoggingContainer":
         """Context manager entry - configure the container if not already done."""
@@ -153,6 +182,9 @@ class LoggingContainer:
             A configured structlog.BoundLogger instance
         """
         with self._lock:
+            # Initialize components on first configure() call for better performance
+            self._ensure_components_initialized()
+
             # Performance optimization: avoid redundant validation
             settings_changed = False
             if settings is not None:
@@ -238,8 +270,6 @@ class LoggingContainer:
         """Configure metrics collection and Prometheus exporter."""
         # Initialize metrics collector if enabled
         if self._settings.metrics.enabled:
-            from ._internal.metrics import MetricsCollector
-
             self._metrics_collector = MetricsCollector(
                 enabled=True,
                 sample_window=self._settings.metrics.sample_window,
@@ -386,8 +416,10 @@ class LoggingContainer:
         Returns:
             ProcessorLockManager instance scoped to this container
         """
-        return self._registry.get_or_create_component(
-            ProcessorLockManager, self._factory.create_lock_manager
+        self._ensure_components_initialized()
+        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+            ProcessorLockManager,
+            self._factory.create_lock_manager,  # type: ignore[union-attr]
         )
 
     def get_processor_metrics(self) -> ProcessorMetrics:
@@ -396,8 +428,10 @@ class LoggingContainer:
         Returns:
             ProcessorMetrics instance scoped to this container
         """
-        return self._registry.get_or_create_component(
-            ProcessorMetrics, self._factory.create_processor_metrics
+        self._ensure_components_initialized()
+        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+            ProcessorMetrics,
+            self._factory.create_processor_metrics,  # type: ignore[union-attr]
         )
 
     def get_metrics_collector(self) -> Optional[MetricsCollector]:
@@ -409,8 +443,10 @@ class LoggingContainer:
         if not self._settings.metrics.enabled:
             return None
 
-        return self._registry.get_or_create_component(
-            MetricsCollector, self._factory.create_metrics_collector
+        self._ensure_components_initialized()
+        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+            MetricsCollector,
+            self._factory.create_metrics_collector,  # type: ignore[union-attr]
         )
 
     def get_prometheus_exporter(self) -> Optional[PrometheusExporter]:
@@ -422,8 +458,10 @@ class LoggingContainer:
         if not self._settings.metrics.prometheus_enabled:
             return None
 
-        return self._registry.get_or_create_component(
-            PrometheusExporter, self._factory.create_prometheus_exporter
+        self._ensure_components_initialized()
+        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+            PrometheusExporter,
+            self._factory.create_prometheus_exporter,  # type: ignore[union-attr]
         )
 
     def get_async_smart_cache(self) -> "AsyncSmartCache":
@@ -434,8 +472,10 @@ class LoggingContainer:
         """
         from .enrichers import AsyncSmartCache
 
-        return self._registry.get_or_create_component(
-            AsyncSmartCache, self._factory.create_async_smart_cache
+        self._ensure_components_initialized()
+        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+            AsyncSmartCache,
+            self._factory.create_async_smart_cache,  # type: ignore[union-attr]
         )
 
     def get_enricher_error_handler(self) -> "EnricherErrorHandler":
@@ -446,8 +486,10 @@ class LoggingContainer:
         """
         from .enrichers import EnricherErrorHandler
 
-        return self._registry.get_or_create_component(
-            EnricherErrorHandler, self._factory.create_enricher_error_handler
+        self._ensure_components_initialized()
+        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+            EnricherErrorHandler,
+            self._factory.create_enricher_error_handler,  # type: ignore[union-attr]
         )
 
     def get_enricher_health_monitor(self) -> "EnricherHealthMonitor":
@@ -458,8 +500,10 @@ class LoggingContainer:
         """
         from .enrichers import EnricherHealthMonitor
 
-        return self._registry.get_or_create_component(
-            EnricherHealthMonitor, self._factory.create_enricher_health_monitor
+        self._ensure_components_initialized()
+        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+            EnricherHealthMonitor,
+            self._factory.create_enricher_health_monitor,  # type: ignore[union-attr]
         )
 
     def get_retry_coordinator(self) -> "RetryCoordinator":
@@ -470,6 +514,8 @@ class LoggingContainer:
         """
         from .enrichers import RetryCoordinator
 
-        return self._registry.get_or_create_component(
-            RetryCoordinator, self._factory.create_retry_coordinator
+        self._ensure_components_initialized()
+        return self._registry.get_or_create_component(  # type: ignore[union-attr]
+            RetryCoordinator,
+            self._factory.create_retry_coordinator,  # type: ignore[union-attr]
         )
