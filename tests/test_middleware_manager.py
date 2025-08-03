@@ -7,7 +7,7 @@ propagation, and clean separation of concerns.
 
 from unittest.mock import Mock, patch
 
-from fapilog._internal.middleware_manager import MiddlewareManager
+from fapilog.core.managers.middleware_manager import MiddlewareManager
 from fapilog.settings import LoggingSettings
 
 
@@ -23,7 +23,7 @@ class TestMiddlewareManager:
         assert manager._httpx_propagation is None
         assert manager._lock is not None
 
-    @patch("fapilog._internal.middleware_manager.TraceIDMiddleware")
+    @patch("fapilog.core.managers.middleware_manager.TraceIDMiddleware")
     def test_register_middleware_basic(self, mock_middleware_class):
         """Test basic middleware registration with FastAPI app."""
         manager = MiddlewareManager("test_container")
@@ -37,7 +37,7 @@ class TestMiddlewareManager:
             mock_middleware_class, trace_id_header=settings.trace_id_header
         )
 
-    @patch("fapilog._internal.middleware_manager.TraceIDMiddleware")
+    @patch("fapilog.core.managers.middleware_manager.TraceIDMiddleware")
     def test_register_middleware_with_trace_id_middleware(self, mock_middleware_class):
         """Test middleware registration includes TraceIDMiddleware."""
         manager = MiddlewareManager("test_container")
@@ -50,7 +50,7 @@ class TestMiddlewareManager:
             mock_middleware_class, trace_id_header="X-Custom-Trace-ID"
         )
 
-    @patch("fapilog._internal.middleware_manager.sys")
+    @patch("fapilog.core.managers.middleware_manager.sys")
     def test_register_middleware_with_shutdown_callback_production(self, mock_sys):
         """Test middleware registration with shutdown callback in production."""
         # Mock production environment (no pytest)
@@ -72,7 +72,7 @@ class TestMiddlewareManager:
             "shutdown", shutdown_callback
         )
 
-    @patch("fapilog._internal.middleware_manager.sys")
+    @patch("fapilog.core.managers.middleware_manager.sys")
     def test_register_middleware_with_shutdown_callback_testing(self, mock_sys):
         """Test middleware registration skips shutdown callback in test environment."""
         # Mock test environment
@@ -95,7 +95,7 @@ class TestMiddlewareManager:
         settings = LoggingSettings(enable_httpx_trace_propagation=True)
 
         with patch(
-            "fapilog._internal.middleware_manager.HttpxTracePropagation"
+            "fapilog.core.managers.middleware_manager.HttpxTracePropagation"
         ) as mock_propagation_class:
             mock_propagation = Mock()
             mock_propagation_class.return_value = mock_propagation
@@ -113,7 +113,7 @@ class TestMiddlewareManager:
         settings = LoggingSettings(enable_httpx_trace_propagation=False)
 
         with patch(
-            "fapilog._internal.middleware_manager.HttpxTracePropagation"
+            "fapilog.core.managers.middleware_manager.HttpxTracePropagation"
         ) as mock_propagation_class:
             manager.configure_httpx_trace_propagation(settings)
 
@@ -127,9 +127,9 @@ class TestMiddlewareManager:
         mock_app = Mock()
 
         with patch(
-            "fapilog._internal.middleware_manager.LoggingSettings"
+            "fapilog.core.managers.middleware_manager.LoggingSettings"
         ) as mock_settings_class, patch(
-            "fapilog._internal.middleware_manager.TraceIDMiddleware"
+            "fapilog.core.managers.middleware_manager.TraceIDMiddleware"
         ) as mock_middleware:
             mock_settings = Mock()
             mock_settings.trace_id_header = "X-Request-ID"  # Use actual default value
@@ -170,7 +170,7 @@ class TestMiddlewareManager:
         mock_propagation.cleanup.side_effect = Exception("Cleanup failed")
         manager._httpx_propagation = mock_propagation
 
-        with patch("fapilog._internal.middleware_manager.logger") as mock_logger:
+        with patch("fapilog.core.managers.middleware_manager.logger") as mock_logger:
             manager.cleanup_httpx_propagation()
 
             # Verify exception was logged and propagation reset
@@ -219,7 +219,7 @@ class TestMiddlewareManager:
         def configure_propagation():
             try:
                 with patch(
-                    "fapilog._internal.middleware_manager.HttpxTracePropagation"
+                    "fapilog.core.managers.middleware_manager.HttpxTracePropagation"
                 ):
                     manager.configure_httpx_trace_propagation(settings)
                     time.sleep(0.01)  # Small delay to encourage race conditions
@@ -259,7 +259,7 @@ class TestMiddlewareManagerIntegration:
 
             # Test middleware registration
             with patch(
-                "fapilog._internal.middleware_manager.TraceIDMiddleware"
+                "fapilog.core.managers.middleware_manager.TraceIDMiddleware"
             ) as mock_middleware:
                 manager.register_middleware(mock_app, settings)
                 mock_app.add_middleware.assert_called_with(
@@ -268,7 +268,7 @@ class TestMiddlewareManagerIntegration:
 
             # Test httpx propagation configuration
             with patch(
-                "fapilog._internal.middleware_manager.HttpxTracePropagation"
+                "fapilog.core.managers.middleware_manager.HttpxTracePropagation"
             ) as mock_propagation_class:
                 manager.configure_httpx_trace_propagation(settings)
 
@@ -298,11 +298,11 @@ class TestMiddlewareManagerIntegration:
 
         # Test configuration
         with patch(
-            "fapilog._internal.middleware_manager.HttpxTracePropagation"
+            "fapilog.core.managers.middleware_manager.HttpxTracePropagation"
         ) as mock_propagation_class, patch(
-            "fapilog._internal.middleware_manager.TraceIDMiddleware"
+            "fapilog.core.managers.middleware_manager.TraceIDMiddleware"
         ) as mock_middleware, patch(
-            "fapilog._internal.middleware_manager.sys"
+            "fapilog.core.managers.middleware_manager.sys"
         ) as mock_sys:
             # Mock production environment
             mock_sys.modules = {}

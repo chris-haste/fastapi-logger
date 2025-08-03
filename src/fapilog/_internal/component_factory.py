@@ -9,10 +9,10 @@ from typing import TYPE_CHECKING, NamedTuple, Optional
 
 from fapilog._internal.async_lock_manager import ProcessorLockManager
 from fapilog._internal.metrics import MetricsCollector
-from fapilog._internal.middleware_manager import MiddlewareManager
 from fapilog._internal.processor_metrics import ProcessorMetrics
 from fapilog.core.managers.configuration_manager import ConfigurationManager
 from fapilog.core.managers.lifecycle_manager import LifecycleManager
+from fapilog.core.managers.middleware_manager import MiddlewareManager
 from fapilog.core.managers.sink_manager import SinkManager
 from fapilog.enrichers import (
     AsyncSmartCache,
