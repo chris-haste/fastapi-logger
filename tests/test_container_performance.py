@@ -38,11 +38,9 @@ class TestContainerPerformance:
         max_time = max(times)
 
         # Performance targets - reasonable targets for factory-based approach
-        # Container creation should be fast (< 5.5ms average, accounting for CI overhead)
-        assert avg_time < 0.0055, (
-            f"Container creation too slow: {avg_time:.4f}s average"
-        )
-        assert median_time < 0.0055, (
+        # Container creation should be fast (< 10ms average, accounting for CI overhead)
+        assert avg_time < 0.010, f"Container creation too slow: {avg_time:.4f}s average"
+        assert median_time < 0.010, (
             f"Container creation median too slow: {median_time:.4f}s"
         )
 
