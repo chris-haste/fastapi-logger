@@ -12,7 +12,7 @@ from typing import Any, Dict, Optional
 
 from ..async_components.cache.lru_cache import LRUCache
 from ..exceptions import ProcessorConfigurationError
-from .async_processor_base import AsyncProcessorBase
+from ..processors.async_base import AsyncProcessorBase
 
 logger = logging.getLogger(__name__)
 

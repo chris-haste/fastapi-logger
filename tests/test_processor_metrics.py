@@ -7,7 +7,6 @@ from unittest.mock import patch
 
 import pytest
 
-from fapilog._internal.processor import Processor
 from fapilog._internal.processor_metrics import (
     ProcessorMetrics,
     wrap_processor_with_metrics,
@@ -18,6 +17,7 @@ from fapilog.monitoring import (
     get_processor_summary,
     reset_processor_metrics,
 )
+from fapilog.processors.base import Processor
 
 
 class TestProcessorMetrics:

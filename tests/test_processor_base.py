@@ -4,12 +4,12 @@ from typing import Any, Dict
 
 import pytest
 
-from fapilog._internal.processor import Processor
 from fapilog._internal.processors import (
     FilterNoneProcessor,
     RedactionProcessor,
     SamplingProcessor,
 )
+from fapilog.processors.base import Processor
 
 
 class ConcreteProcessor(Processor):

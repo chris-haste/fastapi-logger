@@ -8,8 +8,6 @@ from typing import Any
 
 import pytest
 
-from fapilog._internal.async_processor_base import AsyncProcessorBase
-from fapilog._internal.processor import Processor
 from fapilog._internal.processors import FilterNoneProcessor, RedactionProcessor
 from fapilog._internal.templates.processor_template import TemplateProcessor
 from fapilog._internal.testing.processor_testing import (
@@ -17,6 +15,8 @@ from fapilog._internal.testing.processor_testing import (
     ProcessorPerformanceTester,
     ProcessorTestBase,
 )
+from fapilog.processors.async_base import AsyncProcessorBase
+from fapilog.processors.base import Processor
 
 
 class TestProcessorTestBase:

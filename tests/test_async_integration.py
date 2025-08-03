@@ -11,7 +11,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from fapilog._internal.async_processor_base import AsyncProcessorBase
+from fapilog.processors.async_base import AsyncProcessorBase
 
 
 class MockAsyncProcessor(AsyncProcessorBase):

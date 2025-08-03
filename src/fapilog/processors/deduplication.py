@@ -16,7 +16,7 @@ from ..async_components.concurrency.background_cleanup_manager import (
 )
 from ..async_components.concurrency.task_manager import AsyncTaskManager
 from ..exceptions import ProcessorConfigurationError
-from .async_processor_base import AsyncProcessorBase
+from ..processors.async_base import AsyncProcessorBase
 
 logger = logging.getLogger(__name__)
 

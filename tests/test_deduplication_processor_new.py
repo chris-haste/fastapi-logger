@@ -9,8 +9,8 @@ import time
 
 import pytest
 
-from fapilog._internal.deduplication_processor import DeduplicationProcessor
 from fapilog.exceptions import ProcessorConfigurationError
+from fapilog.processors.deduplication import DeduplicationProcessor
 
 
 @pytest.mark.asyncio

@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from fapilog._internal.throttle_processor import ThrottleProcessor
+from fapilog.processors.throttling import ThrottleProcessor
 
 
 @pytest.mark.asyncio

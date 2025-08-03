@@ -11,8 +11,8 @@ from unittest.mock import Mock, patch
 import pytest
 
 from fapilog._internal.async_lock_manager import ProcessorLockManager
-from fapilog._internal.async_processor_base import AsyncProcessorBase
 from fapilog._internal.safe_async_cache import SafeAsyncCache
+from fapilog.processors.async_base import AsyncProcessorBase
 
 
 class TestAsyncProcessor(AsyncProcessorBase):
@@ -220,7 +220,7 @@ class TestAsyncProcessorBase:
         context = {"operation": "test", "key": "test_key"}
 
         # Mock logger to capture log calls
-        with patch("fapilog._internal.async_processor_base.logger") as mock_logger:
+        with patch("fapilog.processors.async_base.logger") as mock_logger:
             await processor._handle_processor_error(error, context)
 
             # Verify error was logged

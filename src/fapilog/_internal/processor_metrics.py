@@ -5,7 +5,7 @@ import threading
 import time
 from typing import Any, Callable, Dict, Optional
 
-from .processor import Processor
+from ..processors.base import Processor
 
 
 class ProcessorMetrics:

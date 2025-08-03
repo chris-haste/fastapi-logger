@@ -3,13 +3,13 @@
 import logging
 from typing import Any, Callable, Dict, Optional, Union
 
+from .._internal.error_handling import log_error_with_context
 from ..exceptions import (
     ProcessorConfigurationError,
     ProcessorExecutionError,
     ProcessorRegistrationError,
 )
-from .error_handling import log_error_with_context
-from .processor import Processor
+from .base import Processor
 
 logger = logging.getLogger(__name__)
 

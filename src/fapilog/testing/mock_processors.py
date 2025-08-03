@@ -4,8 +4,8 @@ import random
 import time
 from typing import Any, Callable, Dict, List, Optional
 
-from .._internal.processor import Processor
 from ..exceptions import ProcessorExecutionError
+from ..processors.base import Processor
 
 
 class RecordingProcessor(Processor):

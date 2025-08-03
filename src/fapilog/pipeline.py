@@ -13,10 +13,6 @@ from fapilog.enrichers import (
     user_context_enricher,
 )
 
-from ._internal.processor import Processor
-from ._internal.processor_error_handling import (
-    create_simple_processor_wrapper,
-)
 from ._internal.processors import (
     DeduplicationProcessor,
     FilterNoneProcessor,
@@ -26,6 +22,10 @@ from ._internal.processors import (
 )
 from .integrations.pii.patterns import DEFAULT_PII_PATTERNS, auto_redact_pii_processor
 from .integrations.pii.redactors import field_redactor
+from .processors.base import Processor
+from .processors.error_handling import (
+    create_simple_processor_wrapper,
+)
 from .settings import LoggingSettings
 
 if TYPE_CHECKING:

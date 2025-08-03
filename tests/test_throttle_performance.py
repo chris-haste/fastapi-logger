@@ -15,7 +15,7 @@ from typing import List
 import psutil
 import pytest
 
-from fapilog._internal.throttle_processor import ThrottleProcessor
+from fapilog.processors.throttling import ThrottleProcessor
 
 
 # Simple quantile function for compatibility

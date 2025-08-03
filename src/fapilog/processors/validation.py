@@ -3,8 +3,8 @@
 import time
 from typing import Any, Dict, List, Optional
 
-from .._internal.processor import Processor
 from ..exceptions import ProcessorConfigurationError
+from .base import Processor
 
 
 class ValidationProcessor(Processor):

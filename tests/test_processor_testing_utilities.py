@@ -4,7 +4,7 @@ import time
 from typing import Any, Dict
 from unittest.mock import Mock, patch
 
-from fapilog._internal.processor import Processor
+from fapilog.processors.base import Processor
 from fapilog.testing.processor_testing import (
     ProcessorTestResult,
     benchmark_processor_performance,
