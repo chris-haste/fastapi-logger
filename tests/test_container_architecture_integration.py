@@ -520,7 +520,7 @@ class TestContainerErrorHandling:
         container = LoggingContainer()
 
         # Test with invalid settings type
-        with pytest.raises((TypeError, AttributeError)):
+        with pytest.raises(ConfigurationError):
             container.configure(settings="invalid")
 
     def test_component_access_before_configuration(self):
