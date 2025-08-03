@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from fapilog._internal.lifecycle_manager import LifecycleManager
+from fapilog.core.managers.lifecycle_manager import LifecycleManager
 from fapilog.exceptions import ConfigurationError
 
 

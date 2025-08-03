@@ -6,13 +6,13 @@ import pytest
 
 from fapilog._internal.async_lock_manager import ProcessorLockManager
 from fapilog._internal.component_factory import ComponentFactory, ManagerSet
-from fapilog._internal.lifecycle_manager import LifecycleManager
 from fapilog._internal.metrics import MetricsCollector
 from fapilog._internal.middleware_manager import MiddlewareManager
 from fapilog._internal.processor_metrics import ProcessorMetrics
 from fapilog._internal.sink_manager import SinkManager
 from fapilog.container import LoggingContainer
 from fapilog.core.managers.configuration_manager import ConfigurationManager
+from fapilog.core.managers.lifecycle_manager import LifecycleManager
 from fapilog.monitoring import PrometheusExporter
 from fapilog.settings import LoggingSettings
 

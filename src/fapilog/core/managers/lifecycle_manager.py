@@ -21,8 +21,8 @@ import logging
 import threading
 from typing import Any, Callable, Optional
 
-from ..monitoring import PrometheusExporter
-from .error_handling import handle_configuration_error
+from ..._internal.error_handling import handle_configuration_error
+from ...monitoring import PrometheusExporter
 
 # Note: FastAPI lifespan RuntimeWarnings in test environments are expected and harmless.
 # They occur during test cleanup when FastAPI shutdown handlers aren't properly awaited.

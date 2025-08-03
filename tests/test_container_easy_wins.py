@@ -80,13 +80,13 @@ class TestContainerEasyWins:
 
     def test_log_level_attribute_error_handling(self):
         """Test AttributeError handling in logging setup via LifecycleManager."""
-        from fapilog._internal.lifecycle_manager import LifecycleManager
+        from fapilog.core.managers.lifecycle_manager import LifecycleManager
 
         manager = LifecycleManager("test")
 
         # Mock logging to raise AttributeError
         with patch(
-            "fapilog._internal.lifecycle_manager.logging.getLogger"
+            "fapilog.core.managers.lifecycle_manager.logging.getLogger"
         ) as mock_get_logger:
             mock_logger = mock_get_logger.return_value
             mock_logger.setLevel.side_effect = AttributeError("Invalid level")
