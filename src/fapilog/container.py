@@ -17,11 +17,11 @@ from ._internal.component_factory import ComponentFactory
 from ._internal.component_registry import ComponentRegistry
 from ._internal.container_logger_factory import ContainerLoggerFactory
 from ._internal.metrics import MetricsCollector
-from ._internal.metrics_manager import MetricsManager
 from ._internal.processor_metrics import ProcessorMetrics
 from ._internal.queue_worker import QueueWorker
 from .core.managers.configuration_manager import ConfigurationManager
 from .core.managers.lifecycle_manager import LifecycleManager
+from .core.managers.metrics_manager import MetricsManager
 from .core.managers.middleware_manager import MiddlewareManager
 from .core.managers.sink_manager import SinkManager
 from .monitoring import PrometheusExporter
