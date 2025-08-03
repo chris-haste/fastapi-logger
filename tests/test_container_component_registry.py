@@ -11,11 +11,11 @@ from unittest.mock import patch
 import pytest
 
 from fapilog._internal.async_lock_manager import ProcessorLockManager
-from fapilog._internal.component_factory import ComponentFactory
 from fapilog._internal.component_registry import ComponentRegistry
 from fapilog._internal.metrics import MetricsCollector
 from fapilog._internal.processor_metrics import ProcessorMetrics
 from fapilog.container import LoggingContainer
+from fapilog.core.factories.component_factory import ComponentFactory
 from fapilog.monitoring import PrometheusExporter
 from fapilog.settings import LoggingSettings
 
