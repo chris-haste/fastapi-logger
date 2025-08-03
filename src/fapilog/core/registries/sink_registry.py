@@ -6,7 +6,7 @@ register custom sink implementations and use them via URI configuration.
 
 from typing import Callable, Dict, Optional, Type
 
-from ..sinks import Sink
+from ...sinks import Sink
 
 
 class SinkRegistry:

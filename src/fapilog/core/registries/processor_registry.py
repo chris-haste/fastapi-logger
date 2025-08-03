@@ -6,7 +6,7 @@ register custom processor implementations for use in the logging pipeline.
 
 from typing import Callable, Dict, Optional, Type
 
-from .processor import Processor
+from ..._internal.processor import Processor
 
 
 class ProcessorRegistry:

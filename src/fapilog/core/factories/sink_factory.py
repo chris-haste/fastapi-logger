@@ -7,9 +7,9 @@ supporting both built-in and custom registered sinks.
 import urllib.parse
 from typing import Any, Dict
 
-from ..exceptions import SinkConfigurationError
-from ..sinks import Sink
-from .sink_registry import SinkRegistry
+from ...exceptions import SinkConfigurationError
+from ...sinks import Sink
+from ..registries.sink_registry import SinkRegistry
 
 
 def create_custom_sink_from_uri(uri: str) -> Sink:

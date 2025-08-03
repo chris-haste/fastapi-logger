@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from fapilog._internal.sink_factory import (
+from fapilog.core.factories.sink_factory import (
     SinkConfigurationError,
     create_custom_sink_from_uri,
 )

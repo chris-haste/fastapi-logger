@@ -10,10 +10,10 @@ from typing import TYPE_CHECKING, Any, List, Optional, cast
 
 import structlog
 
-from ..pipeline import build_processor_chain
+from ...pipeline import build_processor_chain
 
 if TYPE_CHECKING:
-    from ..container import LoggingContainer
+    from ...container import LoggingContainer
 
 
 class ContainerLoggerFactory:
@@ -61,7 +61,7 @@ class ContainerLoggerFactory:
             console_format = getattr(self.container, "_console_format", None)
             if console_format is None:
                 # Fallback: use ConfigurationManager for consistency
-                from ..core.managers.configuration_manager import ConfigurationManager
+                from ..managers.configuration_manager import ConfigurationManager
 
                 console_format = ConfigurationManager.determine_console_format(
                     self.container._settings.json_console
