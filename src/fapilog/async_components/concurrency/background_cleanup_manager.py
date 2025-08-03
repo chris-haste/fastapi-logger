@@ -9,7 +9,7 @@ import logging
 import time
 from typing import Any, Callable, Optional, Protocol
 
-from ..async_components.concurrency.task_manager import AsyncTaskManager
+from .task_manager import AsyncTaskManager
 
 logger = logging.getLogger(__name__)
 

@@ -10,10 +10,13 @@ import logging
 import time
 from typing import Any, Dict, List, Optional, cast
 
+from ..async_components.concurrency.background_cleanup_manager import (
+    BackgroundCleanupManager,
+    CleanupTarget,
+)
 from ..async_components.concurrency.task_manager import AsyncTaskManager
 from ..exceptions import ProcessorConfigurationError
 from .async_processor_base import AsyncProcessorBase
-from .background_cleanup_manager import BackgroundCleanupManager, CleanupTarget
 
 logger = logging.getLogger(__name__)
 
