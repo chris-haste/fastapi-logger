@@ -5,7 +5,7 @@ import warnings
 from collections import deque
 from typing import Any, List, cast
 
-from ..redactors import _should_redact_at_level
+from .redactors import _should_redact_at_level
 
 # NOTE: The order of patterns below is IMPORTANT.
 # More specific patterns (e.g., credit card, IP) must come BEFORE more general patterns (e.g., phone, email).

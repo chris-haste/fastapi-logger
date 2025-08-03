@@ -9,16 +9,17 @@ from typing import Any, Optional, cast
 
 import structlog
 
-# Note: FastAPI lifespan RuntimeWarnings in test environments are expected and harmless.
-# They occur when test frameworks don't properly await FastAPI shutdown coroutines.
-# This is normal behavior and doesn't affect functionality.
-from ._internal.context import get_trace_id as get_current_trace_id
 from .bootstrap import configure_logging, create_logger
 from .container import LoggingContainer
 from .core.registries.processor_registry import register_processor
 from .core.registries.sink_registry import SinkRegistry, register_sink
 from .settings import LoggingSettings
 from .sinks import Sink
+
+# Note: FastAPI lifespan RuntimeWarnings in test environments are expected and harmless.
+# They occur when test frameworks don't properly await FastAPI shutdown coroutines.
+# This is normal behavior and doesn't affect functionality.
+from .utils.context import get_trace_id as get_current_trace_id
 
 
 def _get_version() -> str:

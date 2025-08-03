@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, List
 
-from .exceptions import RedactionError
+from ...exceptions import RedactionError
 
 
 def _get_log_level_numeric(level: str) -> int:

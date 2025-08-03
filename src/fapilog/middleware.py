@@ -21,11 +21,11 @@ except ImportError:  # pragma: no cover
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from ._internal.context import (
+from ._internal.error_handling import handle_middleware_error
+from .utils.context import (
     bind_context,
     clear_context,
 )
-from ._internal.error_handling import handle_middleware_error
 
 
 def add_trace_exception_handler(

@@ -9,8 +9,8 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Set, cast
 
-from ._internal.context import get_context
 from .exceptions import ConfigurationError
+from .utils.context import get_context
 
 # Logger for enricher-related issues
 enricher_logger = logging.getLogger(__name__)

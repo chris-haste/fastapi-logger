@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 from urllib.parse import parse_qs, urlparse
 
 from .._internal.error_handling import StandardSinkErrorHandling
-from .._internal.utils import safe_json_serialize
 from ..exceptions import ConfigurationError
+from ..utils.helpers import safe_json_serialize
 from .base import Sink
 
 if TYPE_CHECKING:

@@ -3,7 +3,7 @@
 import contextvars
 from typing import Any, Dict, List, Optional, Tuple
 
-from .error_handling import handle_context_error
+from .._internal.error_handling import handle_context_error
 
 # Context variables for request correlation
 trace_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
