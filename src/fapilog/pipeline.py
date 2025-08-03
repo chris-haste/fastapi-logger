@@ -20,13 +20,13 @@ from ._internal.processors import (
     SamplingProcessor,
     ThrottleProcessor,
 )
+from .config import LoggingSettings
 from .integrations.pii.patterns import DEFAULT_PII_PATTERNS, auto_redact_pii_processor
 from .integrations.pii.redactors import field_redactor
 from .processors.base import Processor
 from .processors.error_handling import (
     create_simple_processor_wrapper,
 )
-from .settings import LoggingSettings
 
 if TYPE_CHECKING:
     from .container import LoggingContainer
@@ -166,7 +166,7 @@ def build_processor_chain(
         # Use pure dependency injection for queue sink
         if container is not None:
             # Import here to avoid circular imports
-            from ._internal.queue_integration import create_queue_sink
+            from .async_components.queue.integration import create_queue_sink
 
             # Create queue sink with explicit container dependency
             queue_sink_processor = create_queue_sink(container)

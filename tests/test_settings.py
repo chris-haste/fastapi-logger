@@ -6,8 +6,8 @@ from unittest.mock import patch
 import pytest
 
 from fapilog.bootstrap import configure_logging
+from fapilog.config import LoggingSettings
 from fapilog.exceptions import ConfigurationError
-from fapilog.settings import LoggingSettings
 
 
 class TestLoggingSettings:
@@ -169,7 +169,7 @@ class TestLoggingSettings:
 
 def test_configure_logging_function():
     """Test the configure_logging function from bootstrap module."""
-    from fapilog.settings import LoggingSettings
+    from fapilog.config import LoggingSettings
 
     # Test the actual configure_logging function
     configure_logging()

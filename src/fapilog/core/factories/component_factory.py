@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, NamedTuple, Optional
 from ..._internal.metrics import MetricsCollector
 from ..._internal.processor_metrics import ProcessorMetrics
 from ...async_components.concurrency.lock_manager import ProcessorLockManager
+from ...config import LoggingSettings
 from ...enrichers import (
     AsyncSmartCache,
     EnricherErrorHandler,
@@ -17,7 +18,6 @@ from ...enrichers import (
     RetryCoordinator,
 )
 from ...monitoring import PrometheusExporter
-from ...settings import LoggingSettings
 from ..managers.configuration_manager import ConfigurationManager
 from ..managers.lifecycle_manager import LifecycleManager
 from ..managers.middleware_manager import MiddlewareManager

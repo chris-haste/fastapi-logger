@@ -8,8 +8,8 @@ from typing import Any, List, Optional, Tuple, Union
 
 import structlog
 
+from .config import LoggingSettings
 from .container import LoggingContainer
-from .settings import LoggingSettings
 from .sinks import Sink
 
 

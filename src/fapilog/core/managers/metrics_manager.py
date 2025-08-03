@@ -18,8 +18,8 @@ import threading
 from typing import Any, Optional
 
 from ..._internal.metrics import MetricsCollector
+from ...config import LoggingSettings
 from ...monitoring import PrometheusExporter
-from ...settings import LoggingSettings
 
 logger = logging.getLogger(__name__)
 

@@ -19,9 +19,9 @@ import sys
 import threading
 from typing import Any, Callable, Optional
 
+from ...config import LoggingSettings
 from ...httpx_patch import HttpxTracePropagation
 from ...middleware import TraceIDMiddleware
-from ...settings import LoggingSettings
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +111,7 @@ class MiddlewareManager:
         with self._lock:
             # For now, this delegates to the full register_middleware method
             # but could be extended for more granular control in the future
-            from ...settings import LoggingSettings
+            from ...config import LoggingSettings
 
             settings = LoggingSettings()
             app.add_middleware(

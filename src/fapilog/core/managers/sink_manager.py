@@ -18,8 +18,8 @@ from typing import Any, List, Optional
 
 from ..._internal.error_handling import handle_configuration_error
 from ...async_components.queue.worker import QueueWorker
+from ...config import LoggingSettings
 from ...exceptions import SinkConfigurationError, SinkErrorContextBuilder
-from ...settings import LoggingSettings
 from ...sinks.base import Sink
 from ...sinks.file import create_file_sink_from_uri
 from ...sinks.loki import create_loki_sink_from_uri

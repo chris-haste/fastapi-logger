@@ -16,6 +16,7 @@ from ._internal.metrics import MetricsCollector
 from ._internal.processor_metrics import ProcessorMetrics
 from .async_components.concurrency.lock_manager import ProcessorLockManager
 from .async_components.queue.worker import QueueWorker
+from .config import LoggingSettings
 from .core.factories.component_factory import ComponentFactory
 from .core.factories.container_logger_factory import ContainerLoggerFactory
 from .core.managers.configuration_manager import ConfigurationManager
@@ -25,7 +26,6 @@ from .core.managers.middleware_manager import MiddlewareManager
 from .core.managers.sink_manager import SinkManager
 from .core.registries.component_registry import ComponentRegistry
 from .monitoring import PrometheusExporter
-from .settings import LoggingSettings
 
 if TYPE_CHECKING:
     from .enrichers import (

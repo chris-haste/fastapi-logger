@@ -10,10 +10,10 @@ from typing import Any, Optional, cast
 import structlog
 
 from .bootstrap import configure_logging, create_logger
+from .config import LoggingSettings
 from .container import LoggingContainer
 from .core.registries.processor_registry import register_processor
 from .core.registries.sink_registry import SinkRegistry, register_sink
-from .settings import LoggingSettings
 from .sinks import Sink
 
 # Note: FastAPI lifespan RuntimeWarnings in test environments are expected and harmless.

@@ -8,8 +8,8 @@ try:
 except ImportError:
     httpx = None
 
+from .config import LoggingSettings
 from .exceptions import ConfigurationError
-from .settings import LoggingSettings
 from .utils.context import get_trace_id
 
 

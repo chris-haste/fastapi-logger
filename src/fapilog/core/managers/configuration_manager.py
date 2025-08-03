@@ -16,7 +16,7 @@ import sys
 from typing import Optional, Union
 
 from ..._internal.error_handling import handle_configuration_error
-from ...settings import LoggingSettings
+from ...config import LoggingSettings
 
 
 class ConfigurationManager:
