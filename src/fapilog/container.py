@@ -12,10 +12,10 @@ from typing import TYPE_CHECKING, Any, Generator, List, Optional
 
 import structlog
 
-from ._internal.async_lock_manager import ProcessorLockManager
 from ._internal.metrics import MetricsCollector
 from ._internal.processor_metrics import ProcessorMetrics
 from ._internal.queue_worker import QueueWorker
+from .async_components.concurrency.lock_manager import ProcessorLockManager
 from .core.factories.component_factory import ComponentFactory
 from .core.factories.container_logger_factory import ContainerLoggerFactory
 from .core.managers.configuration_manager import ConfigurationManager

@@ -11,7 +11,7 @@ from abc import abstractmethod
 from typing import Any, Awaitable, Callable, Dict, Optional
 
 from ..async_components.cache.safe_async_cache import SafeAsyncCache
-from .async_lock_manager import ProcessorLockManager
+from ..async_components.concurrency.lock_manager import ProcessorLockManager
 from .processor import Processor
 
 logger = logging.getLogger(__name__)

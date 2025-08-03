@@ -7,9 +7,9 @@ dependencies.
 
 from typing import TYPE_CHECKING, NamedTuple, Optional
 
-from ..._internal.async_lock_manager import ProcessorLockManager
 from ..._internal.metrics import MetricsCollector
 from ..._internal.processor_metrics import ProcessorMetrics
+from ...async_components.concurrency.lock_manager import ProcessorLockManager
 from ...enrichers import (
     AsyncSmartCache,
     EnricherErrorHandler,
