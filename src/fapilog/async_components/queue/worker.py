@@ -11,15 +11,15 @@ import random as rnd
 import time
 from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional
 
-from ..sinks import Sink
-from .error_handling import (
+from ..._internal.error_handling import (
     handle_queue_error,
     log_error_with_context,
     retry_with_backoff_async,
 )
+from ...sinks import Sink
 
 if TYPE_CHECKING:
-    from ..container import LoggingContainer
+    from ...container import LoggingContainer
 
 logger = logging.getLogger(__name__)
 

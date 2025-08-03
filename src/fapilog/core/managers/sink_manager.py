@@ -17,7 +17,7 @@ import threading
 from typing import Any, List, Optional
 
 from ..._internal.error_handling import handle_configuration_error
-from ..._internal.queue_worker import QueueWorker
+from ...async_components.queue.worker import QueueWorker
 from ...exceptions import SinkConfigurationError, SinkErrorContextBuilder
 from ...settings import LoggingSettings
 from ...sinks.base import Sink

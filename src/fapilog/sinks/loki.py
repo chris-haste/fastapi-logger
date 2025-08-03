@@ -10,10 +10,10 @@ try:
 except ImportError:
     httpx = None
 
-from .._internal.batch_manager import BatchManager
 from .._internal.error_handling import StandardSinkErrorHandling
 from .._internal.loki_http_client import LokiHttpClient
 from .._internal.loki_payload_formatter import LokiPayloadFormatter
+from ..async_components.queue.batch_manager import BatchManager
 from ..exceptions import (
     ConfigurationError,
     SinkConfigurationError,
