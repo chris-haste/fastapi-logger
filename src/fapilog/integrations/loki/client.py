@@ -7,12 +7,12 @@ try:
 except ImportError:
     httpx = None
 
-from ..exceptions import (
+from ..._internal.error_handling import retry_with_backoff_async
+from ...exceptions import (
     SinkConfigurationError,
     SinkErrorContextBuilder,
     SinkWriteError,
 )
-from .error_handling import retry_with_backoff_async
 
 
 class LokiHttpClient:

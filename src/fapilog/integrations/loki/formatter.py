@@ -4,8 +4,8 @@ import datetime
 import time
 from typing import Any, Dict, List
 
-from ..exceptions import SinkErrorContextBuilder, SinkWriteError
-from .utils import safe_json_serialize
+from ..._internal.utils import safe_json_serialize
+from ...exceptions import SinkErrorContextBuilder, SinkWriteError
 
 
 class LokiPayloadFormatter:
