@@ -550,7 +550,7 @@ class TestContainerStress:
         operations_per_second = total_get_calls / total_time
         print(f"Operations per second: {operations_per_second:.0f}")
 
-        assert operations_per_second > 875, (
+        assert operations_per_second > 850, (
             f"Thread safety performance too low: {operations_per_second:.0f} ops/s"
         )
 

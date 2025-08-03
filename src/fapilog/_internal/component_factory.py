@@ -1,15 +1,19 @@
-"""ComponentFactory - Factory for creating container-scoped component instances.
+"""ComponentFactory - Factory for creating container-scoped components.
 
 This module provides a ComponentFactory class that creates container-scoped
 components with proper configuration and isolation, eliminating global state
 dependencies.
 """
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, NamedTuple, Optional
 
 from fapilog._internal.async_lock_manager import ProcessorLockManager
+from fapilog._internal.configuration_manager import ConfigurationManager
+from fapilog._internal.lifecycle_manager import LifecycleManager
 from fapilog._internal.metrics import MetricsCollector
+from fapilog._internal.middleware_manager import MiddlewareManager
 from fapilog._internal.processor_metrics import ProcessorMetrics
+from fapilog._internal.sink_manager import SinkManager
 from fapilog.enrichers import (
     AsyncSmartCache,
     EnricherErrorHandler,
@@ -21,6 +25,19 @@ from fapilog.settings import LoggingSettings
 
 if TYPE_CHECKING:
     from fapilog.container import LoggingContainer
+
+
+class ManagerSet(NamedTuple):
+    """Complete set of managers for LoggingContainer integration.
+
+    This structure provides all managers needed for container operation
+    with proper dependency resolution and initialization order.
+    """
+
+    configuration: ConfigurationManager
+    lifecycle: LifecycleManager
+    sink: SinkManager
+    middleware: MiddlewareManager
 
 
 class ComponentFactory:
@@ -191,7 +208,112 @@ class ComponentFactory:
         """
         return RetryCoordinator()
 
+    def create_configuration_manager(self) -> ConfigurationManager:
+        """Create ConfigurationManager for container.
+
+        Creates a new ConfigurationManager instance for configuration
+        validation and format determination. This manager is stateless
+        and provides static methods for configuration operations.
+
+        Returns:
+            ConfigurationManager: New configuration manager instance
+
+        Example:
+            config_mgr = factory.create_configuration_manager()
+            settings = config_mgr.validate_settings(raw_settings)
+            format = config_mgr.determine_console_format("auto")
+        """
+        return ConfigurationManager()
+
+    def create_lifecycle_manager(self) -> LifecycleManager:
+        """Create LifecycleManager for container.
+
+        Creates a new LifecycleManager instance for handling application
+        lifecycle events including startup configuration, shutdown handlers,
+        and graceful cleanup operations.
+
+        Returns:
+            LifecycleManager: New lifecycle manager instance
+
+        Example:
+            lifecycle_mgr = factory.create_lifecycle_manager()
+            lifecycle_mgr.configure_standard_logging("INFO")
+            lifecycle_mgr.register_shutdown_handler(cleanup_func)
+        """
+        container_id = getattr(self.container, "_container_id", str(id(self.container)))
+        return LifecycleManager(container_id)
+
+    def create_sink_manager(self) -> SinkManager:
+        """Create SinkManager for container.
+
+        Creates a new SinkManager instance for managing sink creation,
+        configuration, and lifecycle operations including queue worker
+        setup and sink lifecycle management.
+
+        Returns:
+            SinkManager: New sink manager instance
+
+        Example:
+            sink_mgr = factory.create_sink_manager()
+            worker = sink_mgr.setup_queue_worker(settings, format, container)
+            sink_mgr.create_sinks_from_settings(settings)
+        """
+        container_id = getattr(self.container, "_container_id", str(id(self.container)))
+        return SinkManager(container_id)
+
+    def create_middleware_manager(self) -> MiddlewareManager:
+        """Create MiddlewareManager for container.
+
+        Creates a new MiddlewareManager instance for handling all
+        middleware-related functionality including FastAPI middleware
+        registration and httpx trace propagation.
+
+        Returns:
+            MiddlewareManager: New middleware manager instance
+
+        Example:
+            middleware_mgr = factory.create_middleware_manager()
+            middleware_mgr.register_middleware(app, settings, shutdown_callback)
+            middleware_mgr.setup_httpx_propagation(settings)
+        """
+        container_id = getattr(self.container, "_container_id", str(id(self.container)))
+        return MiddlewareManager(container_id)
+
+    def create_managers_for_container(self, settings: LoggingSettings) -> ManagerSet:
+        """Create complete manager set for LoggingContainer integration.
+
+        Creates all specialized managers with proper dependency injection
+        and initialization order. This method provides a single interface
+        for LoggingContainer to acquire all required managers.
+
+        Args:
+            settings: LoggingSettings for manager configuration
+
+        Returns:
+            ManagerSet: Complete set of initialized managers
+
+        Example:
+            managers = factory.create_managers_for_container(settings)
+            # Use managers.configuration, managers.lifecycle, etc.
+            validated_settings = managers.configuration.validate_settings(settings)
+        """
+        # Create managers in dependency order
+        # ConfigurationManager is stateless - no dependencies
+        configuration_manager = self.create_configuration_manager()
+
+        # Other managers depend on container_id but not each other
+        lifecycle_manager = self.create_lifecycle_manager()
+        sink_manager = self.create_sink_manager()
+        middleware_manager = self.create_middleware_manager()
+
+        return ManagerSet(
+            configuration=configuration_manager,
+            lifecycle=lifecycle_manager,
+            sink=sink_manager,
+            middleware=middleware_manager,
+        )
+
     def __repr__(self) -> str:
         """Return string representation of factory."""
-        container_id = getattr(self.container, "container_id", id(self.container))
+        container_id = getattr(self.container, "_container_id", str(id(self.container)))
         return f"ComponentFactory(container_id={container_id!r})"
