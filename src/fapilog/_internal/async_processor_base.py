@@ -10,9 +10,9 @@ import logging
 from abc import abstractmethod
 from typing import Any, Awaitable, Callable, Dict, Optional
 
+from ..async_components.cache.safe_async_cache import SafeAsyncCache
 from .async_lock_manager import ProcessorLockManager
 from .processor import Processor
-from .safe_async_cache import SafeAsyncCache
 
 logger = logging.getLogger(__name__)
 
