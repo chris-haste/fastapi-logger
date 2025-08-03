@@ -10,9 +10,9 @@ import random
 import time
 from typing import Any, Dict, Optional
 
+from ..async_components.cache.lru_cache import LRUCache
 from ..exceptions import ProcessorConfigurationError
 from .async_processor_base import AsyncProcessorBase
-from .lru_cache import LRUCache
 
 logger = logging.getLogger(__name__)
 
