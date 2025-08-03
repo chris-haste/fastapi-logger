@@ -30,7 +30,7 @@ class TestContainerEasyWins:
 
         # Mock create_loki_sink_from_uri in SinkManager to raise ImportError
         with patch(
-            "fapilog._internal.sink_manager.create_loki_sink_from_uri",
+            "fapilog.core.managers.sink_manager.create_loki_sink_from_uri",
             side_effect=ImportError("Loki not available"),
         ):
             with pytest.raises(SinkConfigurationError) as exc_info:
@@ -58,7 +58,7 @@ class TestContainerEasyWins:
 
         # Mock QueueWorker in SinkManager to raise an exception during creation
         with patch(
-            "fapilog._internal.sink_manager.QueueWorker",
+            "fapilog.core.managers.sink_manager.QueueWorker",
             side_effect=Exception("Queue creation error"),
         ):
             with pytest.raises(ConfigurationError) as exc_info:

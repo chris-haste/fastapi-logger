@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from fapilog._internal.sink_manager import SinkManager
+from fapilog.core.managers.sink_manager import SinkManager
 from fapilog.exceptions import SinkConfigurationError
 from fapilog.settings import LoggingSettings
 from fapilog.sinks.base import Sink
@@ -29,8 +29,10 @@ class TestSinkManager:
         settings = LoggingSettings(sinks=["stdout"], queue={"enabled": True})
         mock_container = MagicMock()
 
-        with patch("fapilog._internal.sink_manager.StdoutSink") as mock_stdout, patch(
-            "fapilog._internal.sink_manager.QueueWorker"
+        with patch(
+            "fapilog.core.managers.sink_manager.StdoutSink"
+        ) as mock_stdout, patch(
+            "fapilog.core.managers.sink_manager.QueueWorker"
         ) as mock_queue_worker:
             mock_sink = MagicMock()
             mock_stdout.return_value = mock_sink
@@ -56,8 +58,10 @@ class TestSinkManager:
         settings = LoggingSettings(sinks=["stdout"], queue={"enabled": True})
         mock_container = MagicMock()
 
-        with patch("fapilog._internal.sink_manager.StdoutSink") as mock_stdout, patch(
-            "fapilog._internal.sink_manager.QueueWorker"
+        with patch(
+            "fapilog.core.managers.sink_manager.StdoutSink"
+        ) as mock_stdout, patch(
+            "fapilog.core.managers.sink_manager.QueueWorker"
         ) as mock_queue_worker:
             mock_sink = MagicMock()
             mock_stdout.return_value = mock_sink
@@ -75,8 +79,10 @@ class TestSinkManager:
         settings = LoggingSettings(sinks=["stdout"], queue={"enabled": True})
         mock_container = MagicMock()
 
-        with patch("fapilog._internal.sink_manager.StdoutSink") as mock_stdout, patch(
-            "fapilog._internal.sink_manager.QueueWorker"
+        with patch(
+            "fapilog.core.managers.sink_manager.StdoutSink"
+        ) as mock_stdout, patch(
+            "fapilog.core.managers.sink_manager.QueueWorker"
         ) as mock_queue_worker:
             mock_sink = MagicMock()
             mock_stdout.return_value = mock_sink
@@ -97,9 +103,9 @@ class TestSinkManager:
         mock_container = MagicMock()
 
         with patch(
-            "fapilog._internal.sink_manager.create_file_sink_from_uri"
+            "fapilog.core.managers.sink_manager.create_file_sink_from_uri"
         ) as mock_file_sink, patch(
-            "fapilog._internal.sink_manager.QueueWorker"
+            "fapilog.core.managers.sink_manager.QueueWorker"
         ) as mock_queue_worker:
             mock_sink = MagicMock()
             mock_file_sink.return_value = mock_sink
@@ -122,9 +128,9 @@ class TestSinkManager:
         mock_container = MagicMock()
 
         with patch(
-            "fapilog._internal.sink_manager.create_loki_sink_from_uri"
+            "fapilog.core.managers.sink_manager.create_loki_sink_from_uri"
         ) as mock_loki_sink, patch(
-            "fapilog._internal.sink_manager.QueueWorker"
+            "fapilog.core.managers.sink_manager.QueueWorker"
         ) as mock_queue_worker:
             mock_sink = MagicMock()
             mock_loki_sink.return_value = mock_sink
@@ -145,9 +151,9 @@ class TestSinkManager:
         mock_container = MagicMock()
 
         with patch(
-            "fapilog._internal.sink_manager.create_custom_sink_from_uri"
+            "fapilog.core.managers.sink_manager.create_custom_sink_from_uri"
         ) as mock_custom_sink, patch(
-            "fapilog._internal.sink_manager.QueueWorker"
+            "fapilog.core.managers.sink_manager.QueueWorker"
         ) as mock_queue_worker:
             mock_sink = MagicMock()
             mock_custom_sink.return_value = mock_sink
@@ -166,7 +172,9 @@ class TestSinkManager:
         settings = LoggingSettings(sinks=[mock_sink_instance], queue={"enabled": True})
         mock_container = MagicMock()
 
-        with patch("fapilog._internal.sink_manager.QueueWorker") as mock_queue_worker:
+        with patch(
+            "fapilog.core.managers.sink_manager.QueueWorker"
+        ) as mock_queue_worker:
             mock_worker = MagicMock()
             mock_queue_worker.return_value = mock_worker
 
@@ -184,7 +192,7 @@ class TestSinkManager:
         mock_container = MagicMock()
 
         with patch(
-            "fapilog._internal.sink_manager.create_file_sink_from_uri"
+            "fapilog.core.managers.sink_manager.create_file_sink_from_uri"
         ) as mock_file_sink:
             mock_file_sink.side_effect = Exception("File error")
 
@@ -203,7 +211,7 @@ class TestSinkManager:
         mock_container = MagicMock()
 
         with patch(
-            "fapilog._internal.sink_manager.create_loki_sink_from_uri"
+            "fapilog.core.managers.sink_manager.create_loki_sink_from_uri"
         ) as mock_loki_sink:
             mock_loki_sink.side_effect = ImportError("Loki not available")
 
@@ -222,7 +230,7 @@ class TestSinkManager:
         mock_container = MagicMock()
 
         with patch(
-            "fapilog._internal.sink_manager.create_loki_sink_from_uri"
+            "fapilog.core.managers.sink_manager.create_loki_sink_from_uri"
         ) as mock_loki_sink:
             mock_loki_sink.side_effect = Exception("Loki config error")
 
@@ -239,7 +247,7 @@ class TestSinkManager:
         mock_container = MagicMock()
 
         with patch(
-            "fapilog._internal.sink_manager.create_custom_sink_from_uri"
+            "fapilog.core.managers.sink_manager.create_custom_sink_from_uri"
         ) as mock_custom_sink:
             error = SinkConfigurationError("Custom error", "custom", {})
             mock_custom_sink.side_effect = error
@@ -257,7 +265,7 @@ class TestSinkManager:
         mock_container = MagicMock()
 
         with patch(
-            "fapilog._internal.sink_manager.create_custom_sink_from_uri"
+            "fapilog.core.managers.sink_manager.create_custom_sink_from_uri"
         ) as mock_custom_sink:
             mock_custom_sink.side_effect = Exception("Unknown sink")
 
@@ -273,10 +281,10 @@ class TestSinkManager:
         settings = LoggingSettings(sinks=["stdout"], queue={"enabled": True})
         mock_container = MagicMock()
 
-        with patch("fapilog._internal.sink_manager.StdoutSink"), patch(
-            "fapilog._internal.sink_manager.QueueWorker"
+        with patch("fapilog.core.managers.sink_manager.StdoutSink"), patch(
+            "fapilog.core.managers.sink_manager.QueueWorker"
         ) as mock_queue_worker, patch(
-            "fapilog._internal.sink_manager.handle_configuration_error"
+            "fapilog.core.managers.sink_manager.handle_configuration_error"
         ) as mock_error_handler:
             mock_queue_worker.side_effect = Exception("Queue error")
             mock_error_handler.side_effect = Exception("Config error")
@@ -295,7 +303,7 @@ class TestSinkManager:
         settings = LoggingSettings(sinks=["stdout"])
         mock_container = MagicMock()
 
-        with patch("fapilog._internal.sink_manager.StdoutSink") as mock_stdout:
+        with patch("fapilog.core.managers.sink_manager.StdoutSink") as mock_stdout:
             mock_sink = MagicMock()
             mock_stdout.return_value = mock_sink
 
@@ -313,7 +321,7 @@ class TestSinkManager:
         settings = LoggingSettings(sinks=[mock_direct_sink, "stdout"])
         mock_container = MagicMock()
 
-        with patch("fapilog._internal.sink_manager.StdoutSink") as mock_stdout:
+        with patch("fapilog.core.managers.sink_manager.StdoutSink") as mock_stdout:
             mock_stdout_sink = MagicMock()
             mock_stdout.return_value = mock_stdout_sink
 
@@ -428,8 +436,8 @@ class TestSinkManager:
 
         def setup_worker():
             try:
-                with patch("fapilog._internal.sink_manager.StdoutSink"), patch(
-                    "fapilog._internal.sink_manager.QueueWorker"
+                with patch("fapilog.core.managers.sink_manager.StdoutSink"), patch(
+                    "fapilog.core.managers.sink_manager.QueueWorker"
                 ) as mock_queue_worker:
                     mock_worker = MagicMock()
                     mock_queue_worker.return_value = mock_worker
@@ -481,8 +489,8 @@ class TestSinkManager:
         )
         mock_container = MagicMock()
 
-        with patch("fapilog._internal.sink_manager.StdoutSink"), patch(
-            "fapilog._internal.sink_manager.QueueWorker"
+        with patch("fapilog.core.managers.sink_manager.StdoutSink"), patch(
+            "fapilog.core.managers.sink_manager.QueueWorker"
         ) as mock_queue_worker:
             mock_worker = MagicMock()
             mock_queue_worker.return_value = mock_worker

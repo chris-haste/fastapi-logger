@@ -21,9 +21,9 @@ from ._internal.metrics_manager import MetricsManager
 from ._internal.middleware_manager import MiddlewareManager
 from ._internal.processor_metrics import ProcessorMetrics
 from ._internal.queue_worker import QueueWorker
-from ._internal.sink_manager import SinkManager
 from .core.managers.configuration_manager import ConfigurationManager
 from .core.managers.lifecycle_manager import LifecycleManager
+from .core.managers.sink_manager import SinkManager
 from .monitoring import PrometheusExporter
 from .settings import LoggingSettings
 
