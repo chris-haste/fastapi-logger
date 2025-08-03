@@ -343,60 +343,6 @@ class RedactionProcessor(Processor):
             self.cache_misses = 0
 
 
-class ValidationProcessor(Processor):
-    """Validate log events against required fields and data types."""
-
-    def __init__(
-        self,
-        required_fields: Optional[List[str]] = None,
-        field_types: Optional[Dict[str, type]] = None,
-        **config: Any,
-    ) -> None:
-        """Initialize validation processor.
-
-        Args:
-            required_fields: List of required field names
-            field_types: Mapping of field names to expected types
-        """
-        self.required_fields: Set[str] = set(required_fields or [])
-        self.field_types: Dict[str, type] = field_types or {}
-        super().__init__(**config)
-
-    def validate_config(self) -> None:
-        """Validate processor configuration."""
-        if not isinstance(self.required_fields, set):
-            raise ValueError("required_fields must be a set or list")
-        if not isinstance(self.field_types, dict):
-            raise ValueError("field_types must be a dictionary")
-
-    def process(
-        self, logger: Any, method_name: str, event_dict: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Validate event fields and types."""
-        # Check required fields
-        missing_fields = self.required_fields - set(event_dict.keys())
-        if missing_fields:
-            event_dict["validation_errors"] = event_dict.get("validation_errors", [])
-            event_dict["validation_errors"].extend(
-                [f"Missing required field: {field}" for field in missing_fields]
-            )
-
-        # Check field types
-        for field_name, expected_type in self.field_types.items():
-            if field_name in event_dict:
-                actual_value = event_dict[field_name]
-                if not isinstance(actual_value, expected_type):
-                    event_dict["validation_errors"] = event_dict.get(
-                        "validation_errors", []
-                    )
-                    event_dict["validation_errors"].append(
-                        f"Field '{field_name}' should be {expected_type.__name__}, "
-                        f"got {type(actual_value).__name__}"
-                    )
-
-        return event_dict
-
-
 class FilterNoneProcessor(Processor):
     """Processor that filters out None events."""
 

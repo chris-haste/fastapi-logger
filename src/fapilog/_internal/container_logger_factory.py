@@ -61,7 +61,7 @@ class ContainerLoggerFactory:
             console_format = getattr(self.container, "_console_format", None)
             if console_format is None:
                 # Fallback: use ConfigurationManager for consistency
-                from .configuration_manager import ConfigurationManager
+                from ..core.managers.configuration_manager import ConfigurationManager
 
                 console_format = ConfigurationManager.determine_console_format(
                     self.container._settings.json_console

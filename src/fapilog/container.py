@@ -15,7 +15,6 @@ import structlog
 from ._internal.async_lock_manager import ProcessorLockManager
 from ._internal.component_factory import ComponentFactory
 from ._internal.component_registry import ComponentRegistry
-from ._internal.configuration_manager import ConfigurationManager
 from ._internal.container_logger_factory import ContainerLoggerFactory
 from ._internal.lifecycle_manager import LifecycleManager
 from ._internal.metrics import MetricsCollector
@@ -24,6 +23,7 @@ from ._internal.middleware_manager import MiddlewareManager
 from ._internal.processor_metrics import ProcessorMetrics
 from ._internal.queue_worker import QueueWorker
 from ._internal.sink_manager import SinkManager
+from .core.managers.configuration_manager import ConfigurationManager
 from .monitoring import PrometheusExporter
 from .settings import LoggingSettings
 

@@ -15,8 +15,8 @@ Key Features:
 import sys
 from typing import Optional, Union
 
-from ..settings import LoggingSettings
-from .error_handling import handle_configuration_error
+from ..._internal.error_handling import handle_configuration_error
+from ...settings import LoggingSettings
 
 
 class ConfigurationManager:

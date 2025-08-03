@@ -308,11 +308,13 @@ class TestErrorHandling:
 
     def test_sink_configuration_error_properties(self):
         """Test SinkConfigurationError properties."""
-        error = SinkConfigurationError("Test error", uri="test://uri", sink_name="test")
+        error = SinkConfigurationError("Test error", "test", {"uri": "test://uri"})
 
-        assert str(error) == "Test error"
-        assert error.uri == "test://uri"
+        # The string representation includes context
+        assert "Test error" in str(error)
+        assert "uri=test://uri" in str(error)
         assert error.sink_name == "test"
+        assert error.context["uri"] == "test://uri"
 
     def test_thread_safety(self):
         """Test registry is thread-safe (basic test)."""

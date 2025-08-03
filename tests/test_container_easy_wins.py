@@ -4,8 +4,8 @@ from unittest.mock import patch
 
 import pytest
 
-from fapilog._internal.configuration_manager import ConfigurationManager
 from fapilog.container import LoggingContainer
+from fapilog.core.managers.configuration_manager import ConfigurationManager
 from fapilog.exceptions import ConfigurationError, SinkConfigurationError
 from fapilog.settings import LoggingSettings
 
@@ -70,7 +70,7 @@ class TestContainerEasyWins:
         """Test exception handling in settings validation via ConfigurationManager."""
         # Mock LoggingSettings.model_validate to raise an exception during validation
         with patch(
-            "fapilog._internal.configuration_manager.LoggingSettings.model_validate",
+            "fapilog.core.managers.configuration_manager.LoggingSettings.model_validate",
             side_effect=ValueError("Settings validation failed"),
         ):
             with pytest.raises(ConfigurationError):

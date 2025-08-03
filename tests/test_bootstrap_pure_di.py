@@ -6,13 +6,13 @@ from unittest.mock import Mock
 import pytest
 import structlog
 
-from fapilog._internal.configuration_manager import ConfigurationManager
 from fapilog.bootstrap import (
     configure_logging,
     configure_with_container,
     create_logger,
 )
 from fapilog.container import LoggingContainer
+from fapilog.core.managers.configuration_manager import ConfigurationManager
 from fapilog.exceptions import ConfigurationError
 from fapilog.settings import LoggingSettings
 

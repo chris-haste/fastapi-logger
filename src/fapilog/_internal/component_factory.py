@@ -8,12 +8,12 @@ dependencies.
 from typing import TYPE_CHECKING, NamedTuple, Optional
 
 from fapilog._internal.async_lock_manager import ProcessorLockManager
-from fapilog._internal.configuration_manager import ConfigurationManager
 from fapilog._internal.lifecycle_manager import LifecycleManager
 from fapilog._internal.metrics import MetricsCollector
 from fapilog._internal.middleware_manager import MiddlewareManager
 from fapilog._internal.processor_metrics import ProcessorMetrics
 from fapilog._internal.sink_manager import SinkManager
+from fapilog.core.managers.configuration_manager import ConfigurationManager
 from fapilog.enrichers import (
     AsyncSmartCache,
     EnricherErrorHandler,

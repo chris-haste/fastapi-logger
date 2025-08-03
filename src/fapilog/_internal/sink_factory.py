@@ -7,17 +7,9 @@ supporting both built-in and custom registered sinks.
 import urllib.parse
 from typing import Any, Dict
 
+from ..exceptions import SinkConfigurationError
 from ..sinks import Sink
 from .sink_registry import SinkRegistry
-
-
-class SinkConfigurationError(Exception):
-    """Raised when there's an error configuring a sink from URI."""
-
-    def __init__(self, message: str, uri: str = "", sink_name: str = ""):
-        super().__init__(message)
-        self.uri = uri
-        self.sink_name = sink_name
 
 
 def create_custom_sink_from_uri(uri: str) -> Sink:
@@ -39,11 +31,13 @@ def create_custom_sink_from_uri(uri: str) -> Sink:
     try:
         parsed = urllib.parse.urlparse(uri)
     except Exception as e:
-        raise SinkConfigurationError(f"Invalid URI format: {e}", uri=uri) from e
+        raise SinkConfigurationError(
+            f"Invalid URI format: {e}", "unknown", {"uri": uri}
+        ) from e
 
     if not parsed.scheme:
         raise SinkConfigurationError(
-            "URI must have a scheme (e.g., postgres://...)", uri=uri
+            "URI must have a scheme (e.g., postgres://...)", "unknown", {"uri": uri}
         )
 
     # Get registered sink class
@@ -54,8 +48,8 @@ def create_custom_sink_from_uri(uri: str) -> Sink:
         raise SinkConfigurationError(
             f"Unknown sink type '{parsed.scheme}'. "
             f"Available custom sinks: {available_str}",
-            uri=uri,
-            sink_name=parsed.scheme,
+            parsed.scheme,
+            {"uri": uri},
         )
 
     # Parse URI parameters
@@ -65,9 +59,7 @@ def create_custom_sink_from_uri(uri: str) -> Sink:
         return sink_class(**kwargs)
     except Exception as e:
         raise SinkConfigurationError(
-            f"Failed to create {parsed.scheme} sink: {e}",
-            uri=uri,
-            sink_name=parsed.scheme,
+            f"Failed to create {parsed.scheme} sink: {e}", parsed.scheme, {"uri": uri}
         ) from e
 
 
