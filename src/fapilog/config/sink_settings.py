@@ -45,7 +45,8 @@ class SinkSettings(BaseSettings):
     def parse_sinks(cls, v: Any) -> List[Union[str, "Sink"]]:
         """Parse sinks field to support strings and Sink instances."""
         if isinstance(v, str):
-            return EnvironmentParsers.parse_comma_separated_list(v)
+            parsed_list = EnvironmentParsers.parse_comma_separated_list(v)
+            return parsed_list  # type: ignore[return-value]  # String list is valid for Union[str, Sink]
         if isinstance(v, (list, tuple)):
             # Support mixed list of strings and Sink instances
             result: List[Union[str, Sink]] = []
