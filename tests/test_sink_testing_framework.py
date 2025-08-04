@@ -502,7 +502,7 @@ class TestIntegrationTesting:
 
     def test_environment_configuration(self, integration_tester):
         """Test environment configuration testing."""
-        env_vars = {"FAPILOG_SINKS": "test://localhost"}
+        env_vars = {"FAPILOG_SINKS__SINKS": "test://localhost"}
 
         result = integration_tester.test_environment_configuration(
             MockSink, env_vars, "env_test"
