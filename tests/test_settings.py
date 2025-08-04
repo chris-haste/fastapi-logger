@@ -30,7 +30,7 @@ class TestLoggingSettings:
             "FAPILOG_LEVEL": "DEBUG",
             "FAPILOG_SINKS": "stdout,loki",
             "FAPILOG_SINKS__JSON_CONSOLE": "json",
-            "FAPILOG_SECURITY_REDACT_PATTERNS": '["password", "secret"]',
+            "FAPILOG_SECURITY__REDACT_PATTERNS": '["password", "secret"]',
             "FAPILOG_SINKS__SAMPLING_RATE": "0.5",
         }
 
@@ -128,7 +128,7 @@ class TestLoggingSettings:
         """Test that comma-separated env vars are parsed correctly."""
         env_vars = {
             "FAPILOG_SINKS": "stdout,loki,file",
-            "FAPILOG_SECURITY_REDACT_PATTERNS": '["password", "secret", "token"]',
+            "FAPILOG_SECURITY__REDACT_PATTERNS": '["password", "secret", "token"]',
         }
 
         with patch.dict(os.environ, env_vars):
