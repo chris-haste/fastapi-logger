@@ -2,8 +2,8 @@
 """
 Load testing script for fapilog logging queue.
 
-This script simulates high-throughput logging scenarios to verify the logging queue
-performs reliably under load and does not degrade service responsiveness.
+This script simulates high-throughput logging scenarios to verify the logging
+queue performs reliably under load and does not degrade service responsiveness.
 
 Usage:
     python scripts/load_test_log_queue.py [OPTIONS]
@@ -13,7 +13,8 @@ Examples:
     python scripts/load_test_log_queue.py
 
     # High concurrency test
-    python scripts/load_test_log_queue.py --concurrency 50 --rate 1000 --duration 30
+    python scripts/load_test_log_queue.py --concurrency 50 --rate 1000 \\
+        --duration 30
 
     # Test different overflow strategies
     python scripts/load_test_log_queue.py --overflow drop --queue-size 100
@@ -28,11 +29,17 @@ import sys
 import time
 from typing import Dict, List
 
-# Add src to path for imports
+# Add src to path for imports (must be before fapilog imports)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
+# fapilog imports
 from fapilog import configure_logging, log
-from fapilog.settings import LoggingSettings
+from fapilog.config import (
+    LoadTestSettings,
+    LoggingSettings,
+    QueueSettings,
+    SinkSettings,
+)
 
 
 class LoadTestMetrics:
@@ -59,7 +66,7 @@ class LoadTestMetrics:
         """Calculate average enqueue latency in microseconds."""
         if not self.latencies:
             return 0.0
-        return sum(self.latencies) / len(self.latencies) * 1_000_000  # Convert to µs
+        return sum(self.latencies) / len(self.latencies) * 1_000_000  # to µs
 
     def get_total_duration(self) -> float:
         """Get total test duration in seconds."""
@@ -151,17 +158,25 @@ async def run_load_test(
     print("-" * 60)
 
     # Configure logging with test settings
-    settings = LoggingSettings(
-        level="INFO",
-        queue_enabled=True,
-        queue_maxsize=queue_size,
-        queue_overflow=overflow_strategy,
-        queue_batch_size=batch_size,
-        queue_batch_timeout=batch_timeout,
-        queue_retry_delay=0.1,  # Faster retries for testing
-        queue_max_retries=1,  # Fewer retries for testing
+    queue_config = QueueSettings(
+        enabled=True,
+        maxsize=queue_size,
+        overflow=overflow_strategy,
+        batch_size=batch_size,
+        batch_timeout=batch_timeout,
+        retry_delay=0.1,  # Faster retries for testing
+        max_retries=1,  # Fewer retries for testing
+    )
+
+    sink_config = SinkSettings(
         sinks=["stdout"],
         json_console="json",  # Use JSON for consistent output
+    )
+
+    settings = LoggingSettings(
+        level="INFO",
+        queue=queue_config,
+        sinks=sink_config,
     )
 
     # Configure logging
@@ -214,10 +229,10 @@ def print_results(metrics: LoadTestMetrics, settings: LoggingSettings) -> None:
         print(f"Max Latency:             {max_latency:.2f} µs")
 
     print("\nQueue Configuration:")
-    print(f"  Queue Size:            {settings.queue_maxsize}")
-    print(f"  Overflow Strategy:      {settings.queue_overflow}")
-    print(f"  Batch Size:            {settings.queue_batch_size}")
-    print(f"  Batch Timeout:         {settings.queue_batch_timeout}s")
+    print(f"  Queue Size:            {settings.queue.maxsize}")
+    print(f"  Overflow Strategy:      {settings.queue.overflow}")
+    print(f"  Batch Size:            {settings.queue.batch_size}")
+    print(f"  Batch Timeout:         {settings.queue.batch_timeout}s")
 
     # Performance assessment
     print("\nPerformance Assessment:")
@@ -238,7 +253,10 @@ def print_results(metrics: LoadTestMetrics, settings: LoggingSettings) -> None:
 
 
 def parse_arguments() -> argparse.Namespace:
-    """Parse command line arguments."""
+    """Parse command line arguments with configuration-based defaults."""
+    # Load configuration to get environment-based defaults
+    config = LoadTestSettings()
+
     parser = argparse.ArgumentParser(
         description="Load test the fapilog logging queue",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -248,50 +266,50 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--concurrency",
         type=int,
-        default=int(os.getenv("LOAD_TEST_CONCURRENCY", "10")),
-        help="Number of concurrent workers (default: 10)",
+        default=config.concurrency,
+        help=f"Number of concurrent workers (default: {config.concurrency})",
     )
 
     parser.add_argument(
         "--rate",
         type=float,
-        default=float(os.getenv("LOAD_TEST_RATE", "100")),
-        help="Logs per second per worker (default: 100)",
+        default=config.rate,
+        help=f"Logs per second per worker (default: {config.rate})",
     )
 
     parser.add_argument(
         "--duration",
         type=float,
-        default=float(os.getenv("LOAD_TEST_DURATION", "30")),
-        help="Test duration in seconds (default: 30)",
+        default=config.duration,
+        help=f"Test duration in seconds (default: {config.duration})",
     )
 
     parser.add_argument(
         "--queue-size",
         type=int,
-        default=int(os.getenv("LOAD_TEST_QUEUE_SIZE", "1000")),
-        help="Maximum queue size (default: 1000)",
+        default=config.queue_size,
+        help=f"Maximum queue size (default: {config.queue_size})",
     )
 
     parser.add_argument(
         "--overflow",
         choices=["drop", "block", "sample"],
-        default=os.getenv("LOAD_TEST_OVERFLOW", "drop"),
-        help="Queue overflow strategy (default: drop)",
+        default=config.overflow,
+        help=f"Queue overflow strategy (default: {config.overflow})",
     )
 
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=int(os.getenv("LOAD_TEST_BATCH_SIZE", "10")),
-        help="Queue batch size (default: 10)",
+        default=config.batch_size,
+        help=f"Queue batch size (default: {config.batch_size})",
     )
 
     parser.add_argument(
         "--batch-timeout",
         type=float,
-        default=float(os.getenv("LOAD_TEST_BATCH_TIMEOUT", "1.0")),
-        help="Queue batch timeout in seconds (default: 1.0)",
+        default=config.batch_timeout,
+        help=f"Queue batch timeout in seconds (default: {config.batch_timeout})",
     )
 
     return parser.parse_args()
@@ -331,12 +349,13 @@ async def main() -> None:
         )
 
         # Create settings for result display
-        settings = LoggingSettings(
-            queue_maxsize=args.queue_size,
-            queue_overflow=args.overflow,
-            queue_batch_size=args.batch_size,
-            queue_batch_timeout=args.batch_timeout,
+        queue_config = QueueSettings(
+            maxsize=args.queue_size,
+            overflow=args.overflow,
+            batch_size=args.batch_size,
+            batch_timeout=args.batch_timeout,
         )
+        settings = LoggingSettings(queue=queue_config)
 
         # Print results
         print_results(metrics, settings)
