@@ -185,7 +185,9 @@ class EnvironmentParsers:
             return [value] if value is not None else []
 
     @staticmethod  # vulture: disable
-    def parse_numeric_string(value: Any, target_type: Type[Union[int, float]] = int) -> Union[int, float]:
+    def parse_numeric_string(
+        value: Any, target_type: Type[Union[int, float]] = int
+    ) -> Union[int, float]:
         """Parse numeric string values with type conversion.
 
         Args:
@@ -215,4 +217,3 @@ class EnvironmentParsers:
                 raise ValueError(
                     f"Cannot convert {type(value).__name__} to {target_type.__name__}"
                 ) from e
-
