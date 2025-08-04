@@ -12,8 +12,8 @@ from typing import Tuple
 
 import pytest
 
+from fapilog.config import LoggingSettings
 from fapilog.container import LoggingContainer
-from fapilog.settings import LoggingSettings
 
 
 class TestPerfectContainerIsolation:

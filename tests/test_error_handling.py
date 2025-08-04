@@ -503,7 +503,7 @@ class TestComprehensiveErrorHandling:
 
     def test_queue_error_handling_with_multiple_sinks(self):
         """Test queue error handling when multiple sinks fail."""
-        from fapilog._internal.queue_worker import QueueWorker
+        from fapilog.async_components.queue.worker import QueueWorker
         from fapilog.sinks import Sink
 
         class FailingSink(Sink):

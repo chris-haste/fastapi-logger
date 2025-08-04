@@ -13,11 +13,11 @@ from typing import Any, Dict, List
 
 import pytest
 
-from fapilog._internal.pii_patterns import (
+from fapilog._internal.processors import RedactionProcessor
+from fapilog.integrations.pii.patterns import (
     _redact_pii_iterative,
     _redact_pii_recursive,
 )
-from fapilog._internal.processors import RedactionProcessor
 
 
 def create_nested_dict(depth: int, keys_per_level: int = 5) -> Dict[str, Any]:

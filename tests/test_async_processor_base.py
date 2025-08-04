@@ -10,8 +10,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from fapilog._internal.async_lock_manager import ProcessorLockManager
-from fapilog._internal.safe_async_cache import SafeAsyncCache
+from fapilog.async_components.cache.safe_async_cache import SafeAsyncCache
+from fapilog.async_components.concurrency.lock_manager import ProcessorLockManager
 from fapilog.processors.async_base import AsyncProcessorBase
 
 

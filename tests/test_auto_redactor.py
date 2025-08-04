@@ -3,7 +3,7 @@
 import warnings
 from unittest.mock import Mock
 
-from fapilog._internal.pii_patterns import (
+from fapilog.integrations.pii.patterns import (
     DEFAULT_PII_PATTERNS,
     _compile_pii_patterns,
     _redact_pii_recursive,

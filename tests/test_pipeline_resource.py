@@ -2,8 +2,8 @@
 
 from unittest.mock import Mock, patch
 
+from fapilog.config import LoggingSettings
 from fapilog.pipeline import build_processor_chain
-from fapilog.settings import LoggingSettings
 
 
 def test_resource_enricher_included_when_enabled():

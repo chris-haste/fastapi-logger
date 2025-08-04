@@ -9,9 +9,9 @@ from unittest.mock import patch
 
 import pytest
 
+from fapilog.config import LoggingSettings
 from fapilog.core.managers.configuration_manager import ConfigurationManager
 from fapilog.exceptions import ConfigurationError
-from fapilog.settings import LoggingSettings
 
 
 class TestConfigurationManager:

@@ -101,7 +101,7 @@ class TestLokiSink:
         dt2 = datetime.datetime.fromisoformat("2024-01-15T10:30:46.456+00:00")
         dt3 = datetime.datetime.fromisoformat("2024-01-15T10:30:47.789+00:00")
 
-        from fapilog._internal.utils import safe_json_serialize
+        from fapilog.utils.helpers import safe_json_serialize
 
         expected_values = [
             [str(int(dt1.timestamp() * 1_000_000_000)), safe_json_serialize(event1)],

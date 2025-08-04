@@ -7,11 +7,11 @@ from fastapi import FastAPI
 from starlette.testclient import TestClient
 
 from fapilog import get_current_trace_id
-from fapilog._internal.context import get_context
 from fapilog.bootstrap import configure_logging
+from fapilog.config import LoggingSettings
 from fapilog.exceptions import ConfigurationError
 from fapilog.middleware import TraceIDMiddleware
-from fapilog.settings import LoggingSettings
+from fapilog.utils.context import get_context
 
 
 @pytest.mark.asyncio
@@ -234,8 +234,8 @@ async def test_trace_propagation_with_httpx_unavailable():
     """Test that httpx propagation fails gracefully when httpx is unavailable."""
     # Mock httpx as unavailable
     with patch("fapilog.httpx_patch.httpx", None):
+        from fapilog.config import LoggingSettings
         from fapilog.httpx_patch import configure_httpx_trace_propagation
-        from fapilog.settings import LoggingSettings
 
         settings = LoggingSettings(enable_httpx_trace_propagation=True)
 

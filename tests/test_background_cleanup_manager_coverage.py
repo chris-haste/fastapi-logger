@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from fapilog._internal.background_cleanup_manager import (
+from fapilog.async_components.concurrency.background_cleanup_manager import (
     BackgroundCleanupManager,
 )
 

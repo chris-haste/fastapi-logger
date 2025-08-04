@@ -9,9 +9,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from fapilog._internal.container_logger_factory import ContainerLoggerFactory
+from fapilog.config import LoggingSettings
 from fapilog.container import LoggingContainer
-from fapilog.settings import LoggingSettings
+from fapilog.core.factories.container_logger_factory import ContainerLoggerFactory
 
 
 class TestContainerLoggerFactory:

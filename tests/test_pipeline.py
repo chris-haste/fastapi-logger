@@ -5,8 +5,8 @@ from io import StringIO
 import pytest
 import structlog
 
+from fapilog.config import LoggingSettings
 from fapilog.pipeline import build_processor_chain
-from fapilog.settings import LoggingSettings
 
 
 def test_json_pipeline_keys(capsys):

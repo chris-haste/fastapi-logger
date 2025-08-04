@@ -11,8 +11,8 @@ from unittest.mock import patch
 import pytest
 import structlog
 
+from fapilog.config import LoggingSettings
 from fapilog.container import LoggingContainer
-from fapilog.settings import LoggingSettings
 
 
 class TestContainerFactoryIntegration:

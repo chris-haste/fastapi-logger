@@ -12,8 +12,8 @@ from typing import List, Tuple
 
 import structlog
 
+from fapilog.config import LoggingSettings
 from fapilog.container import LoggingContainer
-from fapilog.settings import LoggingSettings
 
 
 class TestContainerConcurrency:

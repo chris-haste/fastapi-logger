@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import pytest
 
-from fapilog._internal.async_lock_manager import ProcessorLockManager
+from fapilog.async_components.concurrency.lock_manager import ProcessorLockManager
 
 
 class TestProcessorLockManager:

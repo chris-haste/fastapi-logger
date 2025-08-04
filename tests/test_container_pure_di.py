@@ -9,9 +9,9 @@ from typing import Any, Dict, List
 import pytest
 import structlog
 
+from fapilog.config import LoggingSettings
 from fapilog.container import LoggingContainer
 from fapilog.exceptions import ConfigurationError
-from fapilog.settings import LoggingSettings
 
 
 class MockSink:

@@ -10,10 +10,10 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from fapilog._internal.utils import safe_json_serialize
 from fapilog.sinks.file import FileSink
 from fapilog.sinks.loki import LokiSink
 from fapilog.sinks.stdout import StdoutSink
+from fapilog.utils.helpers import safe_json_serialize
 
 
 class TestSafeJsonIntegration:

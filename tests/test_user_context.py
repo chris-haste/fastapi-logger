@@ -2,7 +2,8 @@
 
 import pytest
 
-from fapilog._internal.context import (
+from fapilog.enrichers import create_user_dependency, user_context_enricher
+from fapilog.utils.context import (
     bind_user_context,
     clear_context,
     get_auth_scheme,
@@ -10,7 +11,6 @@ from fapilog._internal.context import (
     get_user_id,
     get_user_roles,
 )
-from fapilog.enrichers import create_user_dependency, user_context_enricher
 
 
 def test_authenticated_user_fields_present():

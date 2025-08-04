@@ -9,8 +9,8 @@ try:
 except ImportError:
     httpx = None
 
-from fapilog._internal.loki_http_client import LokiHttpClient
 from fapilog.exceptions import SinkError
+from fapilog.integrations.loki.client import LokiHttpClient
 
 
 @pytest.mark.skipif(httpx is None, reason="httpx not installed")

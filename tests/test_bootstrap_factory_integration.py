@@ -8,8 +8,8 @@ no global structlog dependencies remain.
 import structlog
 
 from fapilog.bootstrap import configure_logging, create_logger
+from fapilog.config import LoggingSettings
 from fapilog.container import LoggingContainer
-from fapilog.settings import LoggingSettings
 
 
 class TestBootstrapFactoryIntegration:

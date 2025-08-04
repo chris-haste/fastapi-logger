@@ -4,9 +4,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from fapilog.config import LoggingSettings
 from fapilog.core.managers.sink_manager import SinkManager
 from fapilog.exceptions import SinkConfigurationError
-from fapilog.settings import LoggingSettings
 from fapilog.sinks.base import Sink
 
 

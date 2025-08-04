@@ -16,19 +16,20 @@ from typing import Any, Callable, Dict, Generator, List, Optional, Tuple
 import psutil
 import pytest
 
-# Import container-scoped components to baseline
-from fapilog._internal.async_lock_manager import ProcessorLockManager
 from fapilog._internal.metrics import (
     MetricsCollector,
     # create_metrics_collector,  # Removed in Issue 164
     # get_metrics_collector,     # Removed in Issue 164
 )
 from fapilog._internal.processor_metrics import ProcessorMetrics
+
+# Import container-scoped components to baseline
+from fapilog.async_components.concurrency.lock_manager import ProcessorLockManager
+from fapilog.config import LoggingSettings
 from fapilog.container import LoggingContainer
 from fapilog.monitoring import (
     create_prometheus_exporter,
 )
-from fapilog.settings import LoggingSettings
 
 
 @dataclass

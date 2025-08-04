@@ -7,8 +7,8 @@ propagation, and clean separation of concerns.
 
 from unittest.mock import Mock, patch
 
+from fapilog.config import LoggingSettings
 from fapilog.core.managers.middleware_manager import MiddlewareManager
-from fapilog.settings import LoggingSettings
 
 
 class TestMiddlewareManager:

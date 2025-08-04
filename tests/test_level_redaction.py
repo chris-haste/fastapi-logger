@@ -2,9 +2,9 @@
 
 import pytest
 
-from fapilog._internal.pii_patterns import auto_redact_pii_processor
 from fapilog._internal.processors import RedactionProcessor
 from fapilog.exceptions import RedactionError
+from fapilog.integrations.pii.patterns import auto_redact_pii_processor
 from fapilog.redactors import (
     _get_log_level_numeric,
     _should_redact_at_level,

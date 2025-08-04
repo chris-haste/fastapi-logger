@@ -2,8 +2,8 @@
 
 import pytest
 
+from fapilog.config import LoggingSettings
 from fapilog.exceptions import ConfigurationError
-from fapilog.settings import LoggingSettings
 
 
 class TestSettingsValidationBoost:

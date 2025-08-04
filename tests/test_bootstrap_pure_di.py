@@ -11,10 +11,10 @@ from fapilog.bootstrap import (
     configure_with_container,
     create_logger,
 )
+from fapilog.config import LoggingSettings
 from fapilog.container import LoggingContainer
 from fapilog.core.managers.configuration_manager import ConfigurationManager
 from fapilog.exceptions import ConfigurationError
-from fapilog.settings import LoggingSettings
 
 
 class TestStatelessBootstrap:

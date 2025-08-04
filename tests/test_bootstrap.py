@@ -11,7 +11,7 @@ import pytest
 import structlog
 
 from fapilog.bootstrap import configure_logging, create_logger
-from fapilog.settings import LoggingSettings
+from fapilog.config import LoggingSettings
 
 
 class TestConfigureLogging:

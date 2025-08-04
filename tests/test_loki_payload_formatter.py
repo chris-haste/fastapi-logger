@@ -5,8 +5,8 @@ from unittest.mock import patch
 
 import pytest
 
-from fapilog._internal.loki_payload_formatter import LokiPayloadFormatter
 from fapilog.exceptions import SinkWriteError
+from fapilog.integrations.loki.formatter import LokiPayloadFormatter
 
 
 class TestLokiPayloadFormatter:

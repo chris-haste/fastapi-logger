@@ -4,10 +4,10 @@ from unittest.mock import patch
 
 import pytest
 
+from fapilog.config import LoggingSettings
 from fapilog.container import LoggingContainer
 from fapilog.core.managers.configuration_manager import ConfigurationManager
 from fapilog.exceptions import ConfigurationError, SinkConfigurationError
-from fapilog.settings import LoggingSettings
 
 
 class TestContainerEasyWins:

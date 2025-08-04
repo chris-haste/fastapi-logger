@@ -10,14 +10,14 @@ from unittest.mock import patch
 
 import pytest
 
-from fapilog._internal.component_registry import ComponentRegistry
 from fapilog._internal.metrics import MetricsCollector
 from fapilog._internal.processor_metrics import ProcessorMetrics
 from fapilog.async_components.concurrency.lock_manager import ProcessorLockManager
+from fapilog.config import LoggingSettings
 from fapilog.container import LoggingContainer
 from fapilog.core.factories.component_factory import ComponentFactory
+from fapilog.core.registries.component_registry import ComponentRegistry
 from fapilog.monitoring import PrometheusExporter
-from fapilog.settings import LoggingSettings
 
 
 class TestLoggingContainerComponentRegistry:

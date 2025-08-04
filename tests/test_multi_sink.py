@@ -5,10 +5,10 @@ from unittest.mock import patch
 
 import pytest
 
-from fapilog._internal.queue_worker import QueueWorker
+from fapilog.async_components.queue.worker import QueueWorker
 from fapilog.bootstrap import configure_logging
+from fapilog.config import LoggingSettings
 from fapilog.exceptions import SinkError
-from fapilog.settings import LoggingSettings
 from fapilog.sinks import Sink
 
 

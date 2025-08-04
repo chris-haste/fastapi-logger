@@ -8,7 +8,7 @@ from typing import Any, Dict
 
 import pytest
 
-from fapilog._internal.contextual_manager import ContextualComponentManager
+from fapilog.core.managers.contextual_manager import ContextualComponentManager
 
 
 # Test components for testing

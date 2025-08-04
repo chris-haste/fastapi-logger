@@ -10,7 +10,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from unittest.mock import Mock
 
-from fapilog._internal.utils import safe_json_serialize
+from fapilog.utils.helpers import safe_json_serialize
 
 
 class TestSafeJsonSerialize:

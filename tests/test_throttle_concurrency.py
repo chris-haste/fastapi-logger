@@ -279,7 +279,7 @@ class TestAsyncSafetyPatterns:
 
     async def test_async_lock_safety(self):
         """Test async lock safety in LRU cache."""
-        from fapilog._internal.lru_cache import LRUCache
+        from fapilog.async_components.cache.lru_cache import LRUCache
 
         cache = LRUCache(maxsize=10)
 

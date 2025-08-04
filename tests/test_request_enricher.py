@@ -7,10 +7,10 @@ import pytest
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
-from fapilog._internal.context import get_context
 from fapilog.bootstrap import configure_logging
+from fapilog.config import LoggingSettings
 from fapilog.middleware import TraceIDMiddleware
-from fapilog.settings import LoggingSettings
+from fapilog.utils.context import get_context
 
 
 @pytest.mark.asyncio
@@ -86,7 +86,7 @@ async def test_fields_appear_in_emitted_logs():
 @pytest.mark.asyncio
 async def test_context_cleanup_after_request():
     """Test that context is cleaned up after request lifecycle."""
-    from fapilog._internal.context import get_context
+    from fapilog.utils.context import get_context
 
     app = FastAPI()
 

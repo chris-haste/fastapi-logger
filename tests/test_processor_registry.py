@@ -5,7 +5,10 @@ from typing import Any, Dict, Optional, Type
 
 import pytest
 
-from fapilog._internal.processor_registry import ProcessorRegistry, register_processor
+from fapilog.core.registries.processor_registry import (
+    ProcessorRegistry,
+    register_processor,
+)
 from fapilog.processors.base import Processor
 
 

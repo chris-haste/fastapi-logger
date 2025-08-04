@@ -6,10 +6,10 @@ from unittest.mock import Mock, patch
 import pytest
 import structlog
 
-from fapilog._internal.queue_integration import create_queue_sink, queue_sink
-from fapilog._internal.queue_worker import QueueWorker
+from fapilog.async_components.queue.integration import create_queue_sink, queue_sink
+from fapilog.async_components.queue.worker import QueueWorker
+from fapilog.config import LoggingSettings
 from fapilog.container import LoggingContainer
-from fapilog.settings import LoggingSettings
 
 
 class MockQueueWorker:

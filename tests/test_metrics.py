@@ -11,7 +11,7 @@ from fapilog._internal.metrics import (
     PerformanceMetrics,
     QueueMetrics,
 )
-from fapilog._internal.queue_worker import QueueWorker
+from fapilog.async_components.queue.worker import QueueWorker
 from fapilog.monitoring import (
     PrometheusExporter,
     get_metrics_dict,

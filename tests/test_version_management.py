@@ -294,7 +294,7 @@ class TestVersionManagement:
         assert container is not None
 
         # Test with settings
-        from fapilog.settings import LoggingSettings
+        from fapilog.config import LoggingSettings
 
         settings = LoggingSettings(level="DEBUG")
         container_with_settings = fapilog.create_logging_container(settings)

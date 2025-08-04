@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from fapilog.config import LoggingSettings
 from fapilog.exceptions import ConfigurationError
 from fapilog.httpx_patch import (
     HttpxTracePropagation,
@@ -12,7 +13,6 @@ from fapilog.httpx_patch import (
     enable_httpx_trace_propagation,
     is_httpx_trace_propagation_enabled,
 )
-from fapilog.settings import LoggingSettings
 
 
 class TestHttpxTracePropagationBasics:

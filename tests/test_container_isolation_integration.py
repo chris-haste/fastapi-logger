@@ -22,12 +22,12 @@ from typing import Any, Generator, List, Optional
 
 import pytest
 
-from fapilog._internal.async_lock_manager import ProcessorLockManager
 from fapilog._internal.metrics import MetricsCollector
 from fapilog._internal.processor_metrics import ProcessorMetrics
+from fapilog.async_components.concurrency.lock_manager import ProcessorLockManager
+from fapilog.config import LoggingSettings
 from fapilog.container import LoggingContainer
 from fapilog.monitoring import PrometheusExporter
-from fapilog.settings import LoggingSettings
 
 
 class ContainerIsolationTestFramework:

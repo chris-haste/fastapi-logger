@@ -9,8 +9,8 @@ from unittest.mock import Mock, patch
 import pytest
 from fastapi import FastAPI
 
+from fapilog.config import LoggingSettings
 from fapilog.core.managers.middleware_manager import MiddlewareManager
-from fapilog.settings import LoggingSettings
 
 
 class TestMiddlewareManagerFastAPIIntegration:
