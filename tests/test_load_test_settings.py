@@ -247,8 +247,10 @@ class TestLoadTestSettings:
 
     def test_extra_fields_forbidden(self):
         """Test that extra fields are forbidden."""
+        # Test that extra fields are rejected by Pydantic
         with pytest.raises(ValueError):
-            LoadTestSettings(extra_field="not_allowed")
+            # Use dict unpacking to simulate extra field
+            LoadTestSettings(**{"extra_field": "not_allowed"})
 
     def test_field_descriptions_present(self):
         """Test that field descriptions are present for documentation."""
