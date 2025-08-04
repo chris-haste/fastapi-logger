@@ -1,7 +1,6 @@
 """Main configuration settings for fapilog."""
 
-# os import needed for environment variable handling in field validator
-import os
+# No custom environment handling needed
 from typing import TYPE_CHECKING
 
 from pydantic import Field, field_validator
@@ -84,17 +83,7 @@ class LoggingSettings(BaseSettings):
         env_nested_delimiter="__",  # Enable nested environment variables
     )
 
-    def __init__(self, **kwargs):
-        """Initialize LoggingSettings with simplified environment variable handling."""
-        # Handle legacy FAPILOG_SINKS environment variable by converting to nested format
-        if "sinks" not in kwargs:
-            env_sinks = os.environ.get("FAPILOG_SINKS")
-            if env_sinks:
-                # Convert legacy format to nested environment variables for Pydantic to parse
-                # This eliminates the need for manual os.environ.pop() and restoration
-                os.environ["FAPILOG_SINKS__SINKS"] = env_sinks
-
-        super().__init__(**kwargs)
+    # No custom __init__ needed - Pydantic handles all environment parsing automatically
 
     @field_validator("sinks", mode="before")
     @classmethod

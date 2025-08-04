@@ -28,7 +28,7 @@ class TestLoggingSettings:
         """Test that environment variables override defaults."""
         env_vars = {
             "FAPILOG_LEVEL": "DEBUG",
-            "FAPILOG_SINKS": "stdout,loki",
+            "FAPILOG_SINKS__SINKS": "stdout,loki",
             "FAPILOG_SINKS__JSON_CONSOLE": "json",
             "FAPILOG_SECURITY__REDACT_PATTERNS": '["password", "secret"]',
             "FAPILOG_SINKS__SAMPLING_RATE": "0.5",
@@ -125,9 +125,9 @@ class TestLoggingSettings:
         assert settings.security.redact_patterns == patterns
 
     def test_env_nested_delimiter(self) -> None:
-        """Test that comma-separated env vars are parsed correctly."""
+        """Test that nested delimiter environment variables are parsed correctly."""
         env_vars = {
-            "FAPILOG_SINKS": "stdout,loki,file",
+            "FAPILOG_SINKS__SINKS": "stdout,loki,file",
             "FAPILOG_SECURITY__REDACT_PATTERNS": '["password", "secret", "token"]',
         }
 
