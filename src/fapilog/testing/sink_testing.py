@@ -4,7 +4,7 @@ import asyncio
 import inspect
 from typing import Any, Dict, List, Optional, Type
 
-from .._internal.sink_registry import SinkRegistry
+from ..core.registries.sink_registry import SinkRegistry
 from ..sinks import Sink
 
 

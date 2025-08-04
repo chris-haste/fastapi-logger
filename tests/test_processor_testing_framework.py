@@ -8,7 +8,6 @@ from typing import Any
 
 import pytest
 
-from fapilog._internal.processors import FilterNoneProcessor, RedactionProcessor
 from fapilog._internal.templates.processor_template import TemplateProcessor
 from fapilog._internal.testing.processor_testing import (
     ProcessorConcurrencyTester,
@@ -17,6 +16,8 @@ from fapilog._internal.testing.processor_testing import (
 )
 from fapilog.processors.async_base import AsyncProcessorBase
 from fapilog.processors.base import Processor
+from fapilog.processors.filtering import FilterNoneProcessor
+from fapilog.processors.redaction import RedactionProcessor
 
 
 class TestProcessorTestBase:

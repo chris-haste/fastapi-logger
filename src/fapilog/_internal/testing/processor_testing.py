@@ -12,7 +12,7 @@ from typing import Any, Dict, cast
 import pytest
 
 from ...processors.async_base import AsyncProcessorBase
-from ..processor import Processor
+from ...processors.base import Processor
 
 
 class ProcessorTestBase(ABC):
