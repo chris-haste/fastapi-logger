@@ -1,6 +1,7 @@
 """Configuration settings package for fapilog."""
 
 from .env_utils import EnvironmentConfig
+from .factory import ConfigurationFactory
 from .load_test_settings import LoadTestSettings
 from .metrics_settings import MetricsSettings
 from .queue_settings import QueueSettings
@@ -18,4 +19,5 @@ __all__ = [
     "SecuritySettings",
     "EnvironmentConfig",
     "LoadTestSettings",
+    "ConfigurationFactory",
 ]

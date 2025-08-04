@@ -13,21 +13,21 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from fapilog import configure_logging, log
-from fapilog.settings import LoggingSettings
+from fapilog.config.factory import ConfigurationFactory
+from fapilog.config.queue_settings import QueueSettings
 
 
 def create_app() -> FastAPI:
     """Create a FastAPI application with fapilog integration."""
 
-    # Configure logging with FastAPI integration
-    settings = LoggingSettings(
-        level="INFO",
-        json_console="pretty",  # Pretty output for development
-        queue_enabled=False,  # Disable queue for simpler example
+    # Configure logging using factory for development with customization
+    config = ConfigurationFactory.development(
+        # Override for simpler example
+        queue=QueueSettings(enabled=False)  # Disable queue for simpler example
     )
 
     # Configure logging and get the app instance
-    configure_logging(settings=settings)
+    configure_logging(config)
 
     # Create FastAPI app
     app = FastAPI(

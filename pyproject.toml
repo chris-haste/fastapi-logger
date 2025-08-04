@@ -208,6 +208,7 @@ check-typed-exception = true
 ]
 "examples/*" = [
     "S105",  # Hardcoded passwords in examples for demo purposes
+    "S106",  # Hardcoded passwords as arguments in examples for demo purposes
     "S110",  # try-except-pass is acceptable in examples
     "S311",  # Random generators in examples don't need cryptographic security
 ]
@@ -675,6 +676,9 @@ ignore_names = [
     "validate_batch_size",
     "validate_batch_timeout",
     "queue_size",  # Pydantic field name
+    # Configuration factory methods (false positives from Issue #221)
+    "custom",
+    "get_available_presets",
 ]
 ignore_decorators = [
     "pytest.fixture",
