@@ -96,7 +96,7 @@ def create_user_dependency(get_user_func: Callable[..., Any]) -> Callable[..., A
             return {"user": user}
         ```
     """
-    from .._internal.context import bind_user_context
+    from ..utils.context import bind_user_context
 
     async def user_dependency(*args: Any, **kwargs: Any) -> Any:
         """FastAPI dependency that extracts and binds user context."""

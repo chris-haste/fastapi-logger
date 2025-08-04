@@ -60,14 +60,18 @@ class TestBootstrapFactoryIntegration:
     def test_settings_parameter_integration_with_factory(self):
         """Test that settings parameter works correctly with factory."""
         # Arrange
-        settings = LoggingSettings(level="WARNING", json_console="json")
+        from fapilog.config.sink_settings import SinkSettings
+
+        settings = LoggingSettings(
+            level="WARNING", sinks=SinkSettings(json_console="json")
+        )
 
         # Act
         logger, container = create_logger(settings=settings)
 
         # Assert
         assert container._settings.level == "WARNING"
-        assert container._settings.json_console == "json"
+        assert container._settings.sinks.json_console == "json"
         assert container._logger_factory is not None
 
         # Cleanup
@@ -82,7 +86,7 @@ class TestBootstrapFactoryIntegration:
         logger, container = create_logger(sinks=sinks)
 
         # Assert
-        assert container._settings.sinks == sinks
+        assert container._settings.sinks.sinks == sinks
         assert container._logger_factory is not None
 
         # Cleanup
@@ -130,7 +134,7 @@ class TestBootstrapFactoryIntegration:
         from unittest.mock import patch
 
         # Act & Assert - Should handle invalid settings gracefully
-        with patch("fapilog.settings.LoggingSettings") as mock_settings:
+        with patch("fapilog.config.settings.LoggingSettings") as mock_settings:
             mock_settings.side_effect = ValueError("Invalid setting")
 
             # This should not raise an exception - error handling should be preserved
@@ -170,8 +174,14 @@ class TestBootstrapFactoryIntegration:
     def test_container_isolation_between_bootstrap_calls(self):
         """Test complete isolation between containers created via bootstrap."""
         # Arrange
-        settings1 = LoggingSettings(level="INFO", json_console="pretty")
-        settings2 = LoggingSettings(level="ERROR", json_console="json")
+        from fapilog.config.sink_settings import SinkSettings
+
+        settings1 = LoggingSettings(
+            level="INFO", sinks=SinkSettings(json_console="pretty")
+        )
+        settings2 = LoggingSettings(
+            level="ERROR", sinks=SinkSettings(json_console="json")
+        )
 
         # Act
         logger1, container1 = create_logger(settings=settings1)
@@ -188,7 +198,10 @@ class TestBootstrapFactoryIntegration:
 
         # Settings should be independent
         assert container1._settings.level != container2._settings.level
-        assert container1._settings.json_console != container2._settings.json_console
+        assert (
+            container1._settings.sinks.json_console
+            != container2._settings.sinks.json_console
+        )
 
         # Cleanup
         container1.shutdown_sync()

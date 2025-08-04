@@ -185,7 +185,7 @@ class TestLifecycleManager:
         mock_registry.get_component.return_value = mock_prometheus
 
         # Should not raise exceptions
-        with patch("fapilog._internal.lifecycle_manager.logger") as mock_logger:
+        with patch("fapilog.core.managers.lifecycle_manager.logger") as mock_logger:
             await manager.shutdown_async(
                 registry=mock_registry,
                 queue_worker=mock_queue_worker,
@@ -246,7 +246,7 @@ class TestLifecycleManager:
         mock_httpx_propagation.cleanup.side_effect = Exception("Httpx cleanup error")
 
         # Should not raise exceptions
-        with patch("fapilog._internal.lifecycle_manager.logger") as mock_logger:
+        with patch("fapilog.core.managers.lifecycle_manager.logger") as mock_logger:
             manager.shutdown_sync(
                 registry=mock_registry,
                 queue_worker=mock_queue_worker,

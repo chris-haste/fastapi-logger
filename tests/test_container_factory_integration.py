@@ -33,7 +33,11 @@ class TestContainerFactoryIntegration:
     def test_container_configuration_creates_factory(self):
         """Test container configuration creates factory without global config."""
         # Arrange
-        settings = LoggingSettings(level="DEBUG", json_console="pretty")
+        from fapilog.config.sink_settings import SinkSettings
+
+        settings = LoggingSettings(
+            level="DEBUG", sinks=SinkSettings(json_console="pretty")
+        )
         container = LoggingContainer(settings)
 
         # Act
@@ -50,7 +54,11 @@ class TestContainerFactoryIntegration:
     def test_get_logger_returns_container_specific_loggers(self):
         """Test get_logger returns container-specific loggers."""
         # Arrange
-        settings = LoggingSettings(level="WARN", json_console="json")
+        from fapilog.config.sink_settings import SinkSettings
+
+        settings = LoggingSettings(
+            level="WARN", sinks=SinkSettings(json_console="json")
+        )
         container = LoggingContainer(settings)
         container.configure()
 
@@ -71,8 +79,14 @@ class TestContainerFactoryIntegration:
     def test_multiple_containers_dont_interfere(self):
         """Test multiple containers with different settings work simultaneously."""
         # Arrange
-        settings1 = LoggingSettings(level="DEBUG", json_console="pretty")
-        settings2 = LoggingSettings(level="ERROR", json_console="json")
+        from fapilog.config.sink_settings import SinkSettings
+
+        settings1 = LoggingSettings(
+            level="DEBUG", sinks=SinkSettings(json_console="pretty")
+        )
+        settings2 = LoggingSettings(
+            level="ERROR", sinks=SinkSettings(json_console="json")
+        )
 
         container1 = LoggingContainer(settings1)
         container2 = LoggingContainer(settings2)
@@ -213,7 +227,11 @@ class TestContainerFactoryIntegration:
             "wrapper_class", None
         )
 
-        settings = LoggingSettings(level="DEBUG", json_console="pretty")
+        from fapilog.config.sink_settings import SinkSettings
+
+        settings = LoggingSettings(
+            level="DEBUG", sinks=SinkSettings(json_console="pretty")
+        )
         container = LoggingContainer(settings)
 
         # Act
@@ -237,7 +255,11 @@ class TestContainerFactoryIntegration:
     def test_no_global_structlog_configure_calls(self, mock_configure):
         """Test that container doesn't call global structlog.configure()."""
         # Arrange
-        settings = LoggingSettings(level="INFO", json_console="json")
+        from fapilog.config.sink_settings import SinkSettings
+
+        settings = LoggingSettings(
+            level="INFO", sinks=SinkSettings(json_console="json")
+        )
         container = LoggingContainer(settings)
 
         # Act
@@ -255,8 +277,14 @@ class TestContainerFactoryIntegration:
     def test_container_isolation_different_processor_chains(self):
         """Test containers have truly isolated processor chains."""
         # Arrange
-        settings1 = LoggingSettings(level="DEBUG", json_console="pretty")
-        settings2 = LoggingSettings(level="ERROR", json_console="json")
+        from fapilog.config.sink_settings import SinkSettings
+
+        settings1 = LoggingSettings(
+            level="DEBUG", sinks=SinkSettings(json_console="pretty")
+        )
+        settings2 = LoggingSettings(
+            level="ERROR", sinks=SinkSettings(json_console="json")
+        )
 
         container1 = LoggingContainer(settings1)
         container2 = LoggingContainer(settings2)

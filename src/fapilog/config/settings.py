@@ -1,5 +1,6 @@
 """Main configuration settings for fapilog."""
 
+import os
 from typing import TYPE_CHECKING
 
 from pydantic import Field, field_validator
@@ -77,9 +78,60 @@ class LoggingSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="FAPILOG_",
         case_sensitive=False,
-        extra="allow",  # Allow extra fields for backward compatibility
+        extra="forbid",  # No backward compatibility needed
         env_nested_delimiter="__",  # Enable nested environment variables
     )
+
+    def __init__(self, **kwargs):
+        """Initialize LoggingSettings with custom environment variable handling."""
+        # Handle FAPILOG_SINKS environment variable if not explicitly set
+        if "sinks" not in kwargs:
+            env_sinks = os.environ.get("FAPILOG_SINKS")
+            if env_sinks:
+                # Parse comma-separated string
+                sink_list = [
+                    item.strip() for item in env_sinks.split(",") if item.strip()
+                ]
+
+                # Build SinkSettings object that includes both the sinks list and any nested env vars
+                sink_settings_data = {"sinks": sink_list}
+
+                # Check for nested FAPILOG_SINKS__* environment variables
+                env_prefix = "FAPILOG_SINKS__"
+                for env_key, env_value in os.environ.items():
+                    if env_key.startswith(env_prefix):
+                        nested_key = env_key[len(env_prefix) :].lower()
+                        sink_settings_data[nested_key] = env_value
+
+                kwargs["sinks"] = SinkSettings(**sink_settings_data)
+
+        # Temporarily remove FAPILOG_SINKS from environment to prevent pydantic parsing error
+        original_env_value = os.environ.pop("FAPILOG_SINKS", None)
+        try:
+            super().__init__(**kwargs)
+        finally:
+            # Restore the environment variable
+            if original_env_value is not None:
+                os.environ["FAPILOG_SINKS"] = original_env_value
+
+    @field_validator("sinks", mode="before")
+    @classmethod
+    def validate_sinks(cls, v):
+        """Handle sinks field validation and comma-separated environment variables."""
+        if isinstance(v, SinkSettings):
+            return v
+        if isinstance(v, str):
+            # Handle comma-separated strings from environment variables
+            # Split by comma and strip whitespace, filter empty strings
+            sink_list = [item.strip() for item in v.split(",") if item.strip()]
+            return SinkSettings(sinks=sink_list)
+        if isinstance(v, list):
+            # Create SinkSettings from the list
+            return SinkSettings(sinks=v)
+        if isinstance(v, dict):
+            # Handle dict input
+            return SinkSettings(**v)
+        return v
 
     @field_validator("level")
     @classmethod

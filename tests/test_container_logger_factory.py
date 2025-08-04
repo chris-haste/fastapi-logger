@@ -53,7 +53,7 @@ class TestContainerLoggerFactory:
 
         # Act
         with patch(
-            "fapilog._internal.container_logger_factory.build_processor_chain"
+            "fapilog.core.factories.container_logger_factory.build_processor_chain"
         ) as mock_build:
             mock_build.return_value = [Mock()]
             factory._build_configuration()
@@ -61,7 +61,7 @@ class TestContainerLoggerFactory:
         # Assert
         assert factory.is_configured()
 
-    @patch("fapilog._internal.container_logger_factory.build_processor_chain")
+    @patch("fapilog.core.factories.container_logger_factory.build_processor_chain")
     def test_lazy_configuration_building(self, mock_build_chain):
         """Test configuration is built lazily only once."""
         # Arrange
@@ -87,7 +87,7 @@ class TestContainerLoggerFactory:
         assert factory._processors == mock_processors
         assert factory._configured is True
 
-    @patch("fapilog._internal.container_logger_factory.build_processor_chain")
+    @patch("fapilog.core.factories.container_logger_factory.build_processor_chain")
     def test_build_configuration_with_pretty_format(self, mock_build_chain):
         """Test configuration building with pretty console format."""
         # Arrange
@@ -108,7 +108,7 @@ class TestContainerLoggerFactory:
         )
         assert factory._processors == mock_processors
 
-    @patch("fapilog._internal.container_logger_factory.build_processor_chain")
+    @patch("fapilog.core.factories.container_logger_factory.build_processor_chain")
     def test_build_configuration_with_json_format(self, mock_build_chain):
         """Test configuration building with json console format."""
         # Arrange
@@ -128,11 +128,15 @@ class TestContainerLoggerFactory:
             settings, pretty=False, container=container
         )
 
-    @patch("fapilog._internal.container_logger_factory.build_processor_chain")
+    @patch("fapilog.core.factories.container_logger_factory.build_processor_chain")
     def test_build_configuration_fallback_to_settings_format(self, mock_build_chain):
         """Test configuration falls back to settings when _console_format missing."""
         # Arrange
-        settings = LoggingSettings(level="INFO", json_console="pretty")
+        from fapilog.config.sink_settings import SinkSettings
+
+        settings = LoggingSettings(
+            level="INFO", sinks=SinkSettings(json_console="pretty")
+        )
         container = LoggingContainer(settings)
         # Don't set _console_format to test fallback
         factory = ContainerLoggerFactory(container)
@@ -147,12 +151,16 @@ class TestContainerLoggerFactory:
             settings, pretty=True, container=container
         )
 
-    @patch("fapilog._internal.container_logger_factory.build_processor_chain")
+    @patch("fapilog.core.factories.container_logger_factory.build_processor_chain")
     @patch("sys.stderr")
     def test_build_configuration_auto_format_tty(self, mock_stderr, mock_build_chain):
         """Test auto format detection when stderr is a tty."""
         # Arrange
-        settings = LoggingSettings(level="DEBUG", json_console="auto")
+        from fapilog.config.sink_settings import SinkSettings
+
+        settings = LoggingSettings(
+            level="DEBUG", sinks=SinkSettings(json_console="auto")
+        )
         container = LoggingContainer(settings)
         factory = ContainerLoggerFactory(container)
         mock_processors = [Mock()]
@@ -167,14 +175,18 @@ class TestContainerLoggerFactory:
             settings, pretty=True, container=container
         )
 
-    @patch("fapilog._internal.container_logger_factory.build_processor_chain")
+    @patch("fapilog.core.factories.container_logger_factory.build_processor_chain")
     @patch("sys.stderr")
     def test_build_configuration_auto_format_no_tty(
         self, mock_stderr, mock_build_chain
     ):
         """Test auto format detection when stderr is not a tty."""
         # Arrange
-        settings = LoggingSettings(level="INFO", json_console="auto")
+        from fapilog.config.sink_settings import SinkSettings
+
+        settings = LoggingSettings(
+            level="INFO", sinks=SinkSettings(json_console="auto")
+        )
         container = LoggingContainer(settings)
         factory = ContainerLoggerFactory(container)
         mock_processors = [Mock()]
@@ -200,7 +212,7 @@ class TestContainerLoggerFactory:
 
         # Act
         with patch(
-            "fapilog._internal.container_logger_factory.build_processor_chain"
+            "fapilog.core.factories.container_logger_factory.build_processor_chain"
         ) as mock_build:
             mock_build.return_value = [Mock()]
             factory._build_configuration()
@@ -210,7 +222,7 @@ class TestContainerLoggerFactory:
         # The wrapper class should be a filtering bound logger with WARN level
         # We can't easily test the internal level without complex mocking
 
-    @patch("fapilog._internal.container_logger_factory.build_processor_chain")
+    @patch("fapilog.core.factories.container_logger_factory.build_processor_chain")
     def test_build_configuration_handles_container_errors(self, mock_build_chain):
         """Test configuration handles container attribute errors gracefully."""
         # Arrange
@@ -226,7 +238,7 @@ class TestContainerLoggerFactory:
             factory._build_configuration()
 
     @patch("logging.getLogger")
-    @patch("fapilog._internal.container_logger_factory.build_processor_chain")
+    @patch("fapilog.core.factories.container_logger_factory.build_processor_chain")
     def test_create_logger_with_default_name(self, mock_build_chain, mock_get_logger):
         """Test logger creation with default (empty) name."""
         # Arrange
@@ -261,7 +273,7 @@ class TestContainerLoggerFactory:
         assert result is mock_bound_logger
 
     @patch("logging.getLogger")
-    @patch("fapilog._internal.container_logger_factory.build_processor_chain")
+    @patch("fapilog.core.factories.container_logger_factory.build_processor_chain")
     def test_create_logger_with_custom_name(self, mock_build_chain, mock_get_logger):
         """Test logger creation with custom name."""
         # Arrange
@@ -290,7 +302,7 @@ class TestContainerLoggerFactory:
         mock_get_logger.assert_called_once_with("test.logger")
         assert result is mock_bound_logger
 
-    @patch("fapilog._internal.container_logger_factory.build_processor_chain")
+    @patch("fapilog.core.factories.container_logger_factory.build_processor_chain")
     def test_create_logger_triggers_lazy_configuration(self, mock_build_chain):
         """Test logger creation triggers lazy configuration building."""
         # Arrange
@@ -325,7 +337,7 @@ class TestContainerLoggerFactory:
 
         # Configure the factory
         with patch(
-            "fapilog._internal.container_logger_factory.build_processor_chain"
+            "fapilog.core.factories.container_logger_factory.build_processor_chain"
         ) as mock_build:
             mock_build.return_value = [Mock()]
             factory._build_configuration()
@@ -344,7 +356,7 @@ class TestContainerLoggerFactory:
         assert factory._wrapper_class is None
         assert factory._configured is False
 
-    @patch("fapilog._internal.container_logger_factory.build_processor_chain")
+    @patch("fapilog.core.factories.container_logger_factory.build_processor_chain")
     def test_reset_allows_reconfiguration(self, mock_build_chain):
         """Test reset allows factory to be reconfigured."""
         # Arrange
@@ -383,7 +395,7 @@ class TestContainerLoggerFactory:
 
         # Act & Assert
         with patch(
-            "fapilog._internal.container_logger_factory.build_processor_chain"
+            "fapilog.core.factories.container_logger_factory.build_processor_chain"
         ) as mock_build:
             with patch("logging.getLogger"), patch(
                 "structlog.make_filtering_bound_logger"
@@ -398,12 +410,14 @@ class TestContainerLoggerFactory:
                 # Configuration should only be built once
                 assert mock_build.call_count == 1
 
-    @patch("fapilog._internal.container_logger_factory.build_processor_chain")
+    @patch("fapilog.core.factories.container_logger_factory.build_processor_chain")
     def test_processor_chain_integration(self, mock_build_chain):
         """Test integration with build_processor_chain function."""
         # Arrange
+        from fapilog.config.sink_settings import SinkSettings
+
         settings = LoggingSettings(
-            level="INFO", json_console="pretty", sinks=["stdout"]
+            level="INFO", sinks=SinkSettings(sinks=["stdout"], json_console="pretty")
         )
         container = LoggingContainer(settings)
         # Temporarily patch _console_format for testing
@@ -428,7 +442,7 @@ class TestContainerLoggerFactory:
 
         for level in test_levels:
             with patch(
-                "fapilog._internal.container_logger_factory.build_processor_chain"
+                "fapilog.core.factories.container_logger_factory.build_processor_chain"
             ) as mock_build:
                 # Arrange
                 settings = LoggingSettings(level=level)
@@ -453,7 +467,9 @@ class TestContainerLoggerFactory:
         factory = ContainerLoggerFactory(mock_container)
 
         # Act & Assert
-        with patch("fapilog._internal.container_logger_factory.build_processor_chain"):
+        with patch(
+            "fapilog.core.factories.container_logger_factory.build_processor_chain"
+        ):
             with pytest.raises(
                 ValueError, match="Container missing required configuration"
             ):
@@ -470,7 +486,7 @@ class TestContainerLoggerFactory:
 
         # Act - Multiple operations that could trigger configuration
         with patch(
-            "fapilog._internal.container_logger_factory.build_processor_chain"
+            "fapilog.core.factories.container_logger_factory.build_processor_chain"
         ) as mock_build:
             mock_build.return_value = [Mock()]
 

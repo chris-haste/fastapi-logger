@@ -45,12 +45,15 @@ def create_logger(
     """
     # Handle sinks parameter
     if sinks is not None:
+        from .config.sink_settings import SinkSettings
+
         if settings is None:
-            settings = LoggingSettings()
+            settings = LoggingSettings(sinks=SinkSettings(sinks=sinks))
         else:
             # Create a copy to avoid modifying the original
-            settings = LoggingSettings(**settings.model_dump())
-        settings.sinks = sinks
+            data = settings.model_dump()
+            data["sinks"] = SinkSettings(sinks=sinks)
+            settings = LoggingSettings(**data)
 
     # Create isolated container using pure dependency injection
     container = (

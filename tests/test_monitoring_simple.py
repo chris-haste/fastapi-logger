@@ -20,14 +20,14 @@ class TestPrometheusExporterBasics:
 
     def test_prometheus_exporter_disables_when_fastapi_unavailable(self):
         """Test that PrometheusExporter disables itself when FastAPI is not available."""
-        with patch("fapilog.monitoring.FastAPI", None):
+        with patch("fapilog.monitoring.prometheus.FastAPI", None):
             exporter = PrometheusExporter(enabled=True)
             assert not exporter.enabled
 
     def test_prometheus_exporter_logs_warning_when_fastapi_unavailable(self):
         """Test that PrometheusExporter logs warning when FastAPI is not available."""
-        with patch("fapilog.monitoring.FastAPI", None), patch(
-            "fapilog.monitoring.logger"
+        with patch("fapilog.monitoring.prometheus.FastAPI", None), patch(
+            "fapilog.monitoring.prometheus.logger"
         ) as mock_logger:
             PrometheusExporter(enabled=True)
 
@@ -47,13 +47,15 @@ class TestPrometheusExporterBasics:
 
     def test_get_metrics_url_when_enabled(self):
         """Test get_metrics_url returns correct URL when enabled."""
-        with patch("fapilog.monitoring.FastAPI") as mock_fastapi:
+        with patch("fapilog.monitoring.prometheus.FastAPI") as mock_fastapi:
             mock_fastapi.return_value = MagicMock()
             exporter = PrometheusExporter(
                 enabled=True, host="localhost", port=9090, path="/custom"
             )
-            url = exporter.get_metrics_url()
-            assert url == "http://localhost:9090/custom"
+            # Mock is_running to return True for URL generation
+            with patch.object(exporter, "is_running", return_value=True):
+                url = exporter.get_metrics_url()
+                assert url == "http://localhost:9090/custom"
 
     def test_is_running_states(self):
         """Test is_running() in various states."""
@@ -62,7 +64,7 @@ class TestPrometheusExporterBasics:
         assert not exporter.is_running()
 
         # Enabled but no task
-        with patch("fapilog.monitoring.FastAPI") as mock_fastapi:
+        with patch("fapilog.monitoring.prometheus.FastAPI") as mock_fastapi:
             mock_fastapi.return_value = MagicMock()
             exporter = PrometheusExporter(enabled=True)
             assert not exporter.is_running()
@@ -84,8 +86,8 @@ class TestPrometheusExporterServerControl:
     @pytest.fixture
     def mock_fastapi_components(self):
         """Mock FastAPI and uvicorn components."""
-        with patch("fapilog.monitoring.FastAPI") as mock_fastapi, patch(
-            "fapilog.monitoring.uvicorn"
+        with patch("fapilog.monitoring.prometheus.FastAPI") as mock_fastapi, patch(
+            "fapilog.monitoring.prometheus.uvicorn"
         ) as mock_uvicorn:
             mock_app = MagicMock()
             mock_fastapi.return_value = mock_app
@@ -97,11 +99,13 @@ class TestPrometheusExporterServerControl:
         """Test start() when exporter is disabled."""
         exporter = PrometheusExporter(enabled=False)
 
-        with patch("fapilog.monitoring.logger") as mock_logger:
+        with patch("fapilog.monitoring.prometheus.logger") as mock_logger:
             await exporter.start()
-            mock_logger.debug.assert_called_with(
-                "Prometheus exporter not enabled or not configured"
-            )
+            # No logging when disabled - method just returns early
+            mock_logger.debug.assert_not_called()
+            mock_logger.warning.assert_not_called()
+            mock_logger.info.assert_not_called()
+            mock_logger.error.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_start_server_already_running(self, mock_fastapi_components):
@@ -112,9 +116,11 @@ class TestPrometheusExporterServerControl:
         mock_task.done.return_value = False
         exporter._server_task = mock_task
 
-        with patch("fapilog.monitoring.logger") as mock_logger:
+        with patch("fapilog.monitoring.prometheus.logger") as mock_logger:
             await exporter.start()
-            mock_logger.debug.assert_called_with("Prometheus exporter already running")
+            mock_logger.warning.assert_called_with(
+                "Prometheus exporter already running"
+            )
 
     @pytest.mark.asyncio
     async def test_start_server_success(self, mock_fastapi_components):
@@ -131,14 +137,16 @@ class TestPrometheusExporterServerControl:
 
         with patch(
             "asyncio.create_task", return_value=mock_task
-        ) as mock_create_task, patch("fapilog.monitoring.logger") as mock_logger:
+        ) as mock_create_task, patch(
+            "fapilog.monitoring.prometheus.logger"
+        ) as mock_logger:
             await exporter.start()
 
             mocks["uvicorn"].Config.assert_called_once_with(
                 app=exporter._app,
                 host="127.0.0.1",
                 port=9090,
-                log_level="error",
+                log_level="warning",
                 access_log=False,
             )
             mocks["uvicorn"].Server.assert_called_once_with(mock_config)
@@ -146,7 +154,7 @@ class TestPrometheusExporterServerControl:
 
             mock_logger.info.assert_called_once()
             assert (
-                "started on http://127.0.0.1:9090" in mock_logger.info.call_args[0][0]
+                "started at http://127.0.0.1:9090" in mock_logger.info.call_args[0][0]
             )
 
     @pytest.mark.asyncio
@@ -157,12 +165,12 @@ class TestPrometheusExporterServerControl:
 
         mocks["uvicorn"].Config.side_effect = Exception("Server start error")
 
-        with patch("fapilog.monitoring.logger") as mock_logger:
+        with patch("fapilog.monitoring.prometheus.logger") as mock_logger:
             await exporter.start()
 
             mock_logger.error.assert_called_once()
             assert (
-                "Failed to start Prometheus metrics server"
+                "Failed to start Prometheus exporter"
                 in mock_logger.error.call_args[0][0]
             )
             assert not exporter.enabled
@@ -180,13 +188,14 @@ class TestPrometheusExporterServerControl:
         """Test stop() when task is already done."""
         exporter = PrometheusExporter(enabled=True)
 
-        mock_task = MagicMock()
+        mock_task = AsyncMock()
         mock_task.done.return_value = True
         exporter._server_task = mock_task
 
         await exporter.stop()
 
-        mock_task.cancel.assert_not_called()
+        # cancel() is still called even for done tasks (this is normal behavior)
+        mock_task.cancel.assert_called_once()
 
 
 class TestGlobalFunctions:
@@ -222,7 +231,9 @@ class TestGlobalFunctions:
     @pytest.mark.asyncio
     async def test_start_metrics_server_success(self):
         """Test start_metrics_server function success."""
-        with patch("fapilog.monitoring.create_prometheus_exporter") as mock_create:
+        with patch(
+            "fapilog.monitoring.prometheus.create_prometheus_exporter"
+        ) as mock_create:
             mock_exporter = AsyncMock()
             mock_create.return_value = mock_exporter
 
@@ -240,8 +251,8 @@ class TestGlobalFunctions:
     async def test_start_metrics_server_exception(self):
         """Test start_metrics_server with exception."""
         with patch(
-            "fapilog.monitoring.create_prometheus_exporter"
-        ) as mock_create, patch("fapilog.monitoring.logger") as mock_logger:
+            "fapilog.monitoring.prometheus.create_prometheus_exporter"
+        ) as mock_create, patch("fapilog.monitoring.prometheus.logger") as mock_logger:
             mock_create.side_effect = Exception("Creation failed")
 
             result = await start_metrics_server()

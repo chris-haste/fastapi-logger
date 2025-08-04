@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from fapilog.config import LoggingSettings
+from fapilog.config.sink_settings import SinkSettings
 from fapilog.core.managers.sink_manager import SinkManager
 from fapilog.exceptions import SinkConfigurationError
 from fapilog.sinks.base import Sink
@@ -475,7 +476,10 @@ class TestSinkManager:
         """Test that queue worker is configured with correct parameters."""
         manager = SinkManager("test")
         settings = LoggingSettings(
-            sinks=["stdout"],
+            sinks=SinkSettings(
+                sinks=["stdout"],
+                sampling_rate=0.8,
+            ),
             queue={
                 "enabled": True,
                 "maxsize": 1000,
@@ -485,7 +489,6 @@ class TestSinkManager:
                 "max_retries": 3,
                 "overflow": "block",
             },
-            sampling_rate=0.8,
         )
         mock_container = MagicMock()
 

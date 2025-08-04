@@ -265,7 +265,7 @@ class TestContainerScopedLockManager:
 
     def test_no_global_state_remains(self):
         """Test that no global state remains in async_lock_manager module."""
-        import fapilog._internal.async_lock_manager as lock_module
+        import fapilog.async_components.concurrency.lock_manager as lock_module
 
         # Verify global variables are not present
         assert not hasattr(lock_module, "_global_lock_manager")

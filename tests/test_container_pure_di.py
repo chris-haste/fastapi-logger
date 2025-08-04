@@ -10,6 +10,7 @@ import pytest
 import structlog
 
 from fapilog.config import LoggingSettings
+from fapilog.config.sink_settings import SinkSettings
 from fapilog.container import LoggingContainer
 from fapilog.exceptions import ConfigurationError
 
@@ -349,14 +350,18 @@ class TestPureDependencyInjectionContainer:
     def test_container_settings_validation(self) -> None:
         """Test container settings validation."""
         # Valid settings
-        valid_settings = LoggingSettings(level="INFO", json_console="pretty")
+        valid_settings = LoggingSettings(
+            level="INFO", sinks=SinkSettings(json_console="pretty")
+        )
         container = LoggingContainer(valid_settings)
         container.configure()
         assert container.is_configured
 
         # Invalid console format should be caught
         with pytest.raises(ConfigurationError):
-            invalid_settings = LoggingSettings(json_console="invalid_format")
+            invalid_settings = LoggingSettings(
+                sinks=SinkSettings(json_console="invalid_format")
+            )
             LoggingContainer(invalid_settings)
 
     def test_performance_no_global_locks(self) -> None:

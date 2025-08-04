@@ -602,7 +602,9 @@ class TestQueueWorkerEnqueue:
         sink = MockSink()
         worker = QueueWorker([sink], sampling_rate=0.5)
 
-        with patch("fapilog._internal.queue_worker.rnd.random", return_value=0.8):
+        with patch(
+            "fapilog.async_components.queue.worker.rnd.random", return_value=0.8
+        ):
             event = {"level": "info", "event": "test"}
             result = await worker.enqueue(event)
 
@@ -615,7 +617,9 @@ class TestQueueWorkerEnqueue:
         sink = MockSink()
         worker = QueueWorker([sink], sampling_rate=0.5)
 
-        with patch("fapilog._internal.queue_worker.rnd.random", return_value=0.3):
+        with patch(
+            "fapilog.async_components.queue.worker.rnd.random", return_value=0.3
+        ):
             event = {"level": "info", "event": "test"}
             result = await worker.enqueue(event)
 
@@ -654,7 +658,9 @@ class TestQueueWorkerEnqueue:
         sink = MockSink()
         worker = QueueWorker([sink], sampling_rate=0.5, container=mock_container)
 
-        with patch("fapilog._internal.queue_worker.rnd.random", return_value=0.8):
+        with patch(
+            "fapilog.async_components.queue.worker.rnd.random", return_value=0.8
+        ):
             event = {"level": "info", "event": "test"}
             result = await worker.enqueue(event)
 

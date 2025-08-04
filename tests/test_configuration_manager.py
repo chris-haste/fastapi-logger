@@ -25,22 +25,26 @@ class TestConfigurationManager:
 
     def test_validate_settings_with_existing_instance(self):
         """Test validate_settings with existing LoggingSettings instance."""
-        original = LoggingSettings(level="DEBUG", json_console="json")
+        from fapilog.config.sink_settings import SinkSettings
+
+        original = LoggingSettings(
+            level="DEBUG", sinks=SinkSettings(json_console="json")
+        )
         result = ConfigurationManager.validate_settings(original)
 
         # Should return the same instance (fast path)
         assert result is original
         assert result.level == "DEBUG"
-        assert result.json_console == "json"
+        assert result.sinks.json_console == "json"
 
     def test_validate_settings_with_dict(self):
         """Test validate_settings with dictionary input."""
-        settings_dict = {"level": "WARNING", "json_console": "pretty"}
+        settings_dict = {"level": "WARNING", "sinks": {"json_console": "pretty"}}
         result = ConfigurationManager.validate_settings(settings_dict)
 
         assert isinstance(result, LoggingSettings)
         assert result.level == "WARNING"
-        assert result.json_console == "pretty"
+        assert result.sinks.json_console == "pretty"
 
     def test_validate_settings_with_invalid_data(self):
         """Test validate_settings with invalid input."""

@@ -69,7 +69,7 @@ class TestLokiPayloadFormatter:
 
         # Mock safe_json_serialize to always raise an exception
         with patch(
-            "fapilog._internal.loki_payload_formatter.safe_json_serialize"
+            "fapilog.integrations.loki.formatter.safe_json_serialize"
         ) as mock_serialize:
             mock_serialize.side_effect = Exception("Serialization failed")
             events = [{"message": "test", "timestamp": 1234567890.123}]
@@ -86,7 +86,7 @@ class TestLokiPayloadFormatter:
 
         # Mock safe_json_serialize to raise an exception
         with patch(
-            "fapilog._internal.loki_payload_formatter.safe_json_serialize"
+            "fapilog.integrations.loki.formatter.safe_json_serialize"
         ) as mock_serialize:
             mock_serialize.side_effect = Exception("Serialization failed")
             events = [{"message": "test", "timestamp": 1234567890.123}]

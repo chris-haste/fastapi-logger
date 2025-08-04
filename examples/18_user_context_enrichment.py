@@ -29,9 +29,9 @@ from fastapi.security import (
 from pydantic import BaseModel
 
 from fapilog import configure_logging, log
-from fapilog._internal.context import bind_user_context
 from fapilog.enrichers import create_user_dependency
 from fapilog.settings import LoggingSettings
+from fapilog.utils.context import bind_user_context
 
 
 # Pydantic models for different user representations

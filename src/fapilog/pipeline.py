@@ -174,7 +174,7 @@ def build_processor_chain(
         else:
             # Fall back to legacy queue sink during transition
             # This ensures compatibility while components are being updated
-            from ._internal.queue_integration import queue_sink
+            from .async_components.queue.integration import queue_sink
 
             processors.append(queue_sink)
     else:

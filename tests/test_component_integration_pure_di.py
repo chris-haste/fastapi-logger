@@ -332,7 +332,7 @@ class TestComponentIntegrationPureDI:
             loggers.append(logger)
 
         # Verify no global state dependencies by checking module attributes
-        import fapilog._internal.queue_integration as queue_module
+        import fapilog.async_components.queue.integration as queue_module
         import fapilog.bootstrap as bootstrap_module
         import fapilog.container as container_module
 

@@ -4,7 +4,7 @@ from typing import Any, Dict
 
 import pytest
 
-from fapilog._internal.processors import (
+from fapilog.processors import (
     FilterNoneProcessor,
     RedactionProcessor,
     SamplingProcessor,

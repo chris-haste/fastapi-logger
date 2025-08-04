@@ -336,7 +336,7 @@ class TestMonitoringAPI:
         assert summary["total_processors"] == 0
         assert summary["summary"] == "No processors tracked"
 
-    @patch("fapilog.monitoring.logger")
+    @patch("fapilog.monitoring.health.logger")
     def test_monitoring_api_error_handling(self, mock_logger):
         """Test error handling in monitoring API functions."""
         # Mock ProcessorMetrics to raise an exception

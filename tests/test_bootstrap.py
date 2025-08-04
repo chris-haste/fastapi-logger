@@ -12,6 +12,7 @@ import structlog
 
 from fapilog.bootstrap import configure_logging, create_logger
 from fapilog.config import LoggingSettings
+from fapilog.config.sink_settings import SinkSettings
 
 
 class TestConfigureLogging:
@@ -250,7 +251,7 @@ class TestConfigureLogging:
         """Test configuration using LoggingSettings."""
         settings = LoggingSettings(
             level="DEBUG",
-            json_console="json",
+            sinks=SinkSettings(json_console="json"),
         )
         logger, container = create_logger(settings=settings)
         self._containers_to_cleanup.append(container)

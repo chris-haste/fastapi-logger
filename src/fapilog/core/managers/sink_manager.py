@@ -76,7 +76,7 @@ class SinkManager:
             # Create sinks based on settings
             self._sinks = []
 
-            for sink_item in settings.sinks:
+            for sink_item in settings.sinks.sinks:
                 # Handle direct Sink instances
                 if isinstance(sink_item, Sink):
                     self._sinks.append(sink_item)
@@ -203,7 +203,7 @@ class SinkManager:
         # but without the queue worker creation
         sinks = []
 
-        for sink_item in settings.sinks:
+        for sink_item in settings.sinks.sinks:
             # Handle direct Sink instances
             if isinstance(sink_item, Sink):
                 sinks.append(sink_item)

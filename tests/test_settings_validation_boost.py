@@ -43,15 +43,17 @@ class TestSettingsValidationBoost:
     def test_parse_sinks_mixed_types(self):
         """Test sinks parsing with mixed types."""
         # String that gets converted
-        settings = LoggingSettings(sinks="stdout,file://test.log")
-        assert settings.sinks == ["stdout", "file://test.log"]
+        from fapilog.config.sink_settings import SinkSettings
+
+        settings = LoggingSettings(sinks=SinkSettings(sinks="stdout,file://test.log"))
+        assert settings.sinks.sinks == ["stdout", "file://test.log"]
 
         # List with mixed types
-        settings = LoggingSettings(sinks=["stdout", 123, None])  # type: ignore[list-item]
-        assert len(settings.sinks) == 3
-        assert settings.sinks[0] == "stdout"
-        assert settings.sinks[1] == "123"  # Converted to string
-        assert settings.sinks[2] == "None"  # Converted to string
+        settings = LoggingSettings(sinks=SinkSettings(sinks=["stdout", 123, None]))  # type: ignore[list-item]
+        assert len(settings.sinks.sinks) == 3
+        assert settings.sinks.sinks[0] == "stdout"
+        assert settings.sinks.sinks[1] == "123"  # Converted to string
+        assert settings.sinks.sinks[2] == "None"  # Converted to string
 
     def test_parse_redact_patterns_various_inputs(self):
         """Test redact_patterns parsing with various input types."""
@@ -118,8 +120,12 @@ class TestSettingsValidationBoost:
     def test_parse_sinks_empty_string_handling(self):
         """Test sinks parsing handles empty strings correctly."""
         # Empty items should be filtered out
-        settings = LoggingSettings(sinks="stdout,,file://test.log, ")
-        assert settings.sinks == ["stdout", "file://test.log"]
+        from fapilog.config.sink_settings import SinkSettings
+
+        settings = LoggingSettings(
+            sinks=SinkSettings(sinks="stdout,,file://test.log, ")
+        )
+        assert settings.sinks.sinks == ["stdout", "file://test.log"]
 
     def test_parse_patterns_empty_string_handling(self):
         """Test patterns parsing handles empty strings correctly."""
@@ -138,14 +144,14 @@ class TestSettingsValidationBoost:
         settings = LoggingSettings()
 
         # Check default factory functions are called
-        assert settings.sinks == ["stdout"]
+        assert settings.sinks.sinks == ["stdout"]
         assert settings.security.redact_patterns == []
         assert settings.security.redact_fields == []
         assert settings.security.custom_pii_patterns == []
 
         # Check other defaults
         assert settings.level == "INFO"
-        assert settings.json_console == "auto"
+        assert settings.sinks.json_console == "auto"
         assert settings.security.redact_replacement == "REDACTED"
         assert settings.security.redact_level == "INFO"
         assert settings.queue.enabled is True

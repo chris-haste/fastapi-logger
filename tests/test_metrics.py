@@ -351,7 +351,7 @@ class TestPrometheusExporter:
         assert exporter.enabled
 
         # Test with FastAPI not available
-        with patch("fapilog.monitoring.FastAPI", None):
+        with patch("fapilog.monitoring.prometheus.FastAPI", None):
             exporter = PrometheusExporter(enabled=True)
             assert not exporter.enabled
 

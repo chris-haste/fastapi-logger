@@ -14,6 +14,7 @@ from typing import Any, Dict
 import pytest
 
 from fapilog.config import LoggingSettings
+from fapilog.config.sink_settings import SinkSettings
 from fapilog.container import LoggingContainer
 
 
@@ -38,7 +39,9 @@ class TestContainerStress:
                 for i in range(batch_start, batch_end):
                     settings = LoggingSettings(
                         level="INFO" if i % 2 == 0 else "DEBUG",
-                        json_console="json" if i % 3 == 0 else "pretty",
+                        sinks=SinkSettings(
+                            json_console="json" if i % 3 == 0 else "pretty"
+                        ),
                     )
                     container = LoggingContainer(settings)
                     container.configure()

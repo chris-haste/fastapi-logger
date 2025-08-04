@@ -62,12 +62,8 @@ class SinkSettings(BaseSettings):
                         # If we can't determine the type, treat as Sink if it has write method
                         result.append(item)
                     else:
-                        raise ConfigurationError(
-                            f"Invalid sink item: {item}. Must be string or Sink instance",
-                            "sinks",
-                            item,
-                            "string or Sink instance",
-                        )
+                        # Convert other types to string for backward compatibility
+                        result.append(str(item))
             return result
         raise ConfigurationError(
             f"Invalid sinks value: {v}. Must be string or list",
