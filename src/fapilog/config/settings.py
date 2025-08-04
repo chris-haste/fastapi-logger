@@ -1,5 +1,6 @@
 """Main configuration settings for fapilog."""
 
+# os import needed for environment variable handling in field validator
 import os
 from typing import TYPE_CHECKING
 
@@ -7,6 +8,7 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from ..exceptions import ConfigurationError
+from .env_parsers import EnvironmentParsers
 from .metrics_settings import MetricsSettings
 from .queue_settings import QueueSettings
 from .security_settings import SecuritySettings
@@ -83,53 +85,32 @@ class LoggingSettings(BaseSettings):
     )
 
     def __init__(self, **kwargs):
-        """Initialize LoggingSettings with custom environment variable handling."""
-        # Handle FAPILOG_SINKS environment variable if not explicitly set
+        """Initialize LoggingSettings with simplified environment variable handling."""
+        # Handle legacy FAPILOG_SINKS environment variable by converting to nested format
         if "sinks" not in kwargs:
             env_sinks = os.environ.get("FAPILOG_SINKS")
             if env_sinks:
-                # Parse comma-separated string
-                sink_list = [
-                    item.strip() for item in env_sinks.split(",") if item.strip()
-                ]
+                # Convert legacy format to nested environment variables for Pydantic to parse
+                # This eliminates the need for manual os.environ.pop() and restoration
+                os.environ["FAPILOG_SINKS__SINKS"] = env_sinks
 
-                # Build SinkSettings object that includes both the sinks list and any nested env vars
-                sink_settings_data = {"sinks": sink_list}
-
-                # Check for nested FAPILOG_SINKS__* environment variables
-                env_prefix = "FAPILOG_SINKS__"
-                for env_key, env_value in os.environ.items():
-                    if env_key.startswith(env_prefix):
-                        nested_key = env_key[len(env_prefix) :].lower()
-                        sink_settings_data[nested_key] = env_value
-
-                kwargs["sinks"] = SinkSettings(**sink_settings_data)
-
-        # Temporarily remove FAPILOG_SINKS from environment to prevent pydantic parsing error
-        original_env_value = os.environ.pop("FAPILOG_SINKS", None)
-        try:
-            super().__init__(**kwargs)
-        finally:
-            # Restore the environment variable
-            if original_env_value is not None:
-                os.environ["FAPILOG_SINKS"] = original_env_value
+        super().__init__(**kwargs)
 
     @field_validator("sinks", mode="before")
     @classmethod
     def validate_sinks(cls, v):
-        """Handle sinks field validation and comma-separated environment variables."""
+        """Handle sinks field validation using centralized utilities."""
         if isinstance(v, SinkSettings):
             return v
         if isinstance(v, str):
-            # Handle comma-separated strings from environment variables
-            # Split by comma and strip whitespace, filter empty strings
-            sink_list = [item.strip() for item in v.split(",") if item.strip()]
+            # Use centralized parsing for comma-separated strings from environment variables
+            sink_list = EnvironmentParsers.parse_comma_separated_list(v)
             return SinkSettings(sinks=sink_list)
         if isinstance(v, list):
             # Create SinkSettings from the list
             return SinkSettings(sinks=v)
         if isinstance(v, dict):
-            # Handle dict input
+            # Handle dict input (from nested environment variables like FAPILOG_SINKS__*)
             return SinkSettings(**v)
         return v
 
