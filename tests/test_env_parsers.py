@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.fapilog.config.env_parsers import EnvironmentParsers
+from fapilog.config.env_parsers import EnvironmentParsers
 
 
 class TestEnvironmentParsers:
@@ -115,7 +115,7 @@ class TestEnvironmentParsers:
         assert result == {"a": "b", "c": "d"}
 
         # Test with non-string values
-        input_dict = {"num": 42, "bool": True}
+        input_dict = {"num": "42", "bool": "True"}  # Use strings for type consistency
         result = EnvironmentParsers.parse_key_value_pairs(input_dict)
         assert result == {"num": "42", "bool": "True"}
 

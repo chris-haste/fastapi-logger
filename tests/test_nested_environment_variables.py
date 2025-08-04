@@ -5,8 +5,8 @@ from unittest.mock import patch
 
 import pytest
 
-from src.fapilog.config.settings import LoggingSettings
-from src.fapilog.exceptions import ConfigurationError
+from fapilog.config.settings import LoggingSettings
+from fapilog.exceptions import ConfigurationError
 
 
 class TestNestedEnvironmentVariables:
