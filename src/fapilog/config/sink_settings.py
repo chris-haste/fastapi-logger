@@ -6,6 +6,7 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from ..exceptions import ConfigurationError
+from .env_parsers import EnvironmentParsers
 
 if TYPE_CHECKING:
     from ..sinks import Sink
@@ -44,7 +45,7 @@ class SinkSettings(BaseSettings):
     def parse_sinks(cls, v: Any) -> List[Union[str, "Sink"]]:
         """Parse sinks field to support strings and Sink instances."""
         if isinstance(v, str):
-            return [item.strip() for item in v.split(",") if item.strip()]
+            return EnvironmentParsers.parse_comma_separated_list(v)
         if isinstance(v, (list, tuple)):
             # Support mixed list of strings and Sink instances
             result: List[Union[str, Sink]] = []

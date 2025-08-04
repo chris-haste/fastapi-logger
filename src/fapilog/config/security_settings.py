@@ -6,6 +6,7 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from ..exceptions import ConfigurationError
+from .env_parsers import EnvironmentParsers
 
 
 class SecuritySettings(BaseSettings):
@@ -94,23 +95,17 @@ class SecuritySettings(BaseSettings):
     @field_validator("redact_patterns", mode="before")
     @classmethod
     def parse_redact_patterns(cls, v: Any) -> List[str]:
-        if isinstance(v, str):
-            return [item.strip() for item in v.split(",") if item.strip()]
-        return list(v) if isinstance(v, (list, tuple)) else [v]
+        return EnvironmentParsers.parse_mixed_list(v)
 
     @field_validator("redact_fields", mode="before")
     @classmethod
     def parse_redact_fields(cls, v: Any) -> List[str]:
-        if isinstance(v, str):
-            return [item.strip() for item in v.split(",") if item.strip()]
-        return list(v) if isinstance(v, (list, tuple)) else [v]
+        return EnvironmentParsers.parse_mixed_list(v)
 
     @field_validator("custom_pii_patterns", mode="before")
     @classmethod
     def parse_custom_pii_patterns(cls, v: Any) -> List[str]:
-        if isinstance(v, str):
-            return [item.strip() for item in v.split(",") if item.strip()]
-        return list(v) if isinstance(v, (list, tuple)) else [v]
+        return EnvironmentParsers.parse_mixed_list(v)
 
     @field_validator("redact_level")
     @classmethod
