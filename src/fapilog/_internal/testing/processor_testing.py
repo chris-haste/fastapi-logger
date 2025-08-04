@@ -11,8 +11,8 @@ from typing import Any, Dict, cast
 
 import pytest
 
-from ..async_processor_base import AsyncProcessorBase
-from ..processor import Processor
+from ...processors.async_base import AsyncProcessorBase
+from ...processors.base import Processor
 
 
 class ProcessorTestBase(ABC):

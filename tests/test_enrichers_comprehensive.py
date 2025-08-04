@@ -54,7 +54,7 @@ class TestEnricherErrorHandler:
         event_dict = {"test": "data"}
         mock_enricher = Mock(__name__="test_enricher")
 
-        with patch("fapilog.enrichers.enricher_logger") as mock_logger:
+        with patch("fapilog.enrichers.health.enricher_logger") as mock_logger:
             result = handler.handle_enricher_error(mock_enricher, error, event_dict)
             assert result is True
             assert "test_enricher" in handler.failed_enrichers
@@ -67,7 +67,7 @@ class TestEnricherErrorHandler:
         event_dict = {"test": "data"}
         mock_enricher = Mock(__name__="test_enricher")
 
-        with patch("fapilog.enrichers.enricher_logger") as mock_logger:
+        with patch("fapilog.enrichers.health.enricher_logger") as mock_logger:
             result = handler.handle_enricher_error(mock_enricher, error, event_dict)
             assert result is True
             assert "test_enricher" in handler.failed_enrichers
@@ -91,7 +91,7 @@ class TestEnricherErrorHandler:
         mock_enricher = Mock()
         del mock_enricher.__name__
 
-        with patch("fapilog.enrichers.enricher_logger") as mock_logger:
+        with patch("fapilog.enrichers.health.enricher_logger") as mock_logger:
             result = handler.handle_enricher_error(mock_enricher, error, event_dict)
             assert result is True
             mock_logger.warning.assert_called_once()
@@ -251,7 +251,7 @@ class TestHostProcessEnricher:
         assert result["pid"] is not None
 
     @pytest.mark.asyncio
-    @patch("fapilog.enrichers.socket.gethostname")
+    @patch("fapilog.enrichers.system.socket.gethostname")
     async def test_host_process_enricher_socket_error(self, mock_gethostname):
         """Test host process enrichment with socket error."""
         clear_smart_cache()  # Clear cache to test error condition
@@ -263,7 +263,7 @@ class TestHostProcessEnricher:
         assert "pid" in result
 
     @pytest.mark.asyncio
-    @patch("fapilog.enrichers.os.getpid")
+    @patch("fapilog.enrichers.system.os.getpid")
     async def test_host_process_enricher_pid_error(self, mock_getpid):
         """Test host process enrichment with PID error."""
         clear_smart_cache()  # Clear cache to test error condition
@@ -318,7 +318,7 @@ class TestResourceSnapshotEnricher:
         assert result == event_dict
 
     @pytest.mark.asyncio
-    @patch("fapilog.enrichers._get_process_smart")
+    @patch("fapilog.enrichers.system._get_process_smart")
     async def test_resource_snapshot_enricher_process_error(self, mock_get_process):
         """Test resource snapshot enrichment with process error."""
         # Mock process that fails on memory_info

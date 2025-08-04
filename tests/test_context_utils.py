@@ -6,7 +6,9 @@ import pytest
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
-from fapilog._internal.context import (
+from fapilog.bootstrap import configure_logging
+from fapilog.exceptions import ContextError
+from fapilog.utils.context import (
     bind_context,
     clear_context,
     context_copy,
@@ -14,8 +16,6 @@ from fapilog._internal.context import (
     get_span_id,
     get_trace_id,
 )
-from fapilog.bootstrap import configure_logging
-from fapilog.exceptions import ContextError
 
 
 def test_get_context_returns_expected_keys():
@@ -339,7 +339,7 @@ def cleanup_context():
 
 def test_legacy_functions_for_coverage():
     """Test legacy functions to improve coverage."""
-    from fapilog._internal.context import (
+    from fapilog.utils.context import (
         reset_request_metadata,
         reset_response_metadata,
         reset_trace_context,

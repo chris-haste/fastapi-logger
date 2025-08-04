@@ -169,8 +169,8 @@ class TestHttpxPatchCoverage:
     def test_httpx_trace_propagation_configuration(self):
         """Test trace propagation configuration with settings."""
         try:
+            from fapilog.config import LoggingSettings
             from fapilog.httpx_patch import configure_httpx_trace_propagation
-            from fapilog.settings import LoggingSettings
 
             # Create mock settings
             settings = LoggingSettings()

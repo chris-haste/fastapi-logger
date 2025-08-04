@@ -2,14 +2,14 @@
 
 import pytest
 
-from fapilog._internal.pii_patterns import auto_redact_pii_processor
-from fapilog._internal.processors import RedactionProcessor
 from fapilog.exceptions import RedactionError
-from fapilog.redactors import (
+from fapilog.integrations.pii.patterns import auto_redact_pii_processor
+from fapilog.integrations.pii.redactors import (
     _get_log_level_numeric,
     _should_redact_at_level,
     field_redactor,
 )
+from fapilog.processors.redaction import RedactionProcessor
 
 
 class TestLogLevelHelpers:

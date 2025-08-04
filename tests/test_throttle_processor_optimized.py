@@ -9,8 +9,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from fapilog._internal.throttle_processor import ThrottleProcessor
 from fapilog.exceptions import ProcessorConfigurationError
+from fapilog.processors.throttling import ThrottleProcessor
 
 
 @pytest.mark.asyncio

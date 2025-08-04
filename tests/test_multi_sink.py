@@ -5,10 +5,10 @@ from unittest.mock import patch
 
 import pytest
 
-from fapilog._internal.queue_worker import QueueWorker
+from fapilog.async_components.queue.worker import QueueWorker
 from fapilog.bootstrap import configure_logging
+from fapilog.config import LoggingSettings
 from fapilog.exceptions import SinkError
-from fapilog.settings import LoggingSettings
 from fapilog.sinks import Sink
 
 
@@ -60,7 +60,7 @@ class TestMultiSinkConfiguration:
 
         with patch.dict("os.environ", env_vars):
             settings = LoggingSettings()
-            assert settings.sinks == [
+            assert settings.sinks.sinks == [
                 "stdout",
                 "file:///var/log/test.log",
                 "loki://loki:3100",
@@ -69,7 +69,7 @@ class TestMultiSinkConfiguration:
     def test_multiple_sinks_from_list(self) -> None:
         """Test that multiple sinks can be configured from a list."""
         settings = LoggingSettings(sinks=["stdout", "file:///var/log/test.log"])
-        assert settings.sinks == ["stdout", "file:///var/log/test.log"]
+        assert settings.sinks.sinks == ["stdout", "file:///var/log/test.log"]
 
     def test_sinks_with_whitespace(self) -> None:
         """Test that sinks with whitespace are handled correctly."""
@@ -79,7 +79,7 @@ class TestMultiSinkConfiguration:
 
         with patch.dict("os.environ", env_vars):
             settings = LoggingSettings()
-            assert settings.sinks == [
+            assert settings.sinks.sinks == [
                 "stdout",
                 "file:///var/log/test.log",
                 "loki://loki:3100",
@@ -93,7 +93,7 @@ class TestMultiSinkConfiguration:
 
         with patch.dict("os.environ", env_vars):
             settings = LoggingSettings()
-            assert settings.sinks == [
+            assert settings.sinks.sinks == [
                 "stdout",
                 "file:///var/log/test.log",
                 "loki://loki:3100",

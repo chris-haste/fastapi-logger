@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from fapilog._internal.configuration_manager import ConfigurationManager
+from fapilog.core.managers.configuration_manager import ConfigurationManager
 
 
 class TestBootstrapFinalWin:

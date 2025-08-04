@@ -3,7 +3,7 @@
 from typing import Any, Dict
 from unittest.mock import Mock, patch
 
-from fapilog._internal.sink_registry import SinkRegistry
+from fapilog.core.registries.sink_registry import SinkRegistry
 from fapilog.sinks import Sink
 from fapilog.testing.debug import SinkDebugger
 
@@ -292,7 +292,7 @@ class TestSinkDebugger:
 
         # Use a URI with query parameters that match ValidTestSink constructor
         with patch(
-            "fapilog._internal.sink_factory.create_custom_sink_from_uri"
+            "fapilog.core.factories.sink_factory.create_custom_sink_from_uri"
         ) as mock_create:
             mock_create.return_value = ValidTestSink()
 
@@ -458,7 +458,7 @@ class TestSinkDebugger:
         SinkRegistry.register("test", ValidTestSink)
 
         with patch(
-            "fapilog._internal.sink_factory.create_custom_sink_from_uri"
+            "fapilog.core.factories.sink_factory.create_custom_sink_from_uri"
         ) as mock_create:
             mock_create.return_value = ValidTestSink()
 

@@ -6,10 +6,10 @@ from unittest.mock import Mock, patch
 import pytest
 import structlog
 
-from fapilog._internal.queue_integration import create_queue_sink, queue_sink
-from fapilog._internal.queue_worker import QueueWorker
+from fapilog.async_components.queue.integration import create_queue_sink, queue_sink
+from fapilog.async_components.queue.worker import QueueWorker
+from fapilog.config import LoggingSettings
 from fapilog.container import LoggingContainer
-from fapilog.settings import LoggingSettings
 
 
 class MockQueueWorker:
@@ -208,7 +208,9 @@ class TestCreateQueueSink:
         event_dict = {"level": "info", "event": "test_message"}
 
         # Mock random to return value > sampling_rate
-        with patch("fapilog._internal.queue_integration.rnd.random", return_value=0.8):
+        with patch(
+            "fapilog.async_components.queue.integration.rnd.random", return_value=0.8
+        ):
             # Should raise DropEvent when sampled out (line 108)
             with pytest.raises(structlog.DropEvent):
                 queue_sink_func(Mock(), "info", event_dict)
@@ -227,7 +229,9 @@ class TestCreateQueueSink:
         event_dict = {"level": "info", "event": "test_message"}
 
         # Mock random to return value < sampling_rate
-        with patch("fapilog._internal.queue_integration.rnd.random", return_value=0.3):
+        with patch(
+            "fapilog.async_components.queue.integration.rnd.random", return_value=0.3
+        ):
             # Should raise DropEvent after successful enqueue
             with pytest.raises(structlog.DropEvent):
                 queue_sink_func(Mock(), "info", event_dict)
@@ -246,7 +250,9 @@ class TestCreateQueueSink:
         event_dict = {"level": "info", "event": "test_message"}
 
         # Mock random to return value < sampling_rate
-        with patch("fapilog._internal.queue_integration.rnd.random", return_value=0.3):
+        with patch(
+            "fapilog.async_components.queue.integration.rnd.random", return_value=0.3
+        ):
             # Should raise DropEvent when queue is full with sample strategy (lines 112-113)
             with pytest.raises(structlog.DropEvent):
                 queue_sink_func(Mock(), "info", event_dict)

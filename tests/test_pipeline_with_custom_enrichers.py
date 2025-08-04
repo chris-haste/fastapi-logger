@@ -4,12 +4,12 @@ import structlog
 from structlog.testing import CapturingLogger
 
 from fapilog.bootstrap import configure_logging
+from fapilog.config import LoggingSettings
 from fapilog.enrichers import (
     clear_enrichers,
     register_enricher,
 )
 from fapilog.pipeline import build_processor_chain
-from fapilog.settings import LoggingSettings
 
 
 def test_custom_enrichers_in_pipeline():
@@ -98,7 +98,7 @@ def test_custom_enrichers_with_actual_logging():
     clear_enrichers()
 
     # Clear context to avoid contamination from other tests
-    from fapilog._internal.context import clear_context
+    from fapilog.utils.context import clear_context
 
     clear_context()
 

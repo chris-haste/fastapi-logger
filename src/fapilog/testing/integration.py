@@ -5,8 +5,8 @@ import os
 from typing import Any, Dict, List, Optional, Type
 from urllib.parse import urlencode
 
-from .._internal.sink_registry import SinkRegistry
-from ..settings import LoggingSettings
+from ..config import LoggingSettings
+from ..core.registries.sink_registry import SinkRegistry
 from ..sinks import Sink
 
 
@@ -199,8 +199,8 @@ class SinkIntegrationTester:
                 uri = f"{sink_name}://test"
 
             # Test with container
+            from ..config import LoggingSettings
             from ..container import LoggingContainer
-            from ..settings import LoggingSettings
 
             settings = LoggingSettings(sinks=[uri])
             container = LoggingContainer(settings)
@@ -376,8 +376,8 @@ class SinkIntegrationTester:
                 uri = f"{sink_name}://test"
 
             # Test with container
+            from ..config import LoggingSettings
             from ..container import LoggingContainer
-            from ..settings import LoggingSettings
 
             settings = LoggingSettings(sinks=[uri])
             container = LoggingContainer(settings)

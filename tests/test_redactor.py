@@ -1,6 +1,6 @@
 """Tests for field redaction functionality."""
 
-from fapilog.redactors import (
+from fapilog.integrations.pii.redactors import (
     _get_nested_value,
     _redact_nested_fields,
     _set_nested_value,

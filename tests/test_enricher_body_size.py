@@ -5,14 +5,14 @@ from typing import Any, Dict
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
-from fapilog._internal.context import (
+from fapilog.bootstrap import configure_logging
+from fapilog.enrichers import body_size_enricher
+from fapilog.utils.context import (
     bind_context,
     clear_context,
     req_bytes_ctx,
     res_bytes_ctx,
 )
-from fapilog.bootstrap import configure_logging
-from fapilog.enrichers import body_size_enricher
 
 
 def make_app():

@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from fapilog._internal.safe_async_cache import SafeAsyncCache
+from fapilog.async_components.cache.safe_async_cache import SafeAsyncCache
 
 
 class TestSafeAsyncCache:

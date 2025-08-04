@@ -13,9 +13,9 @@ from unittest.mock import Mock
 
 import pytest
 
+from fapilog.config import LoggingSettings
 from fapilog.container import LoggingContainer
 from fapilog.exceptions import ConfigurationError
-from fapilog.settings import LoggingSettings
 
 
 class TestContainerArchitectureIntegration:

@@ -6,12 +6,12 @@ from unittest.mock import Mock
 import pytest
 import structlog
 
-from fapilog._internal.queue_integration import create_queue_sink
+from fapilog.async_components.queue.integration import create_queue_sink
 from fapilog.bootstrap import configure_logging, configure_with_container
+from fapilog.config import LoggingSettings
 from fapilog.container import LoggingContainer
 from fapilog.middleware import TraceIDMiddleware
 from fapilog.pipeline import build_processor_chain
-from fapilog.settings import LoggingSettings
 
 
 class TestComponentIntegrationPureDI:
@@ -332,7 +332,7 @@ class TestComponentIntegrationPureDI:
             loggers.append(logger)
 
         # Verify no global state dependencies by checking module attributes
-        import fapilog._internal.queue_integration as queue_module
+        import fapilog.async_components.queue.integration as queue_module
         import fapilog.bootstrap as bootstrap_module
         import fapilog.container as container_module
 

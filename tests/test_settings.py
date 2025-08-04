@@ -6,8 +6,8 @@ from unittest.mock import patch
 import pytest
 
 from fapilog.bootstrap import configure_logging
+from fapilog.config import LoggingSettings
 from fapilog.exceptions import ConfigurationError
-from fapilog.settings import LoggingSettings
 
 
 class TestLoggingSettings:
@@ -19,29 +19,29 @@ class TestLoggingSettings:
             settings = LoggingSettings()
 
             assert settings.level == "INFO"
-            assert settings.sinks == ["stdout"]
-            assert settings.json_console == "auto"
+            assert settings.sinks.sinks == ["stdout"]
+            assert settings.sinks.json_console == "auto"
             assert settings.security.redact_patterns == []
-            assert settings.sampling_rate == 1.0
+            assert settings.sinks.sampling_rate == 1.0
 
     def test_env_override(self) -> None:
         """Test that environment variables override defaults."""
         env_vars = {
             "FAPILOG_LEVEL": "DEBUG",
             "FAPILOG_SINKS": "stdout,loki",
-            "FAPILOG_JSON_CONSOLE": "json",
+            "FAPILOG_SINKS__JSON_CONSOLE": "json",
             "FAPILOG_SECURITY_REDACT_PATTERNS": '["password", "secret"]',
-            "FAPILOG_SAMPLING_RATE": "0.5",
+            "FAPILOG_SINKS__SAMPLING_RATE": "0.5",
         }
 
         with patch.dict(os.environ, env_vars):
             settings = LoggingSettings()
 
             assert settings.level == "DEBUG"
-            assert settings.sinks == ["stdout", "loki"]
-            assert settings.json_console == "json"
+            assert settings.sinks.sinks == ["stdout", "loki"]
+            assert settings.sinks.json_console == "json"
             assert settings.security.redact_patterns == ["password", "secret"]
-            assert settings.sampling_rate == 0.5
+            assert settings.sinks.sampling_rate == 0.5
 
     def test_level_validation_valid(self) -> None:
         """Test that valid log levels are accepted."""
@@ -66,17 +66,25 @@ class TestLoggingSettings:
         """Test that valid json_console values are accepted."""
         valid_values = ["auto", "json", "pretty"]
 
+        from fapilog.config.sink_settings import SinkSettings
+
         for value in valid_values:
-            settings = LoggingSettings.model_validate({"json_console": value})
-            assert settings.json_console == value.lower()
+            settings = LoggingSettings.model_validate(
+                {"sinks": SinkSettings(json_console=value)}
+            )
+            assert settings.sinks.json_console == value.lower()
 
     def test_json_console_validation_invalid(self) -> None:
         """Test that invalid json_console values raise ConfigurationError."""
         invalid_values = ["INVALID", "NOT_A_VALUE", "FOO", "BAR"]
 
+        from fapilog.config.sink_settings import SinkSettings
+
         for value in invalid_values:
             with pytest.raises(ConfigurationError) as exc_info:
-                LoggingSettings.model_validate({"json_console": value})
+                LoggingSettings.model_validate(
+                    {"sinks": SinkSettings(json_console=value)}
+                )
 
             assert "Invalid json_console" in str(exc_info.value)
 
@@ -84,25 +92,31 @@ class TestLoggingSettings:
         """Test that valid sampling rates are accepted."""
         valid_rates = [0.0, 0.1, 0.5, 1.0]
 
+        from fapilog.config.sink_settings import SinkSettings
+
         for rate in valid_rates:
-            settings = LoggingSettings(sampling_rate=rate)
-            assert settings.sampling_rate == rate
+            settings = LoggingSettings(sinks=SinkSettings(sampling_rate=rate))
+            assert settings.sinks.sampling_rate == rate
 
     def test_sampling_rate_validation_invalid(self) -> None:
         """Test that invalid sampling rates raise ConfigurationError."""
         invalid_rates = [-0.1, 1.1, 2.0, -1.0]
 
+        from fapilog.config.sink_settings import SinkSettings
+
         for rate in invalid_rates:
             with pytest.raises(ConfigurationError) as exc_info:
-                LoggingSettings(sampling_rate=rate)
+                LoggingSettings(sinks=SinkSettings(sampling_rate=rate))
 
             expected = "Sampling rate must be between 0.0 and 1.0"
             assert expected in str(exc_info.value)
 
     def test_sinks_parsing(self) -> None:
         """Test that sinks are parsed from comma-separated strings."""
-        settings = LoggingSettings(sinks=["stdout", "loki", "file"])
-        assert settings.sinks == ["stdout", "loki", "file"]
+        from fapilog.config.sink_settings import SinkSettings
+
+        settings = LoggingSettings(sinks=SinkSettings(sinks=["stdout", "loki", "file"]))
+        assert settings.sinks.sinks == ["stdout", "loki", "file"]
 
     def test_redact_patterns_parsing(self) -> None:
         """Test that redact patterns are parsed from comma-separated strings."""
@@ -120,64 +134,74 @@ class TestLoggingSettings:
         with patch.dict(os.environ, env_vars):
             settings = LoggingSettings()
 
-            assert settings.sinks == ["stdout", "loki", "file"]
+            assert settings.sinks.sinks == ["stdout", "loki", "file"]
             assert settings.security.redact_patterns == ["password", "secret", "token"]
 
     def test_case_insensitive_config(self) -> None:
         """Test that environment variables are case-insensitive."""
         env_vars = {
             "fapilog_level": "debug",
-            "FAPILOG_JSON_CONSOLE": "JSON",
+            "FAPILOG_SINKS__JSON_CONSOLE": "JSON",
         }
 
         with patch.dict(os.environ, env_vars):
             settings = LoggingSettings()
 
             assert settings.level == "DEBUG"
-            assert settings.json_console == "json"
+            assert settings.sinks.json_console == "json"
 
     def test_model_validation(self) -> None:
         """Test that model validation works correctly."""
         # Create settings with valid data
+        from fapilog.config.sink_settings import SinkSettings
+
         settings = LoggingSettings(
             level="INFO",
-            sinks=["stdout"],
-            json_console="auto",
-            sampling_rate=1.0,
+            sinks=SinkSettings(
+                sinks=["stdout"],
+                json_console="auto",
+                sampling_rate=1.0,
+            ),
         )
 
         # Test that the settings object works correctly
         assert settings.level == "INFO"
-        assert settings.sinks == ["stdout"]
-        assert settings.json_console == "auto"
+        assert settings.sinks.sinks == ["stdout"]
+        assert settings.sinks.json_console == "auto"
         assert settings.security.redact_patterns == []  # From nested security settings
-        assert settings.sampling_rate == 1.0
+        assert settings.sinks.sampling_rate == 1.0
 
         # Test that we can create a new instance with same data
         validated = LoggingSettings(
             level=settings.level,
-            sinks=settings.sinks,
-            json_console=settings.json_console,
-            sampling_rate=settings.sampling_rate,
+            sinks=SinkSettings(
+                sinks=settings.sinks.sinks,
+                json_console=settings.sinks.json_console,
+                sampling_rate=settings.sinks.sampling_rate,
+            ),
         )
         assert validated.level == "INFO"
-        assert validated.sinks == ["stdout"]
-        assert validated.json_console == "auto"
+        assert validated.sinks.sinks == ["stdout"]
+        assert validated.sinks.json_console == "auto"
         assert validated.security.redact_patterns == []
-        assert validated.sampling_rate == 1.0
+        assert validated.sinks.sampling_rate == 1.0
 
 
 def test_configure_logging_function():
     """Test the configure_logging function from bootstrap module."""
-    from fapilog.settings import LoggingSettings
+    from fapilog.config import LoggingSettings
 
     # Test the actual configure_logging function
     configure_logging()
 
     # Test with specific settings
-    settings = LoggingSettings(level="INFO", json_console="json")
+    from fapilog.config.sink_settings import SinkSettings
+
+    settings = LoggingSettings(level="INFO", sinks=SinkSettings(json_console="json"))
     configure_logging(settings=settings)
 
     # Test with different settings
-    settings2 = LoggingSettings(level="DEBUG", json_console="pretty")
+    settings2 = LoggingSettings(
+        level="DEBUG", sinks=SinkSettings(json_console="pretty")
+    )
     configure_logging(settings=settings2)

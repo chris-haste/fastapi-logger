@@ -8,9 +8,9 @@ try:
 except ImportError:
     httpx = None
 
-from ._internal.context import get_trace_id
+from .config import LoggingSettings
 from .exceptions import ConfigurationError
-from .settings import LoggingSettings
+from .utils.context import get_trace_id
 
 
 class HttpxTracePropagation:

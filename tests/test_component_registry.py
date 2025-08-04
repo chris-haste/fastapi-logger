@@ -7,7 +7,7 @@ from typing import Any, cast
 
 import pytest
 
-from fapilog._internal.component_registry import ComponentRegistry
+from fapilog.core.registries.component_registry import ComponentRegistry
 
 
 class MockService:

@@ -4,8 +4,8 @@ import logging
 import time
 from typing import Any, Dict, List, Optional
 
-from .._internal.processor import Processor
-from .._internal.processor_error_handling import (
+from ..processors.base import Processor
+from ..processors.error_handling import (
     log_processor_error_with_context,
     simple_processor_execution,
 )

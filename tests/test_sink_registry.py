@@ -4,15 +4,16 @@ from typing import Any, Dict
 
 import pytest
 
-from fapilog._internal.sink_factory import (
+from fapilog.bootstrap import configure_logging
+from fapilog.config import LoggingSettings
+from fapilog.config.sink_settings import SinkSettings
+from fapilog.core.factories.sink_factory import (
     SinkConfigurationError,
     _convert_parameter_value,
     _parse_uri_parameters,
     create_custom_sink_from_uri,
 )
-from fapilog._internal.sink_registry import SinkRegistry, register_sink
-from fapilog.bootstrap import configure_logging
-from fapilog.settings import LoggingSettings
+from fapilog.core.registries.sink_registry import SinkRegistry, register_sink
 from fapilog.sinks import Sink
 
 
@@ -286,21 +287,23 @@ class TestSettingsIntegration:
     def test_settings_with_sink_instances(self):
         """Test LoggingSettings accepts sink instances."""
         test_sink = MockSink()
-        settings = LoggingSettings(sinks=[test_sink, "stdout"])
+        settings = LoggingSettings(sinks=SinkSettings(sinks=[test_sink, "stdout"]))
 
-        assert len(settings.sinks) == 2
-        assert settings.sinks[0] is test_sink
-        assert settings.sinks[1] == "stdout"
+        assert len(settings.sinks.sinks) == 2
+        assert settings.sinks.sinks[0] is test_sink
+        assert settings.sinks.sinks[1] == "stdout"
 
     def test_settings_parse_mixed_types(self):
         """Test settings parser handles mixed types."""
         test_sink = MockSink()
-        settings = LoggingSettings(sinks=[test_sink, "stdout", "test://host"])
+        settings = LoggingSettings(
+            sinks=SinkSettings(sinks=[test_sink, "stdout", "test://host"])
+        )
 
-        assert len(settings.sinks) == 3
-        assert isinstance(settings.sinks[0], MockSink)
-        assert settings.sinks[1] == "stdout"
-        assert settings.sinks[2] == "test://host"
+        assert len(settings.sinks.sinks) == 3
+        assert isinstance(settings.sinks.sinks[0], MockSink)
+        assert settings.sinks.sinks[1] == "stdout"
+        assert settings.sinks.sinks[2] == "test://host"
 
 
 class TestErrorHandling:
@@ -308,11 +311,13 @@ class TestErrorHandling:
 
     def test_sink_configuration_error_properties(self):
         """Test SinkConfigurationError properties."""
-        error = SinkConfigurationError("Test error", uri="test://uri", sink_name="test")
+        error = SinkConfigurationError("Test error", "test", {"uri": "test://uri"})
 
-        assert str(error) == "Test error"
-        assert error.uri == "test://uri"
+        # The string representation includes context
+        assert "Test error" in str(error)
+        assert "uri=test://uri" in str(error)
         assert error.sink_name == "test"
+        assert error.context["uri"] == "test://uri"
 
     def test_thread_safety(self):
         """Test registry is thread-safe (basic test)."""

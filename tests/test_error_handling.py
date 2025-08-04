@@ -493,7 +493,7 @@ class TestComprehensiveErrorHandling:
 
     def test_bootstrap_configuration_error_handling(self):
         """Test that bootstrap handles configuration errors properly."""
-        from fapilog._internal.configuration_manager import ConfigurationManager
+        from fapilog.core.managers.configuration_manager import ConfigurationManager
 
         # Test invalid console format
         with pytest.raises(ConfigurationError) as exc_info:
@@ -503,7 +503,7 @@ class TestComprehensiveErrorHandling:
 
     def test_queue_error_handling_with_multiple_sinks(self):
         """Test queue error handling when multiple sinks fail."""
-        from fapilog._internal.queue_worker import QueueWorker
+        from fapilog.async_components.queue.worker import QueueWorker
         from fapilog.sinks import Sink
 
         class FailingSink(Sink):

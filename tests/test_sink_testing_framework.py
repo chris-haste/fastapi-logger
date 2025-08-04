@@ -5,7 +5,7 @@ from typing import Any, Dict
 
 import pytest
 
-from fapilog._internal.sink_registry import SinkRegistry
+from fapilog.core.registries.sink_registry import SinkRegistry
 from fapilog.sinks import Sink
 from fapilog.testing import (
     FailingSink,
@@ -379,7 +379,7 @@ class TestDebugging:
 
     def test_list_registered_sinks(self):
         """Test listing registered sinks."""
-        from fapilog._internal.sink_registry import SinkRegistry
+        from fapilog.core.registries.sink_registry import SinkRegistry
 
         initial_count = len(SinkDebugger.list_registered_sinks())
 
@@ -393,7 +393,7 @@ class TestDebugging:
 
     def test_get_sink_info_registered(self):
         """Test getting info for registered sink."""
-        from fapilog._internal.sink_registry import SinkRegistry
+        from fapilog.core.registries.sink_registry import SinkRegistry
 
         SinkRegistry.register("info-test", MockSink)
 

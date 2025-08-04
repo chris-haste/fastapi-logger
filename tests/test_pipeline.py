@@ -5,12 +5,13 @@ from io import StringIO
 import pytest
 import structlog
 
+from fapilog.config import LoggingSettings
+from fapilog.config.sink_settings import SinkSettings
 from fapilog.pipeline import build_processor_chain
-from fapilog.settings import LoggingSettings
 
 
 def test_json_pipeline_keys(capsys):
-    settings = LoggingSettings(json_console="json")
+    settings = LoggingSettings(sinks=SinkSettings(json_console="json"))
     settings.queue.enabled = False
     processors = build_processor_chain(settings, pretty=False)
     structlog.configure(
@@ -32,7 +33,7 @@ def test_json_pipeline_keys(capsys):
 
 
 def test_pretty_pipeline_format(monkeypatch, capsys):
-    settings = LoggingSettings(json_console="pretty")
+    settings = LoggingSettings(sinks=SinkSettings(json_console="pretty"))
     settings.queue.enabled = False
     processors = build_processor_chain(settings, pretty=True)
     structlog.configure(
@@ -52,7 +53,7 @@ def test_pretty_pipeline_format(monkeypatch, capsys):
 
 
 def test_sampling_processor():
-    settings = LoggingSettings(sampling_rate=0.1)
+    settings = LoggingSettings(sinks=SinkSettings(sampling_rate=0.1))
     settings.queue.enabled = False
     processors = build_processor_chain(settings, pretty=False)
     log_stream = StringIO()
@@ -101,7 +102,7 @@ def test_processor_order():
 
 def test_redaction_processor_no_patterns():
     """Test redaction processor with no patterns (identity function)."""
-    from fapilog._internal.processors import RedactionProcessor
+    from fapilog.processors.redaction import RedactionProcessor
 
     # Test with empty patterns
     processor_obj = RedactionProcessor(patterns=[])
@@ -115,7 +116,7 @@ def test_redaction_processor_no_patterns():
 @pytest.mark.asyncio
 async def test_redaction_processor_with_patterns():
     """Test redaction processor with patterns."""
-    from fapilog._internal.processors import RedactionProcessor
+    from fapilog.processors.redaction import RedactionProcessor
 
     # Test with patterns
     processor_obj = RedactionProcessor(patterns=["password", "secret"])
@@ -141,7 +142,7 @@ async def test_redaction_processor_with_patterns():
 @pytest.mark.asyncio
 async def test_redaction_processor_nested_dict():
     """Test redaction processor with nested dictionaries."""
-    from fapilog._internal.processors import RedactionProcessor
+    from fapilog.processors.redaction import RedactionProcessor
 
     processor_obj = RedactionProcessor(patterns=["password", "secret"])
     await processor_obj.start()  # Initialize pattern engine
@@ -162,7 +163,7 @@ async def test_redaction_processor_nested_dict():
 
 def test_sampling_processor_full_rate():
     """Test sampling processor with 100% rate (identity function)."""
-    from fapilog._internal.processors import SamplingProcessor
+    from fapilog.processors.sampling import SamplingProcessor
 
     processor_obj = SamplingProcessor(rate=1.0)
 
@@ -173,7 +174,7 @@ def test_sampling_processor_full_rate():
 
 def test_filter_none_processor():
     """Test filter none processor."""
-    from fapilog._internal.processors import FilterNoneProcessor
+    from fapilog.processors.filtering import FilterNoneProcessor
 
     processor_obj = FilterNoneProcessor()
 

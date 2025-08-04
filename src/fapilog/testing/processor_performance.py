@@ -3,8 +3,8 @@
 import time
 from typing import Any, Dict
 
-from .._internal.processor import Processor
-from .._internal.processor_error_handling import simple_processor_execution
+from ..processors.base import Processor
+from ..processors.error_handling import simple_processor_execution
 
 
 def measure_processor_throughput(

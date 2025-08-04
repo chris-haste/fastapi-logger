@@ -9,9 +9,9 @@ from unittest.mock import patch
 
 import pytest
 
-from fapilog._internal.configuration_manager import ConfigurationManager
+from fapilog.config import LoggingSettings
+from fapilog.core.managers.configuration_manager import ConfigurationManager
 from fapilog.exceptions import ConfigurationError
-from fapilog.settings import LoggingSettings
 
 
 class TestConfigurationManager:
@@ -25,22 +25,26 @@ class TestConfigurationManager:
 
     def test_validate_settings_with_existing_instance(self):
         """Test validate_settings with existing LoggingSettings instance."""
-        original = LoggingSettings(level="DEBUG", json_console="json")
+        from fapilog.config.sink_settings import SinkSettings
+
+        original = LoggingSettings(
+            level="DEBUG", sinks=SinkSettings(json_console="json")
+        )
         result = ConfigurationManager.validate_settings(original)
 
         # Should return the same instance (fast path)
         assert result is original
         assert result.level == "DEBUG"
-        assert result.json_console == "json"
+        assert result.sinks.json_console == "json"
 
     def test_validate_settings_with_dict(self):
         """Test validate_settings with dictionary input."""
-        settings_dict = {"level": "WARNING", "json_console": "pretty"}
+        settings_dict = {"level": "WARNING", "sinks": {"json_console": "pretty"}}
         result = ConfigurationManager.validate_settings(settings_dict)
 
         assert isinstance(result, LoggingSettings)
         assert result.level == "WARNING"
-        assert result.json_console == "pretty"
+        assert result.sinks.json_console == "pretty"
 
     def test_validate_settings_with_invalid_data(self):
         """Test validate_settings with invalid input."""

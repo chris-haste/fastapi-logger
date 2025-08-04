@@ -6,15 +6,15 @@ from unittest.mock import Mock
 import pytest
 import structlog
 
-from fapilog._internal.configuration_manager import ConfigurationManager
 from fapilog.bootstrap import (
     configure_logging,
     configure_with_container,
     create_logger,
 )
+from fapilog.config import LoggingSettings
 from fapilog.container import LoggingContainer
+from fapilog.core.managers.configuration_manager import ConfigurationManager
 from fapilog.exceptions import ConfigurationError
-from fapilog.settings import LoggingSettings
 
 
 class TestStatelessBootstrap:
@@ -83,7 +83,11 @@ class TestStatelessBootstrap:
 
     def test_configure_logging_with_settings(self) -> None:
         """Test configure_logging with custom settings."""
-        settings = LoggingSettings(level="DEBUG", json_console="json")
+        from fapilog.config.sink_settings import SinkSettings
+
+        settings = LoggingSettings(
+            level="DEBUG", sinks=SinkSettings(json_console="json")
+        )
 
         logger = configure_logging(settings=settings)
         assert callable(logger.info)
@@ -91,7 +95,11 @@ class TestStatelessBootstrap:
 
     def test_create_logger_with_settings(self) -> None:
         """Test create_logger with custom settings."""
-        settings = LoggingSettings(level="WARNING", json_console="pretty")
+        from fapilog.config.sink_settings import SinkSettings
+
+        settings = LoggingSettings(
+            level="WARNING", sinks=SinkSettings(json_console="pretty")
+        )
 
         logger, container = create_logger(settings=settings)
         assert callable(logger.warning)
@@ -165,7 +173,10 @@ class TestStatelessBootstrap:
         assert callable(logger.info)
 
     def test_determine_console_format_utility(self) -> None:
-        """Test ConfigurationManager.determine_console_format utility function."""
+        """Test ConfigurationManager.determine_console_format utility function.
+
+        This utility function validates console format values.
+        """
         # Test valid formats
         assert ConfigurationManager.determine_console_format("pretty") == "pretty"
         assert ConfigurationManager.determine_console_format("json") == "json"

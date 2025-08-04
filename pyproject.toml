@@ -344,6 +344,7 @@ ignore_names = [
     "validate_overflow",
     "validate_processor_reset_interval",
     "validate_mode",
+    "validate_sinks",
     "parse_required_fields",
     # Processor metrics fields (settings fields that may be used in future)
     "processor_enabled",

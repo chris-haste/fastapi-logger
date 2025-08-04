@@ -4,10 +4,10 @@ from unittest.mock import patch
 
 import pytest
 
-from fapilog._internal.configuration_manager import ConfigurationManager
+from fapilog.config import LoggingSettings
 from fapilog.container import LoggingContainer
+from fapilog.core.managers.configuration_manager import ConfigurationManager
 from fapilog.exceptions import ConfigurationError, SinkConfigurationError
-from fapilog.settings import LoggingSettings
 
 
 class TestContainerEasyWins:
@@ -30,7 +30,7 @@ class TestContainerEasyWins:
 
         # Mock create_loki_sink_from_uri in SinkManager to raise ImportError
         with patch(
-            "fapilog._internal.sink_manager.create_loki_sink_from_uri",
+            "fapilog.core.managers.sink_manager.create_loki_sink_from_uri",
             side_effect=ImportError("Loki not available"),
         ):
             with pytest.raises(SinkConfigurationError) as exc_info:
@@ -58,7 +58,7 @@ class TestContainerEasyWins:
 
         # Mock QueueWorker in SinkManager to raise an exception during creation
         with patch(
-            "fapilog._internal.sink_manager.QueueWorker",
+            "fapilog.core.managers.sink_manager.QueueWorker",
             side_effect=Exception("Queue creation error"),
         ):
             with pytest.raises(ConfigurationError) as exc_info:
@@ -70,7 +70,7 @@ class TestContainerEasyWins:
         """Test exception handling in settings validation via ConfigurationManager."""
         # Mock LoggingSettings.model_validate to raise an exception during validation
         with patch(
-            "fapilog._internal.configuration_manager.LoggingSettings.model_validate",
+            "fapilog.core.managers.configuration_manager.LoggingSettings.model_validate",
             side_effect=ValueError("Settings validation failed"),
         ):
             with pytest.raises(ConfigurationError):
@@ -80,13 +80,13 @@ class TestContainerEasyWins:
 
     def test_log_level_attribute_error_handling(self):
         """Test AttributeError handling in logging setup via LifecycleManager."""
-        from fapilog._internal.lifecycle_manager import LifecycleManager
+        from fapilog.core.managers.lifecycle_manager import LifecycleManager
 
         manager = LifecycleManager("test")
 
         # Mock logging to raise AttributeError
         with patch(
-            "fapilog._internal.lifecycle_manager.logging.getLogger"
+            "fapilog.core.managers.lifecycle_manager.logging.getLogger"
         ) as mock_get_logger:
             mock_logger = mock_get_logger.return_value
             mock_logger.setLevel.side_effect = AttributeError("Invalid level")

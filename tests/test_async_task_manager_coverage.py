@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from fapilog._internal.async_task_manager import AsyncTaskManager
+from fapilog.async_components.concurrency.task_manager import AsyncTaskManager
 
 
 @pytest.mark.asyncio

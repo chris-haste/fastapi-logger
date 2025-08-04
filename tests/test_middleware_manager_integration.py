@@ -9,8 +9,8 @@ from unittest.mock import Mock, patch
 import pytest
 from fastapi import FastAPI
 
-from fapilog._internal.middleware_manager import MiddlewareManager
-from fapilog.settings import LoggingSettings
+from fapilog.config import LoggingSettings
+from fapilog.core.managers.middleware_manager import MiddlewareManager
 
 
 class TestMiddlewareManagerFastAPIIntegration:
@@ -23,7 +23,7 @@ class TestMiddlewareManagerFastAPIIntegration:
         settings = LoggingSettings(trace_id_header="X-Integration-Test")
 
         # Register middleware
-        with patch("fapilog._internal.middleware_manager.sys") as mock_sys:
+        with patch("fapilog.core.managers.middleware_manager.sys") as mock_sys:
             # Mock test environment to avoid shutdown handler registration
             mock_sys.modules = {"pytest": Mock()}
             mock_sys.argv = []
@@ -41,7 +41,7 @@ class TestMiddlewareManagerFastAPIIntegration:
         settings = LoggingSettings(enable_httpx_trace_propagation=True)
 
         with patch(
-            "fapilog._internal.middleware_manager.HttpxTracePropagation"
+            "fapilog.core.managers.middleware_manager.HttpxTracePropagation"
         ) as mock_propagation_class:
             mock_propagation = Mock()
             mock_propagation_class.return_value = mock_propagation
@@ -68,7 +68,7 @@ class TestMiddlewareManagerFastAPIIntegration:
         )
 
         with patch(
-            "fapilog._internal.middleware_manager.HttpxTracePropagation"
+            "fapilog.core.managers.middleware_manager.HttpxTracePropagation"
         ) as mock_propagation_class:
             mock_propagation = Mock()
             mock_propagation_class.return_value = mock_propagation
@@ -76,7 +76,7 @@ class TestMiddlewareManagerFastAPIIntegration:
             # Create container and configure with FastAPI app
             container = LoggingContainer(settings)
 
-            with patch("fapilog._internal.middleware_manager.sys") as mock_sys:
+            with patch("fapilog.core.managers.middleware_manager.sys") as mock_sys:
                 # Mock test environment
                 mock_sys.modules = {"pytest": Mock()}
                 mock_sys.argv = []
@@ -105,7 +105,7 @@ class TestMiddlewareManagerFastAPIIntegration:
         settings1 = LoggingSettings(trace_id_header="X-App1-Trace")
         settings2 = LoggingSettings(trace_id_header="X-App2-Trace")
 
-        with patch("fapilog._internal.middleware_manager.sys") as mock_sys:
+        with patch("fapilog.core.managers.middleware_manager.sys") as mock_sys:
             # Mock test environment
             mock_sys.modules = {"pytest": Mock()}
             mock_sys.argv = []
@@ -148,9 +148,9 @@ class TestMiddlewareManagerFastAPIIntegration:
         settings = LoggingSettings()
         shutdown_callback = Mock()
 
-        with patch("fapilog._internal.middleware_manager.sys") as mock_sys, patch.dict(
-            "os.environ", {}, clear=True
-        ):
+        with patch(
+            "fapilog.core.managers.middleware_manager.sys"
+        ) as mock_sys, patch.dict("os.environ", {}, clear=True):
             # Mock production environment (no pytest)
             mock_sys.modules = {}
             mock_sys.argv = []
@@ -176,9 +176,9 @@ class TestMiddlewareManagerFastAPIIntegration:
                 app = FastAPI()
 
                 with patch(
-                    "fapilog._internal.middleware_manager.HttpxTracePropagation"
+                    "fapilog.core.managers.middleware_manager.HttpxTracePropagation"
                 ) as mock_propagation_class, patch(
-                    "fapilog._internal.middleware_manager.sys"
+                    "fapilog.core.managers.middleware_manager.sys"
                 ) as mock_sys:
                     mock_sys.modules = {"pytest": Mock()}
                     mock_sys.argv = []
@@ -228,14 +228,14 @@ class TestMiddlewareManagerContainerIntegration:
         )
 
         with patch(
-            "fapilog._internal.middleware_manager.HttpxTracePropagation"
+            "fapilog.core.managers.middleware_manager.HttpxTracePropagation"
         ) as mock_propagation_class:
             mock_propagation = Mock()
             mock_propagation_class.return_value = mock_propagation
 
             container = LoggingContainer(settings)
 
-            with patch("fapilog._internal.middleware_manager.sys") as mock_sys:
+            with patch("fapilog.core.managers.middleware_manager.sys") as mock_sys:
                 # Mock test environment
                 mock_sys.modules = {"pytest": Mock()}
                 mock_sys.argv = []
@@ -265,7 +265,7 @@ class TestMiddlewareManagerContainerIntegration:
         # Initial configuration
         settings1 = LoggingSettings(trace_id_header="X-Config1")
 
-        with patch("fapilog._internal.middleware_manager.sys") as mock_sys:
+        with patch("fapilog.core.managers.middleware_manager.sys") as mock_sys:
             mock_sys.modules = {"pytest": Mock()}
             mock_sys.argv = []
 

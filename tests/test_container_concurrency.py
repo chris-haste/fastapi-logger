@@ -12,8 +12,9 @@ from typing import List, Tuple
 
 import structlog
 
+from fapilog.config import LoggingSettings
+from fapilog.config.sink_settings import SinkSettings
 from fapilog.container import LoggingContainer
-from fapilog.settings import LoggingSettings
 
 
 class TestContainerConcurrency:
@@ -50,7 +51,7 @@ class TestContainerConcurrency:
         for i in range(5):
             settings = LoggingSettings(
                 level=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"][i],
-                json_console="json" if i % 2 == 0 else "pretty",
+                sinks=SinkSettings(json_console="json" if i % 2 == 0 else "pretty"),
             )
             container = LoggingContainer(settings)
             container.configure()
@@ -92,7 +93,10 @@ class TestContainerConcurrency:
         def configure_container(container_id: int) -> Tuple[LoggingContainer, object]:
             """Create and configure a container."""
             settings = LoggingSettings(
-                level="INFO", json_console="json" if container_id % 2 == 0 else "pretty"
+                level="INFO",
+                sinks=SinkSettings(
+                    json_console="json" if container_id % 2 == 0 else "pretty"
+                ),
             )
             container = LoggingContainer(settings)
             logger = container.configure()

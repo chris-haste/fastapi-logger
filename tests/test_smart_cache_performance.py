@@ -20,8 +20,8 @@ import pytest
 from fapilog.enrichers import AsyncSmartCache
 
 
-class PerformanceMetrics:
-    """Helper class for collecting and analyzing performance metrics."""
+class CachePerformanceMetrics:
+    """Helper class for collecting and analyzing cache performance metrics."""
 
     def __init__(self):
         self.start_time: float = 0
@@ -70,7 +70,7 @@ class TestSmartCachePerformance:
     @pytest.mark.asyncio
     async def test_high_concurrency_1000_operations(self):
         """Test high-concurrency with 1000+ concurrent operations."""
-        metrics = PerformanceMetrics()
+        metrics = CachePerformanceMetrics()
         metrics.operation_count = 1000
 
         def compute_function(value: int) -> str:
@@ -111,7 +111,7 @@ class TestSmartCachePerformance:
     @pytest.mark.asyncio
     async def test_extreme_concurrency_5000_operations(self):
         """Test extreme concurrency with 5000+ concurrent operations."""
-        metrics = PerformanceMetrics()
+        metrics = CachePerformanceMetrics()
         metrics.operation_count = 5000
 
         # Use varied computation patterns
@@ -328,7 +328,7 @@ class TestSmartCachePerformance:
         operation_counts = [1000, 2000, 5000]
 
         for op_count in operation_counts:
-            metrics = PerformanceMetrics()
+            metrics = CachePerformanceMetrics()
             metrics.operation_count = op_count
 
             def scale_compute(value: int) -> Dict[str, Any]:

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Dict, Literal, Optional
 import structlog
 
 from .._internal.error_handling import StandardSinkErrorHandling
-from .._internal.utils import safe_json_serialize
+from ..utils.helpers import safe_json_serialize
 from .base import Sink
 
 if TYPE_CHECKING:

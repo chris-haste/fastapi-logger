@@ -15,7 +15,7 @@ from typing import List
 import psutil
 import pytest
 
-from fapilog._internal.throttle_processor import ThrottleProcessor
+from fapilog.processors.throttling import ThrottleProcessor
 
 
 # Simple quantile function for compatibility
@@ -340,7 +340,7 @@ class TestLRUCachePerformance:
 
     async def test_cache_operation_performance(self):
         """Test LRU cache O(1) operation performance."""
-        from fapilog._internal.lru_cache import LRUCache
+        from fapilog.async_components.cache.lru_cache import LRUCache
 
         cache = LRUCache(maxsize=1000)
 
@@ -368,7 +368,7 @@ class TestLRUCachePerformance:
 
     async def test_cache_eviction_performance(self):
         """Test LRU eviction performance."""
-        from fapilog._internal.lru_cache import LRUCache
+        from fapilog.async_components.cache.lru_cache import LRUCache
 
         cache = LRUCache(maxsize=100)
 

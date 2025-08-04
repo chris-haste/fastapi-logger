@@ -5,20 +5,20 @@ from unittest.mock import patch
 
 import pytest
 
-from fapilog._internal.processor import Processor
-from fapilog._internal.processor_error_handling import (
+from fapilog.exceptions import (
+    ProcessorConfigurationError,
+    ProcessorError,
+    ProcessorExecutionError,
+    ProcessorRegistrationError,
+)
+from fapilog.processors.base import Processor
+from fapilog.processors.error_handling import (
     create_simple_processor_wrapper,
     handle_processor_error,
     log_processor_error_with_context,
     safe_processor_lifecycle_operation,
     simple_processor_execution,
     validate_processor_configuration,
-)
-from fapilog.exceptions import (
-    ProcessorConfigurationError,
-    ProcessorError,
-    ProcessorExecutionError,
-    ProcessorRegistrationError,
 )
 
 
@@ -199,7 +199,7 @@ class TestSimpleProcessorExecution:
         processor = ProcessorForTesting(should_fail=True)
         event_dict = {"level": "INFO", "message": "test"}
 
-        with patch("fapilog._internal.processor_error_handling.logger") as mock_logger:
+        with patch("fapilog.processors.error_handling.logger") as mock_logger:
             result = simple_processor_execution(processor, None, "info", event_dict)
 
         # Should return original event on failure
@@ -232,7 +232,7 @@ class TestCreateSimpleProcessorWrapper:
 
         event_dict = {"level": "INFO", "message": "test"}
 
-        with patch("fapilog._internal.processor_error_handling.logger") as mock_logger:
+        with patch("fapilog.processors.error_handling.logger") as mock_logger:
             result = wrapper(None, "info", event_dict)
 
         # Should return original event
@@ -297,7 +297,7 @@ class TestSafeProcessorLifecycleOperation:
         """Test start operation failure."""
         processor = ProcessorForTesting(should_fail=True)
 
-        with patch("fapilog._internal.processor_error_handling.logger") as mock_logger:
+        with patch("fapilog.processors.error_handling.logger") as mock_logger:
             result = await safe_processor_lifecycle_operation(processor, "start")
 
         assert result is False
@@ -322,7 +322,7 @@ class TestLogProcessorErrorWithContext:
         context = {"processor": "TestProcessor", "event_keys": ["level", "message"]}
 
         with patch(
-            "fapilog._internal.processor_error_handling.log_error_with_context"
+            "fapilog.processors.error_handling.log_error_with_context"
         ) as mock_log:
             log_processor_error_with_context(error, context)
 
@@ -336,7 +336,7 @@ class TestLogProcessorErrorWithContext:
         context = {"processor": "TestProcessor"}
 
         with patch(
-            "fapilog._internal.processor_error_handling.log_error_with_context"
+            "fapilog.processors.error_handling.log_error_with_context"
         ) as mock_log:
             log_processor_error_with_context(error, context, logging.ERROR)
 
@@ -359,7 +359,7 @@ class TestIntegration:
         assert result1["processed_by"] == "TestProcessor"  # type: ignore[index]
 
         # Second processor should fail but return original
-        with patch("fapilog._internal.processor_error_handling.logger"):
+        with patch("fapilog.processors.error_handling.logger"):
             result2 = simple_processor_execution(processor2, None, "info", result1)
         assert result2 == result1  # Should return original
 

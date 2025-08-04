@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from fapilog._internal.batch_manager import BatchManager
+from fapilog.async_components.queue.batch_manager import BatchManager
 
 
 class TestBatchManager:

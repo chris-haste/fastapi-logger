@@ -11,7 +11,7 @@ from fapilog._internal.metrics import (
     PerformanceMetrics,
     QueueMetrics,
 )
-from fapilog._internal.queue_worker import QueueWorker
+from fapilog.async_components.queue.worker import QueueWorker
 from fapilog.monitoring import (
     PrometheusExporter,
     get_metrics_dict,
@@ -351,7 +351,7 @@ class TestPrometheusExporter:
         assert exporter.enabled
 
         # Test with FastAPI not available
-        with patch("fapilog.monitoring.FastAPI", None):
+        with patch("fapilog.monitoring.prometheus.FastAPI", None):
             exporter = PrometheusExporter(enabled=True)
             assert not exporter.enabled
 

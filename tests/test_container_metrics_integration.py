@@ -5,10 +5,10 @@ import structlog
 
 import fapilog
 from fapilog import configure_logging
+from fapilog.config import LoggingSettings
 
 # Note: Global metrics functions removed in Issue 164
 from fapilog.container import LoggingContainer
-from fapilog.settings import LoggingSettings
 
 
 class TestContainerMetricsIntegration:

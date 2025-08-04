@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from fapilog._internal.sink_factory import (
+from fapilog.core.factories.sink_factory import (
     SinkConfigurationError,
     create_custom_sink_from_uri,
 )
@@ -21,7 +21,7 @@ class TestSinkFactoryFinalBoost:
         """
         # Mock urlparse to raise an exception
         with patch(
-            "fapilog._internal.sink_factory.urllib.parse.urlparse"
+            "fapilog.core.factories.sink_factory.urllib.parse.urlparse"
         ) as mock_urlparse:
             mock_urlparse.side_effect = ValueError("Parsing failed")
 

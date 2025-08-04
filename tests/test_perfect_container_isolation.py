@@ -12,8 +12,8 @@ from typing import Tuple
 
 import pytest
 
+from fapilog.config import LoggingSettings
 from fapilog.container import LoggingContainer
-from fapilog.settings import LoggingSettings
 
 
 class TestPerfectContainerIsolation:
@@ -22,11 +22,17 @@ class TestPerfectContainerIsolation:
     def test_multiple_containers_different_configurations(self):
         """Test containers with different settings don't interfere."""
         # Container 1: DEBUG level, JSON format
-        settings1 = LoggingSettings(level="DEBUG", json_console="json")
+        from fapilog.config.sink_settings import SinkSettings
+
+        settings1 = LoggingSettings(
+            level="DEBUG", sinks=SinkSettings(json_console="json")
+        )
         container1 = LoggingContainer(settings1)
 
         # Container 2: ERROR level, pretty format
-        settings2 = LoggingSettings(level="ERROR", json_console="pretty")
+        settings2 = LoggingSettings(
+            level="ERROR", sinks=SinkSettings(json_console="pretty")
+        )
         container2 = LoggingContainer(settings2)
 
         # Configure both
@@ -54,8 +60,13 @@ class TestPerfectContainerIsolation:
 
         def create_container(container_id: int) -> Tuple[LoggingContainer, object]:
             """Create a container with unique settings."""
+            from fapilog.config.sink_settings import SinkSettings
+
             settings = LoggingSettings(
-                level="INFO", json_console="json" if container_id % 2 == 0 else "pretty"
+                level="INFO",
+                sinks=SinkSettings(
+                    json_console="json" if container_id % 2 == 0 else "pretty"
+                ),
             )
             container = LoggingContainer(settings)
             logger = container.configure()
@@ -94,9 +105,11 @@ class TestPerfectContainerIsolation:
         # Create multiple containers
         containers = []
         for i in range(5):
+            from fapilog.config.sink_settings import SinkSettings
+
             settings = LoggingSettings(
                 level=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"][i],
-                json_console="json" if i % 2 == 0 else "pretty",
+                sinks=SinkSettings(json_console="json" if i % 2 == 0 else "pretty"),
             )
             container = LoggingContainer(settings)
             container.configure()
@@ -131,7 +144,11 @@ class TestPerfectContainerIsolation:
     def test_zero_shared_state_validation(self):
         """Test that containers share absolutely no state."""
         # Create containers with identical settings to test even more isolation
-        settings = LoggingSettings(level="INFO", json_console="json")
+        from fapilog.config.sink_settings import SinkSettings
+
+        settings = LoggingSettings(
+            level="INFO", sinks=SinkSettings(json_console="json")
+        )
 
         container1 = LoggingContainer(settings)
         container2 = LoggingContainer(settings)
@@ -169,12 +186,14 @@ class TestPerfectContainerIsolation:
     def test_container_settings_isolation(self):
         """Test that container settings don't interfere with each other."""
         # Create containers with different sink configurations
+        from fapilog.config.sink_settings import SinkSettings
+
         settings1 = LoggingSettings(
-            level="DEBUG", json_console="json", sinks=["stdout"]
+            level="DEBUG", sinks=SinkSettings(sinks=["stdout"], json_console="json")
         )
         settings1.queue.enabled = False
         settings2 = LoggingSettings(
-            level="WARNING", json_console="pretty", sinks=["stdout"]
+            level="WARNING", sinks=SinkSettings(sinks=["stdout"], json_console="pretty")
         )
         settings2.queue.enabled = True
 
@@ -187,7 +206,10 @@ class TestPerfectContainerIsolation:
 
         # Verify settings isolation
         assert container1._settings.level != container2._settings.level
-        assert container1._settings.json_console != container2._settings.json_console
+        assert (
+            container1._settings.sinks.json_console
+            != container2._settings.sinks.json_console
+        )
         assert container1._settings.queue.enabled != container2._settings.queue.enabled
 
         # Verify that changing settings on one doesn't affect the other
@@ -268,7 +290,11 @@ class TestPerfectContainerIsolation:
             """Worker function that creates and uses a container."""
             try:
                 # Each thread creates its own container
-                settings = LoggingSettings(level="INFO", json_console="json")
+                from fapilog.config.sink_settings import SinkSettings
+
+                settings = LoggingSettings(
+                    level="INFO", sinks=SinkSettings(json_console="json")
+                )
                 container = LoggingContainer(settings)
                 logger = container.configure()
 
@@ -335,7 +361,11 @@ class TestPerfectContainerIsolation:
 
         # Create and configure multiple containers
         for _i in range(10):
-            settings = LoggingSettings(level="INFO", json_console="json")
+            from fapilog.config.sink_settings import SinkSettings
+
+            settings = LoggingSettings(
+                level="INFO", sinks=SinkSettings(json_console="json")
+            )
             container = LoggingContainer(settings)
             container.configure()
             containers.append(container)

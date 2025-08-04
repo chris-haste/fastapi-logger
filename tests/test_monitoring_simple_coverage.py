@@ -78,7 +78,7 @@ class TestMonitoringUtilityFunctions:
     def test_create_prometheus_exporter(self):
         """Test create_prometheus_exporter function."""
         # Test with FastAPI disabled
-        with patch("fapilog.monitoring.FastAPI", None):
+        with patch("fapilog.monitoring.prometheus.FastAPI", None):
             exporter = create_prometheus_exporter(port=9999)
             assert exporter is not None
             assert not exporter.enabled
@@ -118,7 +118,7 @@ class TestMonitoringServerFunctions:
         async def test_async():
             # Mock create_prometheus_exporter to raise an exception
             with patch(
-                "fapilog.monitoring.create_prometheus_exporter",
+                "fapilog.monitoring.prometheus.create_prometheus_exporter",
                 side_effect=Exception("Server start error"),
             ):
                 result = await start_metrics_server(port=9999)

@@ -5,8 +5,8 @@ from unittest.mock import patch
 
 import pytest
 
-from fapilog._internal.loki_payload_formatter import LokiPayloadFormatter
 from fapilog.exceptions import SinkWriteError
+from fapilog.integrations.loki.formatter import LokiPayloadFormatter
 
 
 class TestLokiPayloadFormatter:
@@ -69,7 +69,7 @@ class TestLokiPayloadFormatter:
 
         # Mock safe_json_serialize to always raise an exception
         with patch(
-            "fapilog._internal.loki_payload_formatter.safe_json_serialize"
+            "fapilog.integrations.loki.formatter.safe_json_serialize"
         ) as mock_serialize:
             mock_serialize.side_effect = Exception("Serialization failed")
             events = [{"message": "test", "timestamp": 1234567890.123}]
@@ -86,7 +86,7 @@ class TestLokiPayloadFormatter:
 
         # Mock safe_json_serialize to raise an exception
         with patch(
-            "fapilog._internal.loki_payload_formatter.safe_json_serialize"
+            "fapilog.integrations.loki.formatter.safe_json_serialize"
         ) as mock_serialize:
             mock_serialize.side_effect = Exception("Serialization failed")
             events = [{"message": "test", "timestamp": 1234567890.123}]

@@ -14,13 +14,13 @@ import time
 from typing import Any, Dict, Optional
 
 from fapilog import configure_logging, log
-from fapilog._internal.processor import Processor
 from fapilog.monitoring import (
     get_processor_health_status,
     get_processor_performance_stats,
     get_processor_summary,
     reset_processor_metrics,
 )
+from fapilog.processors.base import Processor
 from fapilog.settings import LoggingSettings
 
 

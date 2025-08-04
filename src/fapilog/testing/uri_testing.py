@@ -7,7 +7,10 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-from .._internal.sink_factory import SinkConfigurationError, create_custom_sink_from_uri
+from ..core.factories.sink_factory import (
+    SinkConfigurationError,
+    create_custom_sink_from_uri,
+)
 
 
 def validate_uri_scheme(scheme: str) -> bool:

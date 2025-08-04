@@ -10,8 +10,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pytest
 
+from fapilog.config import LoggingSettings
 from fapilog.container import LoggingContainer
-from fapilog.settings import LoggingSettings
 
 
 class TestContainerPerformanceBenchmark:
