@@ -68,6 +68,18 @@ class TestEnvironmentParsers:
         result = EnvironmentParsers.parse_json_list('[1, "b", true]')
         assert result == ["1", "b", "True"]
 
+    def test_parse_json_list_non_list_json(self) -> None:
+        """Test parsing JSON that evaluates to non-list values."""
+        # Test case for line 64 - JSON string that parses to non-list
+        result = EnvironmentParsers.parse_json_list('"hello"')
+        assert result == ["hello"]
+
+        result = EnvironmentParsers.parse_json_list("42")
+        assert result == ["42"]
+
+        result = EnvironmentParsers.parse_json_list("true")
+        assert result == ["True"]
+
     def test_parse_json_list_invalid_json(self) -> None:
         """Test handling of invalid JSON."""
         with pytest.raises(ValueError, match="Invalid JSON format"):
@@ -137,6 +149,18 @@ class TestEnvironmentParsers:
 
         result = EnvironmentParsers.parse_json_dict("{}")
         assert result == {}
+
+    def test_parse_json_dict_non_dict_json(self) -> None:
+        """Test parsing JSON that evaluates to non-dict values."""
+        # Test case for line 125 - JSON string that parses to non-dict
+        result = EnvironmentParsers.parse_json_dict('"hello"')
+        assert result == {"value": "hello"}
+
+        result = EnvironmentParsers.parse_json_dict("42")
+        assert result == {"value": 42}
+
+        result = EnvironmentParsers.parse_json_dict("true")
+        assert result == {"value": True}
 
     def test_parse_json_dict_invalid_json(self) -> None:
         """Test handling of invalid JSON."""
@@ -247,6 +271,27 @@ class TestEnvironmentParsers:
 
         result = EnvironmentParsers.parse_numeric_string(42.0, int)
         assert result == 42
+
+    def test_parse_numeric_string_convertible_types(self) -> None:
+        """Test parsing non-standard types that can be converted to numeric."""
+        # Test case for line 215 - non-string, non-numeric values that can be converted
+        # This tests the else branch where target_type(value) succeeds
+
+        # Create a custom object that can be converted to int but isn't a string or int/float
+        class ConvertibleToInt:
+            def __int__(self):
+                return 42
+
+        class ConvertibleToFloat:
+            def __float__(self):
+                return 3.14
+
+        # These should trigger line 215
+        result = EnvironmentParsers.parse_numeric_string(ConvertibleToInt(), int)
+        assert result == 42
+
+        result = EnvironmentParsers.parse_numeric_string(ConvertibleToFloat(), float)
+        assert result == 3.14
 
     def test_parse_numeric_string_invalid_types(self) -> None:
         """Test handling of invalid input types for numeric parsing."""
