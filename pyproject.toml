@@ -203,6 +203,9 @@ strict_equality = false
 ignore_missing_imports = true
 disable_error_code = ["misc", "arg-type", "assignment", "var-annotated", "union-attr"]
 exclude = ["examples/"]
+namespace_packages = true
+explicit_package_bases = true
+mypy_path = "src"
 
 [[tool.mypy.overrides]]
 module = [
@@ -255,6 +258,11 @@ exclude = [
 ignore_names = [
     "unused_*",
     "test_*",
+    "parse_json_dict",
+    "parse_boolean_string", 
+    "parse_numeric_string",
+    "parse_key_value_pairs",
+    "parse_mixed_list",
     "Test*",
     "__*",
     "main",
