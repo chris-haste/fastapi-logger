@@ -36,7 +36,6 @@ class SinkSettings(BaseSettings):
     )
 
     model_config = SettingsConfigDict(
-        env_prefix="",  # No environment parsing - handled by parent LoggingSettings
         case_sensitive=False,
     )
 

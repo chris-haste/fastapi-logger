@@ -679,6 +679,10 @@ ignore_names = [
     # Configuration factory methods (false positives from Issue #221)
     "custom",
     "get_available_presets",
+    # Enhanced configuration factory methods (public API)
+    "_convert_flat_to_nested",
+    "health_check",
+    "get_environment_variables",
 ]
 ignore_decorators = [
     "pytest.fixture",
