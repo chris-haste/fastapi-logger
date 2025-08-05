@@ -175,16 +175,96 @@ select = [
     "B",  # flake8-bugbear
     "C4", # flake8-comprehensions
     "UP", # pyupgrade
+    "S",  # flake8-bandit
 ]
 ignore = [
     "E501",  # line too long, handled by black
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
+    "S101",  # use of assert detected
+    "S104",  # possible binding to all interfaces
+    "S108",  # probable insecure usage of temp file/directory
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
-"examples/*" = ["B904"]
+"examples/*" = ["B904"]  # Allow direct env access in examples only
+"scripts/*" = []  # Scripts should use configuration objects too
+
+[tool.ruff.lint.flake8-bandit]
+check-typed-exception = true
+
+# PROJECT POLICY: Direct os.getenv() usage is discouraged
+# Use fapilog.config.env_utils.EnvironmentConfig or Pydantic Settings instead
+# This ensures consistent validation, type checking, and error handling
+# Examples can ignore this policy for simplicity
+
+# Additional bandit ignores for test files and other legitimate cases
+[tool.ruff.lint.extend-per-file-ignores]
+"tests/*" = [
+    "S105",  # Hardcoded passwords in tests are expected
+    "S110",  # try-except-pass is acceptable in tests
+    "S311",  # Random generators in tests don't need cryptographic security
+]
+"examples/*" = [
+    "S105",  # Hardcoded passwords in examples for demo purposes
+    "S106",  # Hardcoded passwords as arguments in examples for demo purposes
+    "S110",  # try-except-pass is acceptable in examples
+    "S311",  # Random generators in examples don't need cryptographic security
+]
+"scripts/*" = [
+    "S105",  # Hardcoded "passwords" in scripts are placeholders for logging
+    "S603",  # subprocess calls in build/release scripts are controlled
+    "S607",  # partial executable paths in scripts are acceptable
+]
+"src/fapilog/__init__.py" = [
+    "S110",  # try-except-pass for version detection fallbacks
+    "S112",  # try-except-continue for version detection is acceptable
+]
+"src/fapilog/processors/deduplication.py" = [
+    "S324",  # MD5/SHA1 used for deduplication hashing, not cryptographic security
+]
+"src/fapilog/processors/sampling.py" = [
+    "S311",  # Random sampling for log events doesn't need cryptographic security
+]
+"src/fapilog/processors/throttling.py" = [
+    "S311",  # Random sampling for throttling doesn't need cryptographic security
+]
+"src/fapilog/async_components/queue/integration.py" = [
+    "S311",  # Random sampling for queue strategy doesn't need cryptographic security
+]
+"src/fapilog/async_components/queue/worker.py" = [
+    "S110",  # try-except-pass in cleanup/shutdown code to prevent cascading failures
+    "S311",  # Random sampling for queue worker doesn't need cryptographic security
+]
+"src/fapilog/testing/*" = [
+    "S110",  # try-except-pass in test utilities is acceptable
+    "S311",  # Random generators in testing utilities don't need cryptographic security
+]
+"src/fapilog/_internal/error_handling.py" = [
+    "S110",  # try-except-pass for optional dependency handling
+]
+"src/fapilog/enrichers/system.py" = [
+    "S110",  # try-except-pass for system resource access that may fail
+]
+"src/fapilog/core/managers/sink_manager.py" = [
+    "S110",  # try-except-pass in cleanup to prevent cascading failures
+]
+"src/fapilog/core/registries/component_registry.py" = [
+    "S110",  # try-except-pass in cleanup to prevent cascading failures
+]
+"src/fapilog/async_components/concurrency/background_cleanup_manager.py" = [
+    "S110",  # try-except-pass in cleanup/shutdown code
+]
+"src/fapilog/async_components/queue/batch_manager.py" = [
+    "S110",  # try-except-pass in cleanup/shutdown code
+]
+"src/fapilog/monitoring/prometheus.py" = [
+    "S110",  # try-except-pass in server shutdown
+]
+"src/fapilog/config/env_parsers.py" = [
+    "S110",  # try-except-pass for fallback parsing strategies
+]
 
 [tool.mypy]
 python_version = "3.9"
@@ -203,6 +283,9 @@ strict_equality = false
 ignore_missing_imports = true
 disable_error_code = ["misc", "arg-type", "assignment", "var-annotated", "union-attr"]
 exclude = ["examples/"]
+namespace_packages = true
+explicit_package_bases = true
+mypy_path = "src"
 
 [[tool.mypy.overrides]]
 module = [
@@ -255,6 +338,11 @@ exclude = [
 ignore_names = [
     "unused_*",
     "test_*",
+    "parse_json_dict",
+    "parse_boolean_string", 
+    "parse_numeric_string",
+    "parse_key_value_pairs",
+    "parse_mixed_list",
     "Test*",
     "__*",
     "main",
@@ -576,6 +664,25 @@ ignore_names = [
     "create_sinks_from_settings", 
     "start_sinks",
     "resources",  # **kwargs parameter in cleanup_resources
+    # New environment configuration utilities (false positives from Issue #219)
+    "get_string",
+    "get_int", 
+    "get_float",
+    "get_bool",
+    "validate_concurrency",
+    "validate_rate", 
+    "validate_duration",
+    "validate_queue_size",
+    "validate_batch_size",
+    "validate_batch_timeout",
+    "queue_size",  # Pydantic field name
+    # Configuration factory methods (false positives from Issue #221)
+    "custom",
+    "get_available_presets",
+    # Enhanced configuration factory methods (public API)
+    "_convert_flat_to_nested",
+    "health_check",
+    "get_environment_variables",
 ]
 ignore_decorators = [
     "pytest.fixture",

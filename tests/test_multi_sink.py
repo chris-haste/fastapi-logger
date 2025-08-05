@@ -55,7 +55,7 @@ class TestMultiSinkConfiguration:
     def test_multiple_sinks_from_environment(self) -> None:
         """Test that multiple sinks can be configured from environment."""
         env_vars = {
-            "FAPILOG_SINKS": "stdout,file:///var/log/test.log,loki://loki:3100",
+            "FAPILOG_SINKS__SINKS": "stdout,file:///var/log/test.log,loki://loki:3100",
         }
 
         with patch.dict("os.environ", env_vars):
@@ -74,7 +74,7 @@ class TestMultiSinkConfiguration:
     def test_sinks_with_whitespace(self) -> None:
         """Test that sinks with whitespace are handled correctly."""
         env_vars = {
-            "FAPILOG_SINKS": "stdout , file:///var/log/test.log , loki://loki:3100",
+            "FAPILOG_SINKS__SINKS": "stdout , file:///var/log/test.log , loki://loki:3100",
         }
 
         with patch.dict("os.environ", env_vars):
@@ -88,7 +88,7 @@ class TestMultiSinkConfiguration:
     def test_empty_sinks_are_filtered(self) -> None:
         """Test that empty sink entries are filtered out."""
         env_vars = {
-            "FAPILOG_SINKS": "stdout,,file:///var/log/test.log,,loki://loki:3100",
+            "FAPILOG_SINKS__SINKS": "stdout,,file:///var/log/test.log,,loki://loki:3100",
         }
 
         with patch.dict("os.environ", env_vars):

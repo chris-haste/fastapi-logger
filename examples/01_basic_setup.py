@@ -7,16 +7,23 @@ It shows how to configure logging and use the logger for basic operations.
 """
 
 from fapilog import configure_logging, log
+from fapilog.config.factory import ConfigurationFactory
 
 
 def main():
     """Demonstrate basic fapilog setup and usage."""
     print("=== Basic Setup Example ===\n")
 
-    # Step 1: Configure logging with default settings
-    print("1. Configuring logging with default settings...")
-    configure_logging()
-    print("✅ Logging configured successfully!\n")
+    # Step 1: Configure logging using the factory for development
+    print("1. Configuring logging using ConfigurationFactory for development...")
+    config = ConfigurationFactory.development()
+    configure_logging(config)
+    print("✅ Logging configured with development preset!\n")
+
+    # Alternative: you can still use default settings
+    print("   Alternative - using default settings:")
+    print("   configure_logging()  # Uses default configuration")
+    print("   But factory presets are recommended for consistency!\n")
 
     # Step 2: Basic logging operations
     print("2. Basic logging operations:")
@@ -50,12 +57,19 @@ def main():
     )
 
     print("\n3. Key features demonstrated:")
+    print("✅ ConfigurationFactory for consistent presets")
+    print("✅ Development preset (DEBUG level, pretty output)")
     print("✅ Structured JSON logging")
     print("✅ Multiple field support")
     print("✅ Log levels (INFO, WARNING, ERROR)")
     print("✅ Automatic timestamp and log level")
     print("✅ Hostname and process ID enrichment")
     print("✅ Trace ID generation (when used with FastAPI)")
+
+    print("\n4. Available factory presets:")
+    presets = ConfigurationFactory.get_available_presets()
+    for name, description in presets.items():
+        print(f"   • {name}: {description}")
 
 
 if __name__ == "__main__":
